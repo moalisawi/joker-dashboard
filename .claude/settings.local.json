@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node_modules/.bin/eslint --version)",
+      "Bash(firebase apps:list --project joker-prod)",
+      "Bash(firebase apps:create WEB \"joker-dashboard\" --project joker-prod)",
+      "Bash(firebase deploy *)",
+      "Bash(firebase functions:artifacts:setpolicy --project joker-prod)",
+      "Bash(gcloud --version)",
+      "Bash(firebase login:list *)",
+      "Read(//c/Users/zorom/AppData/Local/firebase-tools\" 2>/dev/**)",
+      "Read(//c/Users/zorom/AppData/Roaming/firebase-tools\" 2>/dev/**)",
+      "Read(//c/Users/zorom/.config/**)",
+      "Read(//c/Users/zorom/AppData/Local/**)",
+      "Bash(node auto-migrate.js)"
+    ]
+  }
+}

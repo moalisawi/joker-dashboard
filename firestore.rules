@@ -1,129 +1,102 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── Shared helpers ────────────────────────────────────────────────────────
+    // ─── helpers ──────────────────────────────────────────────────────────
 
     function isAuth() {
       return request.auth != null;
     }
 
-    function caller() {
+    function userDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    // Bug fix: status === 'active' with legacy active:boolean fallback
     function isActive() {
-      let c = caller();
-      return (c.status == 'active') || (c.status == null && c.active == true);
+      let u = userDoc();
+      return u.get('status', null) == 'active'
+          || (u.get('status', null) == null && u.get('active', false) == true);
     }
 
-    function isOwner()        { return isAuth() && caller().role == 'owner'; }
-    function isAdmin()        { return isAuth() && caller().role == 'admin'; }
-    function isOwnerOrAdmin() { return isOwner() || isAdmin(); }
+    function role() {
+      return userDoc().role;
+    }
+
+    function isOwner()    { return isAuth() && role() == 'owner'    && isActive(); }
+    function isAdmin()    { return isAuth() && role() == 'admin'    && isActive(); }
+    function isEmployee() { return isAuth() && role() == 'employee' && isActive(); }
+    function isStaff()    { return isOwner() || isAdmin(); }
+    function isAnyActive(){ return isOwner() || isAdmin() || isEmployee(); }
 
     function hasPerm(category, action) {
-      let c = caller();
-      return c.get(['granularPermissions', category, action], false) == true;
+      let gp = userDoc().get('granularPermissions', null);
+      return gp != null
+          && gp.get(category, null) != null
+          && gp[category].get(action, false) == true;
     }
 
-    // ─── /users ────────────────────────────────────────────────────────────────
+    // ─── users ────────────────────────────────────────────────────────────
     match /users/{uid} {
-      allow read: if isAuth() && (request.auth.uid == uid || isOwnerOrAdmin()) && isActive();
-
-      // New user auto-provisioning on first login
-      allow create: if isAuth() && request.auth.uid == uid
-                    && request.resource.data.role == 'employee';
-
-      // Self-update: name/employeeName/lastLoginAt only
-      allow update: if isAuth() && request.auth.uid == uid && isActive()
-                    && !('role'                in request.resource.data.diff(resource.data).affectedKeys())
-                    && !('status'              in request.resource.data.diff(resource.data).affectedKeys())
-                    && !('active'              in request.resource.data.diff(resource.data).affectedKeys())
-                    && !('granularPermissions' in request.resource.data.diff(resource.data).affectedKeys());
-
-      // Owner: full write on any user
-      allow update: if isOwner() && isActive();
-
-      // Admin: can update employees only, no role elevation, no permission changes
-      allow update: if isAdmin() && isActive()
-                    && resource.data.role == 'employee'
-                    && request.resource.data.role != 'owner'
-                    && !('granularPermissions' in request.resource.data.diff(resource.data).affectedKeys());
-
-      allow delete: if isOwner() && isActive();
+      allow read:          if isAuth() && (request.auth.uid == uid || isStaff());
+      allow create:        if isStaff();
+      allow update:        if isOwner()
+                           || (isAdmin() && resource.data.role != 'owner');
+      allow delete:        if isOwner();
     }
 
-    // ─── /subscribers ──────────────────────────────────────────────────────────
+    // ─── subscribers ──────────────────────────────────────────────────────
     match /subscribers/{id} {
-      allow read:   if isAuth() && isActive();
-      allow create: if isAuth() && isActive() && (hasPerm('subscribers','create') || isOwnerOrAdmin());
-      allow update: if isAuth() && isActive() && (hasPerm('subscribers','edit')   || isOwnerOrAdmin());
-      allow delete: if isAuth() && isActive() && (hasPerm('subscribers','delete') || isOwner());
+      allow read:          if isAnyActive();
+      allow create:        if isStaff() || hasPerm('subscribers', 'create');
+      allow update:        if isStaff() || hasPerm('subscribers', 'edit');
+      allow delete:        if isOwner() || hasPerm('subscribers', 'delete');
     }
 
-    // ─── /payments ─────────────────────────────────────────────────────────────
+    // ─── payments ─────────────────────────────────────────────────────────
     match /payments/{id} {
-      allow read:   if isAuth() && isActive();
-      allow create: if isAuth() && isActive() && (hasPerm('payments','create') || isOwnerOrAdmin());
-      allow update: if false;
-      allow delete: if isOwner();
+      allow read:          if isAnyActive();
+      allow create:        if isStaff() || hasPerm('payments', 'create');
+      allow update:        if isStaff() || hasPerm('payments', 'edit');
+      allow delete:        if isOwner();
     }
 
-    // ─── /refunds ──────────────────────────────────────────────────────────────
+    // ─── refunds ──────────────────────────────────────────────────────────
     match /refunds/{id} {
-      allow read:   if isAuth() && isActive() && isOwnerOrAdmin();
-      allow create: if isAuth() && isActive() && (hasPerm('payments','refund') || isOwnerOrAdmin());
-      allow update: if false;
-      allow delete: if false;
+      allow read:          if isAnyActive();
+      allow create:        if isStaff() || hasPerm('payments', 'refund');
+      allow update:        if isOwner();
+      allow delete:        if isOwner();
     }
 
-    // ─── /auditLogs ────────────────────────────────────────────────────────────
+    // ─── auditLogs — immutable after creation ─────────────────────────────
     match /auditLogs/{id} {
-      // Owner + admin can read the full audit trail
-      allow read:   if isAuth() && isActive() && isOwnerOrAdmin();
-      // Any authenticated active user (including employees) can append logs
-      allow create: if isAuth() && isActive();
-      // Audit logs are immutable
-      allow update: if false;
-      allow delete: if false;
+      allow read:          if isStaff() || hasPerm('logs', 'view');
+      allow create:        if isAnyActive();
+      allow update, delete: if false;
     }
 
-    // ─── /notifications ────────────────────────────────────────────────────────
+    // ─── notifications ────────────────────────────────────────────────────
     match /notifications/{id} {
-      // Every authenticated active user can read notifications
-      // (role-based filtering is applied client-side via targetMinRole)
-      allow read: if isAuth() && isActive();
-
-      // Any authenticated active user can create notifications
-      // (the notification service creates them as part of audit actions)
-      allow create: if isAuth() && isActive();
-
-      // Two allowed update operations:
-      //   1. Mark as read — any user can add their own UID to readBy only
-      //   2. Archive — owner or admin can set archived: true only
-      allow update: if isAuth() && isActive() && (
-        (
-          // Mark as read: only the readBy field changes
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
-        ) || (
-          // Archive: only owner/admin, only the archived field changes
-          isOwnerOrAdmin() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archived'])
-        )
-      );
-
-      // Notifications are never hard-deleted, only archived
-      allow delete: if false;
+      allow read:          if isAnyActive();
+      allow create:        if isStaff();
+      allow update:        if isStaff();
+      allow delete:        if isOwner();
     }
 
-    // ─── /monthlyAnalytics ─────────────────────────────────────────────────────
-    match /monthlyAnalytics/{id} {
-      allow read:  if isAuth() && isActive() && isOwnerOrAdmin();
-      allow write: if isOwner();
+    // ─── monthlyAnalytics — Cloud Functions write only ────────────────────
+    match /monthlyAnalytics/{month} {
+      allow read:          if isStaff() || hasPerm('analytics', 'view');
+      allow write:         if false;
     }
 
-    // ─── Deny everything else ──────────────────────────────────────────────────
+    // ─── exchangeRates ────────────────────────────────────────────────────
+    match /exchangeRates/{id} {
+      allow read:          if isAnyActive();
+      allow write:         if isStaff();
+    }
+
+    // ─── deny everything else ─────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
     }

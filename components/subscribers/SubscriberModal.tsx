@@ -13,7 +13,8 @@ import { writeAuditLog } from "@/lib/auditLog";
 import {
   calculateExpiry, todayString, PHONE_COUNTRIES, RESIDENCE_COUNTRIES,
 } from "@/lib/utils";
-import { PAYMENT_METHODS, SOURCES, EMPLOYEES } from "@/lib/permissions";
+import PhoneInput from "@/components/ui/PhoneInput";
+import { PAYMENT_METHODS, SOURCES, EMPLOYEES, TEAMS } from "@/lib/permissions";
 import { X } from "lucide-react";
 
 interface Props {
@@ -37,6 +38,15 @@ export default function SubscriberModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // E.164 phone state — parsed to phoneCountry/dialCode/phone on save
+  const [phoneE164, setPhoneE164] = useState(() => {
+    if (mode === "edit" && subscriber?.phone) {
+      const dc = subscriber.dialCode || PHONE_COUNTRIES.find(c => c.iso === subscriber.phoneCountry)?.dialCode || "+970";
+      return `${dc}${subscriber.phone}`;
+    }
+    return "";
+  });
+
   // Form state
   const [form, setForm] = useState({
     date: todayString(),
@@ -55,7 +65,7 @@ export default function SubscriberModal({
     referrer: "",
     convincedBy: user?.role === "employee" ? (user.employeeName || user.name || "") : "",
     paidShift: "",
-    team: "حنان",
+    team: "",
     notes: "",
   });
 
@@ -90,7 +100,6 @@ export default function SubscriberModal({
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  const dialCode = PHONE_COUNTRIES.find((c) => c.iso === form.phoneCountry)?.dialCode || "+";
   const lockedRate = exchangeRates[form.currency] || 1;
   const totalPrice = parseFloat(form.totalPrice) || 0;
   const totalPriceUSD = totalPrice / lockedRate;
@@ -102,6 +111,17 @@ export default function SubscriberModal({
     setLoading(true);
 
     try {
+      // Parse E.164 phone → individual fields for backward compat
+      const sortedCountries = [...PHONE_COUNTRIES].sort((a, b) => b.dialCode.length - a.dialCode.length);
+      const matchedCountry = phoneE164
+        ? sortedCountries.find((c) => phoneE164.startsWith(c.dialCode))
+        : PHONE_COUNTRIES.find((c) => c.iso === "PS");
+      const resolvedDialCode = matchedCountry?.dialCode ?? "+970";
+      const resolvedPhoneCountry = matchedCountry?.iso ?? "PS";
+      const resolvedPhone = phoneE164.startsWith(resolvedDialCode)
+        ? phoneE164.slice(resolvedDialCode.length)
+        : phoneE164.replace(/^\+\d{1,4}/, "");
+
       const duration = Number(form.duration);
       const expiryDate = calculateExpiry(form.date, duration);
 
@@ -132,9 +152,10 @@ export default function SubscriberModal({
         date: form.date,
         name: form.name.trim(),
         residence: form.residence,
-        phoneCountry: form.phoneCountry,
-        dialCode,
-        phone: form.phone.trim(),
+        phoneCountry: resolvedPhoneCountry,
+        dialCode: resolvedDialCode,
+        phone: resolvedPhone,
+        phoneE164: phoneE164 || null,
         age: form.age ? Number(form.age) : null,
         package: form.package,
         duration,
@@ -290,21 +311,10 @@ export default function SubscriberModal({
 
           {/* Phone */}
           <Field label="رقم الهاتف">
-            <div className="flex gap-2">
-              <select value={form.phoneCountry}
-                onChange={(e) => setField("phoneCountry", e.target.value)}
-                className="form-input w-48">
-                {PHONE_COUNTRIES.map((c) => (
-                  <option key={c.iso} value={c.iso}>{c.name} ({c.dialCode})</option>
-                ))}
-              </select>
-              <div className="flex items-center gap-1 flex-1">
-                <span className="text-slate-500 text-sm font-mono">{dialCode}</span>
-                <input type="tel" value={form.phone} placeholder="501234567" dir="ltr"
-                  onChange={(e) => setField("phone", e.target.value)}
-                  className="form-input flex-1" />
-              </div>
-            </div>
+            <PhoneInput
+              value={phoneE164}
+              onChange={setPhoneE164}
+            />
           </Field>
 
           {/* Package */}
@@ -393,10 +403,11 @@ export default function SubscriberModal({
                 {EMPLOYEES.map((e) => <option key={e} value={e}>{e}</option>)}
               </select>
             </Field>
-            <Field label="الفريق (الشيفت)">
+            <Field label="الفريق">
               <select value={form.team} onChange={(e) => setField("team", e.target.value)}
                 className="form-input">
-                {EMPLOYEES.map((e) => <option key={e} value={e}>{e}</option>)}
+                <option value="">اختر الفريق...</option>
+                {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </Field>
           </div>

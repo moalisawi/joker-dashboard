@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "joker-prod",
+    "production": "joker-prod",
+    "old": "joker-52b38"
+  },
+  "targets": {},
+  "etags": {}
+}

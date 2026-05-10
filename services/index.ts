@@ -14,4 +14,4 @@ export { permissionService } from "./permission.service";
 export { auditService } from "./audit.service";
 export { notificationService } from "./notification.service";
 export { alertEngineService } from "./alert-engine.service";
-export { emailService }      from "./email.service";
+// emailService is server-only — import directly from "@/services/email.service" in API routes only

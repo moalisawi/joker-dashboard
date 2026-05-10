@@ -1,0 +1,242 @@
+{
+  "indexes": [
+
+    // ─── payments ─────────────────────────────────────────────────────────
+    // Subscriber payment history (modal, timeline)
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriberId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",    "order": "DESCENDING" }
+      ]
+    },
+    // Monthly financial report: filter by date range, sort by amount
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "date",      "order": "ASCENDING" },
+        { "fieldPath": "amountUSD", "order": "DESCENDING" }
+      ]
+    },
+    // Employee performance: filter by employee, sort by date
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy", "order": "ASCENDING" },
+        { "fieldPath": "date",      "order": "DESCENDING" }
+      ]
+    },
+    // Payment method breakdown
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "paymentMethod", "order": "ASCENDING" },
+        { "fieldPath": "date",          "order": "DESCENDING" }
+      ]
+    },
+    // Renewal analytics
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isRenewalPayment", "order": "ASCENDING" },
+        { "fieldPath": "date",             "order": "DESCENDING" }
+      ]
+    },
+    // Subscriber payments by renewal number (track instalment history)
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriberId",   "order": "ASCENDING" },
+        { "fieldPath": "renewalNumber",  "order": "ASCENDING" },
+        { "fieldPath": "createdAt",      "order": "DESCENDING" }
+      ]
+    },
+
+    // ─── refunds ──────────────────────────────────────────────────────────
+    // Subscriber refund history
+    {
+      "collectionGroup": "refunds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriberId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",    "order": "DESCENDING" }
+      ]
+    },
+    // Monthly refund totals
+    {
+      "collectionGroup": "refunds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "refundDate",      "order": "ASCENDING" },
+        { "fieldPath": "refundAmountUSD", "order": "DESCENDING" }
+      ]
+    },
+    // Per-employee refund report
+    {
+      "collectionGroup": "refunds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy",  "order": "ASCENDING" },
+        { "fieldPath": "refundDate", "order": "DESCENDING" }
+      ]
+    },
+
+    // ─── auditLogs ────────────────────────────────────────────────────────
+    // User activity feed
+    {
+      "collectionGroup": "auditLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actorUid",  "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    // Entity history (e.g. all logs for a subscriber)
+    {
+      "collectionGroup": "auditLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "targetType", "order": "ASCENDING" },
+        { "fieldPath": "targetId",   "order": "ASCENDING" },
+        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+      ]
+    },
+    // Filter by action type, sorted by time
+    {
+      "collectionGroup": "auditLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "action",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    // Role-based audit review
+    {
+      "collectionGroup": "auditLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actorRole", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    // Combined: action + actor (detailed audit investigation)
+    {
+      "collectionGroup": "auditLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actorUid",  "order": "ASCENDING" },
+        { "fieldPath": "action",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+
+    // ─── notifications ────────────────────────────────────────────────────
+    // Notification feed: unarchived first, newest first
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "archived",  "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    // Role-targeted notification feed
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "targetMinRole", "order": "ASCENDING" },
+        { "fieldPath": "archived",      "order": "ASCENDING" },
+        { "fieldPath": "createdAt",     "order": "DESCENDING" }
+      ]
+    },
+    // Notification type filter
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type",      "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+
+    // ─── subscribers ──────────────────────────────────────────────────────
+    // Status dashboard (filter by subscriptionState, sort by date)
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriptionState", "order": "ASCENDING" },
+        { "fieldPath": "date",              "order": "DESCENDING" }
+      ]
+    },
+    // Employee attribution report
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "convincedBy", "order": "ASCENDING" },
+        { "fieldPath": "date",        "order": "DESCENDING" }
+      ]
+    },
+    // Country / residence breakdown
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "residence", "order": "ASCENDING" },
+        { "fieldPath": "date",      "order": "DESCENDING" }
+      ]
+    },
+    // Package type analysis
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "package", "order": "ASCENDING" },
+        { "fieldPath": "date",    "order": "DESCENDING" }
+      ]
+    },
+    // Recently-updated subscribers (admin dashboard)
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",    "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    // Employee + state combined (who convinced how many active/withdrawn)
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "convincedBy",        "order": "ASCENDING" },
+        { "fieldPath": "subscriptionState",  "order": "ASCENDING" },
+        { "fieldPath": "date",               "order": "DESCENDING" }
+      ]
+    },
+    // Expiry-based sorting for renewal alerts
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriptionState", "order": "ASCENDING" },
+        { "fieldPath": "endDate",           "order": "ASCENDING" }
+      ]
+    }
+
+  ],
+
+  "fieldOverrides": [
+    // Disable the default single-field index on monthlyAnalytics.month
+    // because the document ID IS the month — no separate field index needed.
+    // Remove this override if you add a separate `month` field query.
+  ]
+}

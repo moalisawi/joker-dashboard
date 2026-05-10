@@ -160,6 +160,9 @@ export function canAssignRole(actorRole: Role, assignRole: Role): boolean {
 export const EMPLOYEES = ["حنان", "ميار", "ميدو"] as const;
 export type EmployeeName = (typeof EMPLOYEES)[number];
 
+export const TEAMS = ["فريق الشباب", "فريق البنات", "عبدالله طلبة"] as const;
+export type TeamName = (typeof TEAMS)[number];
+
 export const PAYMENT_METHODS = [
   "PayPal",
   "محفظة موبايل",

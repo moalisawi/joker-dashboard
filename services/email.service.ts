@@ -61,7 +61,7 @@ async function sendEmail(payload: SendEmailPayload): Promise<EmailResult> {
     };
 
     if (payload.replyTo) {
-      sendOptions.reply_to = payload.replyTo;
+      sendOptions.replyTo = payload.replyTo;
     }
     if (payload.tags) {
       sendOptions.tags = payload.tags;
