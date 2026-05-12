@@ -79,6 +79,12 @@ export const PERM = {
   // Settings
   MANAGE_SETTINGS:     "manage_settings",
 
+  // Analytics + Reports (Phase 4)
+  VIEW_ANALYTICS:           "view_analytics",
+  VIEW_FINANCIAL_REPORTS:   "view_financial_reports",
+  EXPORT_REPORTS:           "export_reports",
+  MANAGE_AUTOMATIONS:       "manage_automations",
+
   // Subscriber workflow (Phase 3) — ASSIGN_SUBSCRIBERS already defined above
   TRANSFER_SUBSCRIBERS:       "transfer_subscribers",
   CHANGE_SUBSCRIBER_STATUS:   "change_subscriber_status",

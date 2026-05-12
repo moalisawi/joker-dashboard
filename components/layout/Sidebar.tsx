@@ -10,7 +10,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { ROLE_LABELS } from "@/lib/permissions";
 import {
   Home, Users, ScrollText, LogOut, Menu, X,
-  ChevronLeft, BarChart3, Bell, Briefcase, Users2,
+  ChevronLeft, BarChart3, Bell, Briefcase, Users2, FileText,
 } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -21,6 +21,7 @@ interface NavItem {
   icon:       React.ReactNode;
   permission?: "canManageUsers" | "canViewLogs";
   badge?:     () => number;
+  roles?:     string[];
 }
 
 export default function Sidebar() {
@@ -35,6 +36,7 @@ export default function Sidebar() {
   const NAV: NavItem[] = [
     { href: "/",               label: "المشتركون",    icon: <Home       size={18} /> },
     { href: "/analytics",      label: "التحليلات",    icon: <BarChart3  size={18} /> },
+    { href: "/reports",        label: "التقارير",     icon: <FileText   size={18} />, roles: ["owner", "admin"] },
     { href: "/notifications",  label: "الإشعارات",    icon: <Bell       size={18} />, badge: () => unreadCount(uid) },
     { href: "/admin/employees", label: "الموظفون",     icon: <Briefcase  size={18} />, permission: "canManageUsers" },
     { href: "/admin/teams",    label: "الفرق",        icon: <Users2     size={18} />, permission: "canManageUsers" },
@@ -47,9 +49,11 @@ export default function Sidebar() {
     router.push("/login");
   }
 
-  const visibleItems = NAV.filter(
-    (item) => !item.permission || can(item.permission)
-  );
+  const visibleItems = NAV.filter((item) => {
+    if (item.permission && !can(item.permission)) return false;
+    if (item.roles && (!user || !item.roles.includes(user.role))) return false;
+    return true;
+  });
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);

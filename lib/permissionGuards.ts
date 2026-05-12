@@ -53,6 +53,12 @@ const PERM_MAP: Record<PermKey, (gp: GranularPermissions) => boolean> = {
   // Settings
   manage_settings:          (gp) => gp.settings.manage,
 
+  // Analytics + Reports (Phase 4)
+  view_analytics:          (gp) => gp.analytics.view,
+  view_financial_reports:  (gp) => gp.analytics.view,
+  export_reports:          (gp) => gp.analytics.export,
+  manage_automations:      (gp) => gp.settings.manage,
+
   // Subscriber workflow (Phase 3) — optional fields default to false
   // assign_subscribers is already defined above (updated mapping)
   transfer_subscribers:      (gp) => gp.subscribers.transfer     ?? false,
@@ -107,6 +113,12 @@ export const canViewRevenue      = (u: UserProfile | null) => hasPermission(u, "
 export const canExportAnalytics  = (u: UserProfile | null) => hasPermission(u, "export_analytics");
 export const canViewLogs         = (u: UserProfile | null) => hasPermission(u, "view_logs");
 export const canManageSettings   = (u: UserProfile | null) => hasPermission(u, "manage_settings");
+
+// Analytics + Reports (Phase 4)
+export const canViewAnalytics        = (u: UserProfile | null) => hasPermission(u, "view_analytics");
+export const canViewFinancialReports = (u: UserProfile | null) => hasPermission(u, "view_financial_reports");
+export const canExportReports        = (u: UserProfile | null) => hasPermission(u, "export_reports");
+export const canManageAutomations    = (u: UserProfile | null) => hasPermission(u, "manage_automations");
 
 // Subscriber workflow (Phase 3)
 export const canAssignSubscribers       = (u: UserProfile | null) => hasPermission(u, "assign_subscribers");

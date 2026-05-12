@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -18,7 +18,16 @@ import Link from "next/link";
 import {
   Users, DollarSign, TrendingUp, CreditCard,
   RefreshCw, ArrowUpRight, Activity, Zap,
+  Medal, Lightbulb, AlertTriangle, CheckCircle2, Info, XCircle,
+  Download,
 } from "lucide-react";
+import { useEmployeePerformance } from "@/hooks/useEmployeePerformance";
+import { useDashboardMetrics }    from "@/hooks/useDashboardMetrics";
+import { canExportReports }       from "@/lib/permissionGuards";
+import {
+  exportSubscribersCSV, exportPaymentsCSV, exportEmployeePerformanceCSV,
+} from "@/lib/analytics/reports";
+import type { Insight } from "@/lib/analytics/insights";
 
 // ── Theme tokens ──────────────────────────────────────────────────────────────
 const LIGHT = {
@@ -227,15 +236,45 @@ function LegendPill({ color, label: lbl, value, t }: { color: string; label: str
   );
 }
 
+// ── Insight card ─────────────────────────────────────────────────────────────
+function InsightCard({ insight, t }: { insight: Insight; t: typeof LIGHT }) {
+  const cfg: Record<string, { icon: React.ReactNode; bg: string; color: string }> = {
+    info:     { icon: <Info size={14}/>,          bg: "#38bdf818", color: "#38bdf8" },
+    warning:  { icon: <AlertTriangle size={14}/>, bg: "#f59e0b18", color: "#f59e0b" },
+    critical: { icon: <XCircle size={14}/>,       bg: "#f43f5e18", color: "#f43f5e" },
+    success:  { icon: <CheckCircle2 size={14}/>,  bg: "#10b98118", color: "#10b981" },
+  };
+  const c = cfg[insight.level] ?? cfg.info;
+  return (
+    <div className="flex items-start gap-3 rounded-xl p-4"
+      style={{ background: c.bg, border: `1px solid ${c.color}25` }}>
+      <div className="mt-0.5 shrink-0" style={{ color: c.color }}>{c.icon}</div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold" style={{ color: t.textPri }}>{insight.title}</p>
+        <p className="text-xs mt-0.5 leading-relaxed" style={{ color: t.textSec }}>{insight.description}</p>
+      </div>
+      {insight.value && (
+        <span className="shrink-0 text-sm font-black tabular-nums" style={{ color: c.color }}>{insight.value}</span>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
+type TabKey = "overview" | "employees" | "insights";
+
 export default function AnalyticsPage() {
-  const { can }  = useAuthStore();
-  const { dark } = useThemeStore();
-  const canRev   = can("canViewRevenue");
-  const t        = dark ? DARK : LIGHT;
+  const { can, user } = useAuthStore();
+  const { dark }      = useThemeStore();
+  const canRev        = can("canViewRevenue");
+  const canExport     = canExportReports(user);
+  const t             = dark ? DARK : LIGHT;
+  const [tab, setTab] = useState<TabKey>("overview");
 
   const { subscribers, loading } = useSubscribers();
   const { payments }             = usePayments();
+  const { performance: empPerf, loading: empLoading } = useEmployeePerformance();
+  const { insights, loading: metricsLoading }         = useDashboardMetrics();
 
   const TICK = { fontFamily: "inherit", fontSize: 11, fill: t.tick };
 
@@ -341,6 +380,26 @@ export default function AnalyticsPage() {
             </motion.div>
           </motion.div>
 
+          {/* ── Tab navigation ── */}
+          <div className="flex gap-1 p-1 rounded-xl w-fit mb-6"
+            style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+            {([
+              { key: "overview",   label: "نظرة عامة",    icon: <Activity size={14}/> },
+              { key: "employees",  label: "الموظفون",      icon: <Medal size={14}/> },
+              { key: "insights",   label: "التنبيهات الذكية", icon: <Lightbulb size={14}/> },
+            ] as { key: TabKey; label: string; icon: React.ReactNode }[]).map((tb) => (
+              <button key={tb.key} onClick={() => setTab(tb.key)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
+                style={{
+                  background: tab === tb.key ? t.card : "transparent",
+                  color:      tab === tb.key ? t.textPri : t.textSec,
+                  boxShadow:  tab === tb.key ? t.cardShadow : "none",
+                }}>
+                {tb.icon}{tb.label}
+              </button>
+            ))}
+          </div>
+
           {/* ── Loading ── */}
           {loading ? (
             <div className="flex items-center justify-center py-40">
@@ -351,6 +410,9 @@ export default function AnalyticsPage() {
             </div>
           ) : (
             <motion.div initial="hidden" animate="show" variants={stagger} className="space-y-5">
+
+            {/* ════════════════ OVERVIEW TAB ════════════════ */}
+            {tab === "overview" && <>
 
               {/* ── KPI Cards ── */}
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -576,6 +638,141 @@ export default function AnalyticsPage() {
                   </div>
                 </motion.div>
               </div>
+
+            </> /* end overview tab */}
+
+            {/* ════════════════ EMPLOYEES TAB ════════════════ */}
+            {tab === "employees" && (
+              <motion.div variants={fadeUp} transition={tran} className="space-y-5">
+                {/* Export button */}
+                {canExport && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => exportEmployeePerformanceCSV(subscribers)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold"
+                      style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+                      <Download size={13}/> تصدير CSV
+                    </button>
+                  </div>
+                )}
+
+                {empLoading ? (
+                  <div className="flex justify-center py-20">
+                    <RefreshCw size={20} className="animate-spin" style={{ color: ACC.indigo }}/>
+                  </div>
+                ) : empPerf.length === 0 ? (
+                  <div className="text-center py-20" style={{ color: t.textSec }}>
+                    لا توجد بيانات أداء موظفين
+                  </div>
+                ) : (
+                  <>
+                    {/* Leaderboard table */}
+                    <div className="rounded-2xl overflow-hidden"
+                      style={{ background: t.card, border: `1px solid ${t.cardBorder}`, boxShadow: t.cardShadow }}>
+                      <div className="px-5 py-4 border-b flex items-center gap-2"
+                        style={{ borderColor: t.divider }}>
+                        <Medal size={15} style={{ color: ACC.amber }}/>
+                        <h3 className="text-sm font-bold" style={{ color: t.textPri }}>لوحة الأداء</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr style={{ background: "var(--surface-2)", borderBottom: `1px solid ${t.divider}` }}>
+                              {["#","الموظف","المشتركون","النشطون","الإيراد USD","التجديدات","الاسترداد","متوسط القيمة"].map((h) => (
+                                <th key={h} className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider"
+                                  style={{ color: t.textSec }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y" style={{ borderColor: t.divider }}>
+                            {empPerf.map((emp, i) => {
+                              const medal = ["🥇","🥈","🥉"][i];
+                              return (
+                                <tr key={emp.name} className="transition-colors hover:bg-slate-50">
+                                  <td className="px-4 py-3 text-base text-center w-10">{medal ?? <span className="text-xs font-bold" style={{ color: t.textSec }}>{i+1}</span>}</td>
+                                  <td className="px-4 py-3">
+                                    <span className="font-bold text-sm" style={{ color: t.textPri }}>{emp.name}</span>
+                                  </td>
+                                  <td className="px-4 py-3 font-bold tabular-nums text-center" style={{ color: t.textPri }}>{emp.subscribers}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-bold"
+                                      style={{ background: `${ACC.emerald}15`, color: ACC.emerald }}>{emp.active}</span>
+                                  </td>
+                                  <td className="px-4 py-3 tabular-nums font-black" style={{ color: ACC.emerald }}>
+                                    {canRev ? `$${formatNumber(emp.revenue, 0)}` : "—"}
+                                  </td>
+                                  <td className="px-4 py-3 tabular-nums text-center" style={{ color: t.textPri }}>{emp.renewals}</td>
+                                  <td className="px-4 py-3 tabular-nums text-center" style={{ color: emp.refunds > 0 ? ACC.rose : t.textSec }}>{emp.refunds}</td>
+                                  <td className="px-4 py-3 tabular-nums" style={{ color: t.textSec }}>
+                                    {canRev ? `$${formatNumber(emp.avgValue, 0)}` : "—"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Performance bar chart */}
+                    {canRev && (
+                      <Shell t={t} title="مقارنة الإيراد بين الموظفين" accent={ACC.violet} height={260}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={empPerf.slice(0,8)} margin={{ top:8, right:8, left:-8, bottom:0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={t.grid} vertical={false}/>
+                            <XAxis dataKey="name" tick={{ ...{fontFamily:"inherit",fontSize:10,fill:t.tick} }} interval={0} angle={-15} textAnchor="end"/>
+                            <YAxis tick={{ ...{fontFamily:"inherit",fontSize:10,fill:t.tick} }}/>
+                            <Tooltip content={<DarkTip prefix="$"/>}/>
+                            <Bar dataKey="revenue" name="الإيراد" fill={ACC.violet} radius={[4,4,0,0]}/>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </Shell>
+                    )}
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {/* ════════════════ INSIGHTS TAB ════════════════ */}
+            {tab === "insights" && (
+              <motion.div variants={fadeUp} transition={tran} className="space-y-4">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <Lightbulb size={16} style={{ color: ACC.amber }}/>
+                  <h3 className="text-base font-bold" style={{ color: t.textPri }}>التنبيهات الذكية</h3>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: `${ACC.amber}18`, color: ACC.amber }}>
+                    {insights.length} تنبيه
+                  </span>
+                </div>
+
+                {metricsLoading ? (
+                  <div className="flex justify-center py-20">
+                    <RefreshCw size={20} className="animate-spin" style={{ color: ACC.indigo }}/>
+                  </div>
+                ) : insights.length === 0 ? (
+                  <div className="flex flex-col items-center gap-3 py-20">
+                    <CheckCircle2 size={40} className="text-emerald-400 opacity-60"/>
+                    <p className="font-bold text-sm" style={{ color: t.textPri }}>كل شيء يسير بشكل جيد!</p>
+                    <p className="text-xs" style={{ color: t.textSec }}>لا توجد تنبيهات حالياً</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Critical first */}
+                    {(["critical","warning","info","success"] as const).map((level) => {
+                      const group = insights.filter((i) => i.level === level);
+                      if (!group.length) return null;
+                      return (
+                        <div key={level} className="space-y-2">
+                          {group.map((insight) => (
+                            <InsightCard key={insight.id} insight={insight} t={t}/>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            )}
 
             </motion.div>
           )}
