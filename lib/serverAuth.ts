@@ -2,6 +2,7 @@ import { getApps, initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import type { Role } from "@/types";
+import { hasAdminCredentials, fsGet } from "@/lib/serverFirestore";
 
 type UserDocument = {
   role?: Role;
@@ -56,24 +57,58 @@ export function hasServerPermission(
   return user.granularPermissions?.[category]?.[action] === true;
 }
 
+export function getBearerToken(request: Request): string | null {
+  return bearerToken(request);
+}
+
 export async function verifyServerUser(request: Request): Promise<VerifiedServerUser | null> {
   const token = bearerToken(request);
   if (!token) return null;
 
   initializeAdminApp();
 
-  const decoded = await getAuth().verifyIdToken(token);
-  const snap = await getFirestore().collection("users").doc(decoded.uid).get();
-  if (!snap.exists) return null;
+  // verifyIdToken uses Google public keys — works without admin credentials
+  let uid: string;
+  let email: string | undefined;
+  try {
+    const decoded = await getAuth().verifyIdToken(token);
+    uid   = decoded.uid;
+    email = decoded.email;
+  } catch {
+    return null;
+  }
 
-  const data = snap.data() as UserDocument;
-  if (!isActiveUser(data)) return null;
+  // Read user document — Admin SDK if credentials available, else Firestore REST API
+  let data: UserDocument | null = null;
+
+  if (hasAdminCredentials()) {
+    try {
+      const snap = await getFirestore().collection("users").doc(uid).get();
+      if (!snap.exists) return null;
+      data = snap.data() as UserDocument;
+    } catch {
+      return null;
+    }
+  } else {
+    // Fallback: Firestore REST API with the user's own token
+    // Rules allow: allow read if request.auth.uid == uid
+    const raw = await fsGet("users", uid, token);
+    if (!raw) return null;
+    data = {
+      role:                 raw.role                 as Role | undefined,
+      status:               raw.status               as string | undefined,
+      active:               raw.active               as boolean | undefined,
+      granularPermissions:  raw.granularPermissions  as Record<string, Record<string, boolean>> | undefined,
+    };
+  }
+
+  if (!data || !isActiveUser(data)) return null;
 
   return {
-    uid: decoded.uid,
-    email: decoded.email,
-    role: data.role ?? "employee",
-    active: true,
+    uid,
+    email,
+    role:                data.role ?? "employee",
+    active:              true,
     granularPermissions: data.granularPermissions,
   };
 }

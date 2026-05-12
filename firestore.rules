@@ -39,7 +39,15 @@ service cloud.firestore {
     // ─── users ────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read:          if isAuth() && (request.auth.uid == uid || isStaff());
-      allow create, update, delete: if false;
+      allow create, update: if isOwner();
+      allow delete:         if false;
+    }
+
+    // ─── teams ────────────────────────────────────────────────────────────
+    match /teams/{id} {
+      allow read:           if isAnyActive();
+      allow create, update: if isOwner();
+      allow delete:         if false;
     }
 
     // ─── subscribers ──────────────────────────────────────────────────────
