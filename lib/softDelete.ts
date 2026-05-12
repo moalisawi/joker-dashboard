@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firestore";
 
-export interface SoftDeletePayload {
+export interface SoftDeletePayload extends Record<string, unknown> {
   deleted: true;
   deletedAt: ReturnType<typeof serverTimestamp>;
   deletedBy: string;

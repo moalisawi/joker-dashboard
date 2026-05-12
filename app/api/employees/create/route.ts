@@ -39,7 +39,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const parsed = createEmployeeSchema.safeParse(body);
   if (!parsed.success) {
-    const first = parsed.error.errors[0];
+    const first = parsed.error.issues[0];
     return jsonError(first?.message ?? "Validation error", 422);
   }
 
