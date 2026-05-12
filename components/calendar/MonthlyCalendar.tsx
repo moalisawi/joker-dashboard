@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import type { Subscriber } from "@/types";
 import { formatNumber, ARABIC_MONTHS } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
-import { ChevronRight, ChevronLeft, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, X, ExternalLink } from "lucide-react";
 
 interface Props {
   subscribers: Subscriber[];
@@ -213,15 +214,26 @@ export default function MonthlyCalendar({ subscribers }: Props) {
 
               <div className="space-y-2">
                 {dayModal.data.map((s) => (
-                  <div
+                  <Link
                     key={s.id}
-                    className="flex items-center justify-between px-4 py-3 bg-slate-50/80 rounded-xl border border-slate-100 hover:bg-slate-100/60 transition-colors"
+                    href={`/subscribers/${s.id}`}
+                    onClick={() => setDayModal(null)}
+                    className="flex items-center justify-between px-4 py-3 bg-slate-50/80 rounded-xl border border-slate-100 hover:bg-blue-50 hover:border-blue-200 transition-colors group"
                   >
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm">{s.name}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{s.dialCode}{s.phone}</p>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-[10px] font-black text-white"
+                        style={{ background: "linear-gradient(135deg,#6366f1,#38bdf8)" }}>
+                        {s.name.split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 text-sm group-hover:text-blue-700 transition-colors flex items-center gap-1">
+                          {s.name}
+                          <ExternalLink size={11} className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">{s.dialCode}{s.phone}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <span className={`text-xs px-2.5 py-1 rounded-lg font-bold ${s.package === "فضية" ? "pkg-silver" : "pkg-gold"}`}>
                         {s.package}
                       </span>
@@ -231,7 +243,7 @@ export default function MonthlyCalendar({ subscribers }: Props) {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

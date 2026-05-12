@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { emailService } from "@/services/email.service";
+import { hasServerPermission, verifyServerUser } from "@/lib/serverAuth";
+
+export const runtime = "nodejs";
 
 /**
  * GET /api/test-email
@@ -10,6 +13,38 @@ import { emailService } from "@/services/email.service";
  *   type  — email type to preview (default: security_alert)
  */
 export async function GET(request: Request): Promise<NextResponse> {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { success: false, error: "Test email endpoint is disabled in production" },
+      { status: 404 }
+    );
+  }
+
+  let currentUser;
+  try {
+    currentUser = await verifyServerUser(request);
+  } catch (err) {
+    console.error("[test-email] Auth verification failed:", err);
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  if (!currentUser) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  if (!hasServerPermission(currentUser, "settings", "manage")) {
+    return NextResponse.json(
+      { success: false, error: "Forbidden" },
+      { status: 403 }
+    );
+  }
+
   // ── Config check ────────────────────────────────────────────────────────────
   const config = emailService.validateConfig();
   if (!config.valid) {

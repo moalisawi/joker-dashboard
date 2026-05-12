@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { emailService } from "@/services/email.service";
+import { hasServerPermission, verifyServerUser } from "@/lib/serverAuth";
 import type { SendEmailRequest, EmailResult } from "@/types/email";
+
+export const runtime = "nodejs";
 
 /**
  * POST /api/send-email
@@ -10,6 +13,31 @@ import type { SendEmailRequest, EmailResult } from "@/types/email";
  * Body: SendEmailRequest { type, to, data }
  */
 export async function POST(request: Request): Promise<NextResponse> {
+  let currentUser;
+  try {
+    currentUser = await verifyServerUser(request);
+  } catch (err) {
+    console.error("[send-email] Auth verification failed:", err);
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  if (!currentUser) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  if (!hasServerPermission(currentUser, "settings", "manage")) {
+    return NextResponse.json(
+      { success: false, error: "Forbidden" },
+      { status: 403 }
+    );
+  }
+
   // ── Config check ────────────────────────────────────────────────────────────
   const config = emailService.validateConfig();
   if (!config.valid) {

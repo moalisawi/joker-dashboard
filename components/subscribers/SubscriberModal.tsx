@@ -2,19 +2,16 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { Subscriber, Currency } from "@/types";
-import {
-  collection, doc, updateDoc, serverTimestamp, writeBatch,
-} from "firebase/firestore";
-import { db } from "@/lib/firestore";
 import { storage } from "@/lib/storage";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "@/store/authStore";
-import { writeAuditLog } from "@/lib/auditLog";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 import {
   calculateExpiry, todayString, PHONE_COUNTRIES, RESIDENCE_COUNTRIES,
 } from "@/lib/utils";
 import PhoneInput from "@/components/ui/PhoneInput";
-import { PAYMENT_METHODS, SOURCES, EMPLOYEES, TEAMS } from "@/lib/permissions";
+import { PAYMENT_METHODS, SOURCES, TEAMS } from "@/lib/permissions";
+import { useEmployees } from "@/hooks/useEmployees";
 import { X } from "lucide-react";
 
 interface Props {
@@ -34,6 +31,11 @@ export default function SubscriberModal({
 }: Props) {
   const { user, can } = useAuthStore();
   const isEdit = mode === "edit" && !!subscriber;
+
+  // Dynamic employees from Firestore
+  const { employees: allEmployees } = useEmployees({ activeOnly: true });
+  const salesEmployees   = allEmployees.filter((e) => e.employeeRole === "sales" || e.employeeRole === "admin" || e.employeeRole === "owner");
+  const allActiveNames   = allEmployees.map((e) => e.name);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -179,65 +181,36 @@ export default function SubscriberModal({
         paidShift: form.paidShift,
         team: form.team,
         notes: form.notes.trim(),
-        updatedBy: user.uid,
-        updatedAt: serverTimestamp(),
       };
 
       if (isEdit) {
-        await updateDoc(doc(db, "subscribers", subscriber!.id), payload);
-        await writeAuditLog(user, "subscriber_updated", {
-          targetType: "subscriber",
-          targetId: subscriber!.id,
-          targetName: payload.name,
-          summary: `تم تعديل بيانات المشترك: ${payload.name}`,
+        await callSubscriberOperation("updateSubscriber", {
+          subscriberId: subscriber!.id,
+          subscriber: payload,
         });
       } else {
-        const batch = writeBatch(db);
-        const subRef = doc(collection(db, "subscribers"));
-        const newId = subRef.id;
-
         // Upload receipt if present
         let receiptUrl: string | null = null;
         const file = fileRef.current?.files?.[0];
         if (file) {
-          const storageRef = ref(storage, `receipts/${newId}/${file.name}`);
+          const storageRef = ref(storage, `receipts/pending/${Date.now()}_${file.name}`);
           await uploadBytes(storageRef, file);
           receiptUrl = await getDownloadURL(storageRef);
         }
 
-        batch.set(subRef, {
-          ...payload,
-          subscriptionState: "active",
-          refundAmount: 0,
-          refundAmountUSD: 0,
-          createdBy: user.uid,
-          createdAt: serverTimestamp(),
-        });
-
-        if (paidAmount > 0) {
-          batch.set(doc(collection(db, "payments")), {
-            subscriberId: newId,
-            subscriberName: payload.name,
+        await callSubscriberOperation("createSubscriber", {
+          subscriber: payload,
+          initialPayment: paidAmount > 0
+            ? {
             amountOriginal: paidAmount,
             currencyOriginal: form.currency,
             exchangeRate: lockedRate,
-            amountUSD: paidAmountUSD,
             paymentMethod: form.payment,
             receiptUrl,
             date: form.date,
             notes: null,
-            isInitialPayment: true,
-            createdAt: serverTimestamp(),
-            createdBy: user.uid,
-          });
-        }
-
-        await batch.commit();
-        await writeAuditLog(user, "subscriber_created", {
-          targetType: "subscriber",
-          targetId: newId,
-          targetName: payload.name,
-          summary: `تم إضافة مشترك جديد: ${payload.name}`,
+              }
+            : null,
         });
       }
 
@@ -400,7 +373,9 @@ export default function SubscriberModal({
                 onChange={(e) => setField("convincedBy", e.target.value)}
                 className="form-input disabled:bg-slate-100 disabled:text-slate-500">
                 <option value="">اختر...</option>
-                {EMPLOYEES.map((e) => <option key={e} value={e}>{e}</option>)}
+                {(salesEmployees.length > 0 ? salesEmployees : []).map((e) => (
+                  <option key={e.uid} value={e.name}>{e.name}</option>
+                ))}
               </select>
             </Field>
             <Field label="الفريق">
@@ -416,7 +391,9 @@ export default function SubscriberModal({
             <select value={form.paidShift} onChange={(e) => setField("paidShift", e.target.value)}
               className="form-input">
               <option value="">اختر...</option>
-              {EMPLOYEES.map((e) => <option key={e} value={e}>{e}</option>)}
+              {(allActiveNames.length > 0 ? allActiveNames : []).map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
             </select>
           </Field>
 

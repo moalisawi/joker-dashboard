@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import Link from "next/link";
 import type { Subscriber } from "@/types";
 import { formatNumber, formatDate, getWhatsAppLink } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
@@ -160,11 +161,24 @@ export default function SubscribersTable({
                 >
                   <td className="px-4 py-3 text-slate-400 text-xs">{i + 1}</td>
                   <td className="px-4 py-3 text-slate-600 text-xs whitespace-nowrap">{formatDate(s.date)}</td>
-                  <td
-                    className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap cursor-pointer hover:text-blue-600 transition-colors"
-                    onClick={() => onProfile(s)}
-                  >
-                    {s.name || "-"}
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <Link
+                      href={`/subscribers/${s.id}`}
+                      className="flex items-center gap-2 group"
+                    >
+                      <span className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-[10px] font-black text-white"
+                        style={{ background: "linear-gradient(135deg,#6366f1,#38bdf8)" }}>
+                        {(s.name || "؟").split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="text-sm font-semibold group-hover:text-blue-600 transition-colors block">
+                          {s.name || "-"}
+                        </span>
+                        {s.team && (
+                          <span className="text-[10px] text-slate-400">{s.team}</span>
+                        )}
+                      </div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-slate-500 text-xs font-mono whitespace-nowrap" dir="ltr">
                     {s.dialCode} {s.phone}

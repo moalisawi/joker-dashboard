@@ -10,11 +10,9 @@ import {
   getDocs,
   doc,
   getDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firestore";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 import { Subscriber } from "@/types";
 
 export const subscriberService = {
@@ -75,10 +73,9 @@ export const subscriberService = {
    * Update subscriber
    */
   async update(id: string, data: Partial<Subscriber>): Promise<void> {
-    const docRef = doc(db, "subscribers", id);
-    await updateDoc(docRef, {
-      ...data,
-      updatedAt: serverTimestamp(),
+    await callSubscriberOperation("updateSubscriber", {
+      subscriberId: id,
+      subscriber: data,
     });
   },
 
@@ -86,8 +83,9 @@ export const subscriberService = {
    * Delete subscriber
    */
   async delete(id: string): Promise<void> {
-    const docRef = doc(db, "subscribers", id);
-    await deleteDoc(docRef);
+    await callSubscriberOperation("deleteSubscriber", {
+      subscriberId: id,
+    });
   },
 
   /**

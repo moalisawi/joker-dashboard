@@ -5,6 +5,7 @@ import type { Subscriber, Currency } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { useRefunds } from "@/hooks/useRefunds";
 import { withdrawalService } from "@/services";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { X, AlertCircle, CheckCircle, UserMinus, Calendar, DollarSign } from "lucide-react";
 
@@ -86,15 +87,12 @@ export default function WithdrawModal({ subscriber: s, exchangeRates, onClose, o
     setLoading(true);
 
     try {
-      await withdrawalService.withdraw({
+      await callSubscriberOperation("withdrawSubscriber", {
         subscriberId:    s.id,
-        performedBy:     user.uid,
-        performedByName: user.name || "—",
         reason:          reason.trim(),
         notes:           notes.trim() || undefined,
         refundAmount:    hasRefund ? refundRaw     : undefined,
         refundCurrency:  hasRefund ? refundCurrency : undefined,
-        refundAmountUSD: hasRefund ? refundUSD     : undefined,
         exchangeRate:    hasRefund ? refundRate     : undefined,
       });
 

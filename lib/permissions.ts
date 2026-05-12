@@ -1,5 +1,6 @@
 import type { Role, Permissions } from "@/types";
 import type { GranularPermissions, AccountStatus } from "@/types";
+import type { EmployeeRole } from "@/types";
 
 // ─── Flat permissions (backward-compat) ────────────────────────────────────────
 
@@ -154,6 +155,39 @@ export function canAssignRole(actorRole: Role, assignRole: Role): boolean {
   if (actorRole === "admin" && assignRole === "employee") return true;
   return false;
 }
+
+// ─── Permissions per EmployeeRole ─────────────────────────────────────────────
+
+export const EMPLOYEE_ROLE_PERMISSIONS: Record<EmployeeRole, GranularPermissions> = {
+  owner: DEFAULT_GRANULAR_PERMISSIONS.owner,
+  admin: DEFAULT_GRANULAR_PERMISSIONS.admin,
+  sales: {
+    subscribers:   { view: true,  create: true,  edit: true,  delete: true  },
+    subscriptions: { renew: true, freeze: true,  resume: true, withdraw: true },
+    payments:      { create: true, edit: true,   refund: true  },
+    analytics:     { view: true,  export: true   },
+    logs:          { view: true   },
+    users:         { manage: false, changeRoles: false, activateAccounts: false },
+    settings:      { manage: false },
+  },
+  followup: {
+    subscribers:   { view: true,  create: false, edit: true,  delete: false },
+    subscriptions: { renew: true, freeze: true,  resume: true, withdraw: false },
+    payments:      { create: true, edit: false,  refund: false },
+    analytics:     { view: false, export: false  },
+    logs:          { view: false  },
+    users:         { manage: false, changeRoles: false, activateAccounts: false },
+    settings:      { manage: false },
+  },
+};
+
+/** Map EmployeeRole → auth Role for the users collection */
+export const EMPLOYEE_AUTH_ROLE: Record<EmployeeRole, Role> = {
+  owner:    "owner",
+  admin:    "admin",
+  sales:    "employee",
+  followup: "employee",
+};
 
 // ─── Static data ───────────────────────────────────────────────────────────────
 

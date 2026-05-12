@@ -2,12 +2,10 @@
 
 import { useMemo } from "react";
 import type { Subscriber } from "@/types";
-import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firestore";
 import { useAuthStore } from "@/store/authStore";
-import { writeAuditLog } from "@/lib/auditLog";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 import {
-  formatDate, formatNumber, calculateExpiry, todayString, daysSince,
+  formatDate, formatNumber, daysSince,
 } from "@/lib/utils";
 import { PauseCircle, PlayCircle, User } from "lucide-react";
 
@@ -44,36 +42,8 @@ export default function PausedSubscribersSection({
     if (!confirm(`إعادة تفعيل اشتراك ${s.name}؟`)) return;
 
     try {
-      const subRef = doc(db, "subscribers", s.id);
-      const today  = todayString();
-      const remaining = s.remainingDaysAtPause ?? 0;
-      const newEndDate = calculateExpiry(today, remaining);
-      const pausedDays = daysSince(s.pausedAt);
-      const totalPausedDays = (s.totalPausedDays || 0) + pausedDays;
-
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(subRef);
-        if (!snap.exists()) throw new Error("المشترك غير موجود");
-
-        tx.update(subRef, {
-          subscriptionStatus:   "active",
-          expiryDate:           newEndDate,
-          pausedAt:             null,
-          pausedBy:             null,
-          pauseReason:          null,
-          remainingDaysAtPause: null,
-          totalPausedDays,
-          updatedBy:            user.uid,
-          updatedAt:            serverTimestamp(),
-        });
-      });
-
-      await writeAuditLog(user, "subscriber_resumed", {
-        targetType: "subscriber",
-        targetId:   s.id,
-        targetName: s.name,
-        summary:    `تم استئناف اشتراك: ${s.name} | جديد ينتهي ${newEndDate}`,
-        metadata:   { pausedDays, remaining, newEndDate, totalPausedDays },
+      await callSubscriberOperation("resumePausedSubscription", {
+        subscriberId: s.id,
       });
 
       toast(`تم استئناف اشتراك ${s.name} ✓`);

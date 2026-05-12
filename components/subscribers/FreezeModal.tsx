@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Subscriber } from "@/types";
 import { freezeService } from "@/services";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 
 interface FreezeModalProps {
   subscriber: Subscriber;
@@ -44,13 +45,10 @@ export default function FreezeModal({
         return;
       }
 
-      // Freeze the subscription
-      await freezeService.freeze({
+      await callSubscriberOperation("freezeSubscription", {
         subscriberId: subscriber.id,
         reason: reason.trim(),
         notes: notes.trim() || undefined,
-        freezedBy: currentUser.uid,
-        frozenByName: currentUser.displayName,
       });
 
       setReason("");

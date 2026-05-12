@@ -55,6 +55,12 @@ export type {
   NotificationFilters,
 } from "./notification";
 
+// Employee types
+export type { EmployeeRole, EmployeeDepartment } from "./employee";
+
+// Team types
+export type { Team, TeamType } from "./team";
+
 // Email types
 export type {
   EmailResult,

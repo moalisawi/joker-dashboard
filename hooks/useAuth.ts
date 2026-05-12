@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import {
-  doc, onSnapshot, setDoc, updateDoc, serverTimestamp,
+  doc, onSnapshot,
 } from "firebase/firestore";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/firestore";
@@ -40,18 +40,12 @@ export function useAuthListener() {
 
       // Ensure user document exists (first login auto-provisioning)
       try {
-        const initSnap = await import("firebase/firestore").then((m) =>
-          m.getDoc(userRef)
-        );
+        const initSnap = await import("firebase/firestore").then((m) => m.getDoc(userRef));
         if (!initSnap.exists()) {
-          await setDoc(userRef, {
-            email:        firebaseUser.email || "",
-            name:         firebaseUser.displayName || firebaseUser.email || "",
-            employeeName: "",
-            role:         "employee",
-            status:       "active",
-            active:       true,
-            createdAt:    serverTimestamp(),
+          const token = await firebaseUser.getIdToken();
+          await fetch("/api/bootstrap-user", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
           });
         }
       } catch {
@@ -92,6 +86,13 @@ export function useAuthListener() {
             lastLoginAt:          data.lastLoginAt,
             createdAt:            data.createdAt,
             updatedAt:            data.updatedAt,
+            // employee-extended fields
+            isEmployee:           data.isEmployee ?? false,
+            employeeRole:         data.employeeRole,
+            department:           data.department,
+            phone:                data.phone,
+            teamId:               data.teamId,
+            notes:                data.notes,
           };
 
           setUser(profile);
@@ -103,9 +104,6 @@ export function useAuthListener() {
           setLoading(false);
         }
       );
-
-      // Update lastLoginAt (non-blocking, best-effort)
-      updateDoc(userRef, { lastLoginAt: serverTimestamp() }).catch(() => {});
     });
 
     return () => {

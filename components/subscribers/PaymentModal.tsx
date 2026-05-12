@@ -2,12 +2,10 @@
 
 import { useState, useRef } from "react";
 import type { Subscriber, Currency } from "@/types";
-import { collection, doc, addDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db } from "@/lib/firestore";
 import { storage } from "@/lib/storage";
 import { useAuthStore } from "@/store/authStore";
-import { writeAuditLog } from "@/lib/auditLog";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 import { formatNumber, todayString } from "@/lib/utils";
 import { PAYMENT_METHODS } from "@/lib/permissions";
 import { X } from "lucide-react";
@@ -42,10 +40,6 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
 
     try {
       const amt = parseFloat(amount);
-      const amtUSD = amt / rate;
-      const newPaidUSD = subscriber.paidAmountUSD + amtUSD;
-      const newRemainingUSD = Math.max(0, subscriber.totalPriceUSD - newPaidUSD);
-      const newNetUSD = Math.max(0, newPaidUSD - (subscriber.refundAmountUSD || 0));
 
       // Upload receipt
       let receiptUrl: string | null = null;
@@ -56,40 +50,15 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
         receiptUrl = await getDownloadURL(storageRef);
       }
 
-      // Add payment record
-      await addDoc(collection(db, "payments"), {
+      await callSubscriberOperation("addPayment", {
         subscriberId: subscriber.id,
-        subscriberName: subscriber.name,
         amountOriginal: amt,
         currencyOriginal: currency,
         exchangeRate: rate,
-        amountUSD: amtUSD,
         paymentMethod: method,
         receiptUrl,
         date,
-        notes: notes.trim() || null,
-        isInitialPayment: false,
-        createdAt: serverTimestamp(),
-        createdBy: user.uid,
-      });
-
-      // Update subscriber
-      await updateDoc(doc(db, "subscribers", subscriber.id), {
-        paidAmountUSD: newPaidUSD,
-        paidAmount: newPaidUSD * (subscriber.lockedRate || 1),
-        remainingAmountUSD: newRemainingUSD,
-        remainingAmount: newRemainingUSD * (subscriber.lockedRate || 1),
-        netAmountUSD: newNetUSD,
-        updatedBy: user.uid,
-        updatedAt: serverTimestamp(),
-      });
-
-      await writeAuditLog(user, "payment_added", {
-        targetType: "subscriber",
-        targetId: subscriber.id,
-        targetName: subscriber.name,
-        summary: `دفعة جديدة: ${subscriber.name} - $${amtUSD.toFixed(2)}`,
-        metadata: { amt, currency, amtUSD },
+        notes,
       });
 
       onSaved();

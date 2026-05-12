@@ -11,7 +11,9 @@
   "dependencies": {
     "@heroui/react": "^3.0.3",
     "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.100.10",
     "firebase": "^12.13.0",
+    "firebase-admin": "^13.9.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",
     "next": "16.2.6",
@@ -30,7 +32,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
-    "firebase-admin": "^13.9.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

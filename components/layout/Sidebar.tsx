@@ -10,9 +10,10 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { ROLE_LABELS } from "@/lib/permissions";
 import {
   Home, Users, ScrollText, LogOut, Menu, X,
-  ChevronLeft, BarChart3, Bell,
+  ChevronLeft, BarChart3, Bell, Briefcase,
 } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 interface NavItem {
   href:       string;
@@ -35,6 +36,7 @@ export default function Sidebar() {
     { href: "/",               label: "المشتركون",    icon: <Home       size={18} /> },
     { href: "/analytics",      label: "التحليلات",    icon: <BarChart3  size={18} /> },
     { href: "/notifications",  label: "الإشعارات",    icon: <Bell       size={18} />, badge: () => unreadCount(uid) },
+    { href: "/employees",       label: "الموظفون",     icon: <Briefcase  size={18} />, permission: "canManageUsers" },
     { href: "/users",          label: "المستخدمون",   icon: <Users      size={18} />, permission: "canManageUsers" },
     { href: "/logs",           label: "سجل العمليات", icon: <ScrollText size={18} />, permission: "canViewLogs" },
   ];
@@ -63,7 +65,7 @@ export default function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-black text-sm leading-tight text-white">نظام الجوكر</p>
-            <p className="text-white/40 text-xs mt-0.5 font-medium">إدارة الأكاديمية</p>
+            <p className="text-white/40 text-xs mt-0.5 font-medium">نظام إدارة المبيعات</p>
           </div>
           {/* Quick-access notification bell */}
           <NotificationBell />
@@ -140,6 +142,8 @@ export default function Sidebar() {
             </div>
           </div>
         )}
+
+        <ThemeToggle />
 
         <button
           onClick={handleLogout}

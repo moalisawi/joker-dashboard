@@ -1,13 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { Subscriber, Currency, RenewalSnapshot } from "@/types";
-import {
-  doc, collection, runTransaction, serverTimestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firestore";
+import type { Subscriber, Currency } from "@/types";
 import { useAuthStore } from "@/store/authStore";
-import { writeAuditLog } from "@/lib/auditLog";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 import { calculateExpiry, todayString, formatDate, formatNumber } from "@/lib/utils";
 import { PAYMENT_METHODS, EMPLOYEES } from "@/lib/permissions";
 import { X, RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
@@ -65,138 +61,18 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
       const remainingUSD = remaining / lockedRate;
       const by           = renewedBy || user.employeeName || user.name || "";
 
-      const subRef = doc(db, "subscribers", s.id);
-
-      await runTransaction(db, async (tx) => {
-        const snap    = await tx.get(subRef);
-        if (!snap.exists()) throw new Error("المشترك غير موجود");
-        const current = snap.data();
-
-        // ── 1. Build snapshot of current subscription ──────────────────
-        const snapshot: RenewalSnapshot = {
-          package:           current.package,
-          startDate:         current.startDate || current.date || "",
-          endDate:           current.expiryDate || "",
-          duration:          Number(current.duration || 0),
-          totalPrice:        Number(current.totalPrice || 0),
-          totalPriceUSD:     Number(current.totalPriceUSD || 0),
-          paidAmountUSD:     Number(current.paidAmountUSD || 0),
-          remainingAmountUSD:Number(current.remainingAmountUSD || 0),
-          netAmountUSD:      Number(current.netAmountUSD || 0),
-          currency:          (current.currencyOriginal || "USD") as Currency,
-          lockedRate:        Number(current.lockedRate || 1),
-          payment:           current.payment || "",
-          convincedBy:       current.convincedBy || "",
-          paidShift:         current.paidShift || "",
-          snapshotStatus:    current.subscriptionState === "withdrawn"
-                               ? "withdrawn"
-                               : (current.daysRemaining >= 0 ? "active" : "expired"),
-          renewedAt:         null,
-          renewedBy:         user.uid,
-          renewedByName:     user.name || user.email || "",
-        };
-
-        // ── 2. Compute new lifetime values ──────────────────────────────
-        const existingRenewals    = (current.renewals as RenewalSnapshot[]) || [];
-        const existingCount       = Number(current.renewalCount || 0);
-        const existingLifetimeUSD = Number(current.lifetimeValueUSD ?? current.paidAmountUSD ?? 0);
-
-        // ── 3. Build update payload ─────────────────────────────────────
-        const updatePayload: Record<string, unknown> = {
-          // New subscription period
-          date:      newStartDate,
-          startDate: newStartDate,
-          expiryDate: newEndDate,
-          duration:  dur,
-          package:   pkg,
-
-          // Pricing
-          currencyOriginal:   currency,
-          currency,
-          lockedRate,
-          totalPrice:          totalPriceN,
-          totalPriceUSD,
-          amount:              totalPriceN,   // legacy
-          amountUSD:           totalPriceUSD, // legacy
-          paidAmount,
-          paidAmountUSD:       paidUSD,
-          remainingAmount:     remaining,
-          remainingAmountUSD:  remainingUSD,
-          netAmountUSD:        Math.max(0, paidUSD),
-          refundAmount:        0,
-          refundAmountUSD:     0,
-
-          // Payment method (keep others unchanged)
-          payment,
-
-          // Status — always active after renewal
-          subscriptionState: "active",
-
-          // Renewal tracking
-          renewals:         [...existingRenewals, snapshot],
-          renewalCount:     existingCount + 1,
-          lifetimeValueUSD: existingLifetimeUSD + paidUSD,
-          lastRenewalDate:  serverTimestamp(),
-
-          // Meta
-          updatedBy: user.uid,
-          updatedAt: serverTimestamp(),
-        };
-
-        // If reactivating a withdrawn subscriber — clear withdrawal flags
-        if (isWithdrawn) {
-          updatePayload.withdrawnAt       = null;
-          updatePayload.withdrawalReason  = null;
-          updatePayload.refundAmount      = 0;
-          updatePayload.refundAmountUSD   = 0;
-          updatePayload.refundCurrency    = null;
-          updatePayload.refundRate        = null;
-        }
-
-        tx.update(subRef, updatePayload);
-
-        // ── 4. Add payment record ───────────────────────────────────────
-        if (paidAmount > 0) {
-          const payRef = doc(collection(db, "payments"));
-          tx.set(payRef, {
-            subscriberId:     s.id,
-            subscriberName:   s.name,
-            amountOriginal:   paidAmount,
-            currencyOriginal: currency,
-            exchangeRate:     lockedRate,
-            amountUSD:        paidUSD,
-            paymentMethod:    payment,
-            paymentType:      "renewal",
-            date:             renewalDate,
-            notes:            notes.trim() || null,
-            isInitialPayment: false,
-            isRenewalPayment: true,
-            renewalNumber:    existingCount + 1,
-            createdAt:        serverTimestamp(),
-            createdBy:        user.uid,
-          });
-        }
-      });
-
-      // ── 5. Audit log (outside transaction — non-critical) ────────────
-      const action = isWithdrawn ? "subscriber_reactivated" : "subscriber_renewed";
-      const changeLabel = isUpgrade ? "ترقية" : isDowngrade ? "تخفيض" : "تجديد";
-      await writeAuditLog(user, action, {
-        targetType: "subscriber",
-        targetId:   s.id,
-        targetName: s.name,
-        summary:    `${changeLabel} اشتراك: ${s.name} | ${s.package} → ${pkg}`,
-        metadata:   {
-          oldPackage:    s.package,
-          newPackage:    pkg,
-          isUpgrade,
-          isDowngrade,
-          isReactivation: isWithdrawn,
-          renewedBy:     by,
-          paidUSD,
-          remainingUSD,
-          newEndDate,
-        },
+      await callSubscriberOperation("renewSubscription", {
+        subscriberId: s.id,
+        package: pkg,
+        duration: dur,
+        currency,
+        totalPrice: totalPriceN,
+        paidAmount,
+        paymentMethod: payment,
+        renewalDate,
+        exchangeRate: lockedRate,
+        notes,
+        renewedByName: by,
       });
 
       onSaved();

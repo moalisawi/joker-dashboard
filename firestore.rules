@@ -39,34 +39,25 @@ service cloud.firestore {
     // ─── users ────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read:          if isAuth() && (request.auth.uid == uid || isStaff());
-      allow create:        if isStaff();
-      allow update:        if isOwner()
-                           || (isAdmin() && resource.data.role != 'owner');
-      allow delete:        if isOwner();
+      allow create, update, delete: if false;
     }
 
     // ─── subscribers ──────────────────────────────────────────────────────
     match /subscribers/{id} {
       allow read:          if isAnyActive();
-      allow create:        if isStaff() || hasPerm('subscribers', 'create');
-      allow update:        if isStaff() || hasPerm('subscribers', 'edit');
-      allow delete:        if isOwner() || hasPerm('subscribers', 'delete');
+      allow create, update, delete: if false;
     }
 
     // ─── payments ─────────────────────────────────────────────────────────
     match /payments/{id} {
-      allow read:          if isAnyActive();
-      allow create:        if isStaff() || hasPerm('payments', 'create');
-      allow update:        if isStaff() || hasPerm('payments', 'edit');
-      allow delete:        if isOwner();
+      allow read:          if isStaff() || hasPerm('analytics', 'view');
+      allow create, update, delete: if false;
     }
 
     // ─── refunds ──────────────────────────────────────────────────────────
     match /refunds/{id} {
-      allow read:          if isAnyActive();
-      allow create:        if isStaff() || hasPerm('payments', 'refund');
-      allow update:        if isOwner();
-      allow delete:        if isOwner();
+      allow read:          if isStaff() || hasPerm('analytics', 'view');
+      allow create, update, delete: if false;
     }
 
     // ─── auditLogs — immutable after creation ─────────────────────────────

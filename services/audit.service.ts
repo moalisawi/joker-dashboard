@@ -578,6 +578,66 @@ function logSettingsUpdated(
   });
 }
 
+// ─── unified track() interface ────────────────────────────────────────────────
+
+interface TrackParams {
+  /** The actor performing the action (UserProfile or AuditPerformedBy). */
+  actor: UserProfile | AuditPerformedBy;
+  /** Action key — must match one of the keys in ACTION_SEVERITY / ACTION_CATEGORY. */
+  action: string;
+  /** Entity type (e.g. "subscriber", "payment", "user"). */
+  entity?: string;
+  entityId?: string;
+  entityName?: string;
+  /** State before the mutation. */
+  before?: Record<string, unknown>;
+  /** State after the mutation. */
+  after?: Record<string, unknown>;
+  financialData?: AuditFinancialData;
+  metadata?: Record<string, unknown>;
+  tags?: string[];
+}
+
+/**
+ * Unified audit track method.
+ *
+ * Use this for all new audit calls. Provides a simpler surface than writeLog()
+ * while preserving full Firestore compatibility.
+ *
+ * Example:
+ *   await auditService.track({
+ *     actor: user,
+ *     action: "subscriber_renewed",
+ *     entity: "subscriber",
+ *     entityId: subscriber.id,
+ *     entityName: subscriber.name,
+ *     before: { expiryDate: oldExpiry },
+ *     after:  { expiryDate: newExpiry },
+ *     financialData: { amountUSD, currency, impactType: "positive" },
+ *   });
+ */
+function track(params: TrackParams): Promise<void> {
+  const { actor, action, entity, entityId, entityName, before, after, financialData, metadata, tags } = params;
+
+  const changedFields = before && after
+    ? Object.keys(after).filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]))
+    : undefined;
+
+  return writeLog({
+    actor,
+    action,
+    entityType:    entity,
+    entityId,
+    entityName,
+    previousData:  before,
+    newData:       after,
+    changedFields,
+    financialData,
+    metadata,
+    tags,
+  });
+}
+
 // ─── public API ──────────────────────────────────────────────────────────────
 
 export const auditService = {
@@ -612,6 +672,9 @@ export const auditService = {
   logAnalyticsExported,
   logDataExported,
   logSettingsUpdated,
+
+  // unified interface
+  track,
 
   // static maps for UI consumption
   ACTION_SEVERITY,

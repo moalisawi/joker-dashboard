@@ -51,8 +51,6 @@ const CURRENCIES = [
 
 export default function CurrencyCounters({ payments }: Props) {
   const { can } = useAuthStore();
-  if (!can("canViewRevenue")) return null;
-
   const totals = useMemo(() => {
     const t: Record<string, number> = { ILS: 0, JOD: 0, EGP: 0, USD: 0 };
     let totalUSDAll = 0;
@@ -63,6 +61,8 @@ export default function CurrencyCounters({ payments }: Props) {
     });
     return { byCurrency: t, totalUSDAll };
   }, [payments]);
+
+  if (!can("canViewRevenue")) return null;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

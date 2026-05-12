@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import type { Subscriber } from "@/types";
 import { freezeService } from "@/services";
 import { useAuthStore } from "@/store/authStore";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 
 export interface UseFrozenReturn {
   // State
@@ -43,11 +44,9 @@ export function useFrozen(subscriber: Subscriber | null): UseFrozenReturn {
         setLoading(true);
         setError(null);
 
-        await freezeService.freeze({
+        await callSubscriberOperation("freezeSubscription", {
           subscriberId: subscriber.id,
           reason,
-          freezedBy: user.uid,
-          frozenByName: user.name || "Unknown",
         });
       } catch (err: any) {
         console.error("Error freezing:", err);
@@ -67,10 +66,8 @@ export function useFrozen(subscriber: Subscriber | null): UseFrozenReturn {
       setLoading(true);
       setError(null);
 
-      await freezeService.resume({
+      await callSubscriberOperation("resumeSubscription", {
         subscriberId: subscriber.id,
-        resumedBy: user.uid,
-        resumedByName: user.name || "Unknown",
       });
     } catch (err: any) {
       console.error("Error resuming:", err);

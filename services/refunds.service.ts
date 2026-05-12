@@ -8,10 +8,6 @@ import {
   query,
   where,
   getDocs,
-  doc,
-  addDoc,
-  serverTimestamp,
-  updateDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firestore";
 import { RefundTransaction, Subscriber } from "@/types";
@@ -48,11 +44,8 @@ export const refundService = {
    * Add refund transaction (immutable)
    */
   async add(refund: Omit<RefundTransaction, "id">): Promise<string> {
-    const docRef = await addDoc(collection(db, "refunds"), {
-      ...refund,
-      createdAt: serverTimestamp(),
-    });
-    return docRef.id;
+    void refund;
+    throw new Error("Refunds must be created through protected subscriber operations.");
   },
 
   /**
@@ -72,32 +65,11 @@ export const refundService = {
     reason: string,
     userId: string
   ): Promise<string> {
-    // Create refund transaction
-    const refundId = await this.add({
-      subscriberId: subscriber.id,
-      subscriberName: subscriber.name,
-      refundAmount: refundAmountUSD,
-      refundCurrency: "USD",
-      exchangeRate: 1,
-      refundAmountUSD,
-      refundDate: new Date().toISOString().split("T")[0],
-      refundReason: reason,
-      createdBy: userId,
-    } as any);
-
-    // Update subscriber's net amount
-    const newNetAmountUSD = Math.max(
-      0,
-      subscriber.netAmountUSD - refundAmountUSD
-    );
-
-    await updateDoc(doc(db, "subscribers", subscriber.id), {
-      netAmountUSD: newNetAmountUSD,
-      updatedAt: serverTimestamp(),
-      updatedBy: userId,
-    });
-
-    return refundId;
+    void subscriber;
+    void refundAmountUSD;
+    void reason;
+    void userId;
+    throw new Error("Standalone refunds are disabled. Use the protected withdrawal flow.");
   },
 
   /**

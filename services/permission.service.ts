@@ -4,19 +4,12 @@
  * All mutations are validated server-side (role hierarchy enforced here + Firestore rules).
  */
 
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firestore";
-import { writeAuditLog } from "@/lib/auditLog";
+import { callUserOperation } from "@/lib/clientUserOperations";
 import {
   canManageRole,
   canAssignRole,
-  getDefaultGranularPermissions,
 } from "@/lib/permissions";
 import type { UserProfile, Role, AccountStatus, GranularPermissions } from "@/types";
-
-function makeActor(actor: UserProfile): UserProfile {
-  return actor;
-}
 
 export const permissionService = {
   /**
@@ -37,18 +30,10 @@ export const permissionService = {
       throw new Error("لا يمكنك تغيير حالة حسابك الخاص");
     }
 
-    await updateDoc(doc(db, "users", targetUid), {
-      status:    newStatus,
-      active:    newStatus === "active",
-      updatedAt: serverTimestamp(),
-      updatedBy: actor.uid,
-    });
-
-    await writeAuditLog(makeActor(actor), `account_${newStatus}` as string, {
-      targetType: "user",
-      targetId:   targetUid,
-      summary:    `تغيير حالة الحساب إلى: ${newStatus}${reason ? ` — ${reason}` : ""}`,
-      metadata:   { newStatus, reason },
+    await callUserOperation("setStatus", {
+      targetUid,
+      newStatus,
+      reason,
     });
   },
 
@@ -72,21 +57,9 @@ export const permissionService = {
       throw new Error("لا يمكنك تغيير دور حسابك الخاص");
     }
 
-    // Reset granular permissions to the new role's defaults
-    const defaultGranular = getDefaultGranularPermissions(newRole);
-
-    await updateDoc(doc(db, "users", targetUid), {
-      role:                newRole,
-      granularPermissions: defaultGranular,
-      updatedAt:           serverTimestamp(),
-      updatedBy:           actor.uid,
-    });
-
-    await writeAuditLog(makeActor(actor), "role_changed", {
-      targetType: "user",
-      targetId:   targetUid,
-      summary:    `تغيير الدور: ${targetCurrentRole} → ${newRole}`,
-      metadata:   { previousRole: targetCurrentRole, newRole },
+    await callUserOperation("setRole", {
+      targetUid,
+      newRole,
     });
   },
 
@@ -106,17 +79,9 @@ export const permissionService = {
       throw new Error("لا يمكنك تعديل صلاحيات حسابك الخاص");
     }
 
-    await updateDoc(doc(db, "users", targetUid), {
-      granularPermissions: permissions,
-      updatedAt:           serverTimestamp(),
-      updatedBy:           actor.uid,
-    });
-
-    await writeAuditLog(makeActor(actor), "permissions_updated", {
-      targetType: "user",
-      targetId:   targetUid,
-      summary:    "تم تحديث الصلاحيات التفصيلية",
-      metadata:   { permissions },
+    await callUserOperation("setGranularPermissions", {
+      targetUid,
+      permissions: permissions as unknown as Record<string, unknown>,
     });
   },
 
@@ -132,17 +97,9 @@ export const permissionService = {
       throw new Error("إعادة تعيين الصلاحيات متاحة للمالك فقط");
     }
 
-    const defaults = getDefaultGranularPermissions(targetRole);
-    await updateDoc(doc(db, "users", targetUid), {
-      granularPermissions: defaults,
-      updatedAt:           serverTimestamp(),
-      updatedBy:           actor.uid,
-    });
-
-    await writeAuditLog(makeActor(actor), "permissions_reset", {
-      targetType: "user",
-      targetId:   targetUid,
-      summary:    `إعادة تعيين صلاحيات الدور: ${targetRole}`,
+    await callUserOperation("resetPermissions", {
+      targetUid,
+      targetRole,
     });
   },
 
@@ -152,17 +109,9 @@ export const permissionService = {
     targetUid: string,
     data: { name?: string; employeeName?: string }
   ): Promise<void> {
-    await updateDoc(doc(db, "users", targetUid), {
-      ...data,
-      updatedAt: serverTimestamp(),
-      updatedBy: actor.uid,
-    });
-
-    await writeAuditLog(makeActor(actor), "user_updated", {
-      targetType: "user",
-      targetId:   targetUid,
-      summary:    `تحديث بيانات المستخدم`,
-      metadata:   data,
+    await callUserOperation("updateProfile", {
+      targetUid,
+      data,
     });
   },
 };

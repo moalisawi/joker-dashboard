@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Subscriber } from "@/types";
 import { freezeService } from "@/services";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 
 interface ResumeModalProps {
   subscriber: Subscriber;
@@ -38,10 +39,8 @@ export default function ResumeModal({
       setLoading(true);
       setError("");
 
-      await freezeService.resume({
+      await callSubscriberOperation("resumeSubscription", {
         subscriberId: subscriber.id,
-        resumedBy: currentUser.uid,
-        resumedByName: currentUser.displayName,
       });
 
       onResumed?.();

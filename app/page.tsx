@@ -2,10 +2,8 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useCallback } from "react";
-import { deleteDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firestore";
 import { useAuthStore } from "@/store/authStore";
-import { writeAuditLog } from "@/lib/auditLog";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { usePayments } from "@/hooks/usePayments";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
@@ -65,10 +63,9 @@ export default function HomePage() {
     if (!user || !can("canDelete")) return;
     if (!confirm(`متأكد بدك تحذف المشترك: ${name}؟`)) return;
     try {
-      await deleteDoc(doc(db, "subscribers", id));
-      await writeAuditLog(user, "subscriber_deleted", {
-        targetType: "subscriber", targetId: id, targetName: name,
-        summary: `تم حذف المشترك نهائياً: ${name}`,
+      await callSubscriberOperation("deleteSubscriber", {
+        subscriberId: id,
+        subscriberName: name,
       });
       toast("تم الحذف");
     } catch {

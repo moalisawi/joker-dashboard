@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import type { Subscriber } from "@/types";
-import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firestore";
 import { useAuthStore } from "@/store/authStore";
-import { writeAuditLog } from "@/lib/auditLog";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { X, PauseCircle } from "lucide-react";
 
@@ -29,31 +27,10 @@ export default function PauseModal({ subscriber: s, onClose, onSaved }: Props) {
     setLoading(true);
 
     try {
-      const subRef = doc(db, "subscribers", s.id);
-
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(subRef);
-        if (!snap.exists()) throw new Error("المشترك غير موجود");
-
-        const remaining = Math.max(0, s.daysRemaining);
-
-        tx.update(subRef, {
-          subscriptionStatus: "paused",
-          pausedAt:             serverTimestamp(),
-          pausedBy:             user.uid,
-          pauseReason:          reason.trim(),
-          remainingDaysAtPause: remaining,
-          updatedBy:            user.uid,
-          updatedAt:            serverTimestamp(),
-        });
-      });
-
-      await writeAuditLog(user, "subscriber_paused", {
-        targetType: "subscriber",
-        targetId:   s.id,
-        targetName: s.name,
-        summary:    `تم إيقاف اشتراك: ${s.name} | متبقٍ ${s.daysRemaining} يوم`,
-        metadata:   { reason, remainingDaysAtPause: s.daysRemaining },
+      await callSubscriberOperation("pauseSubscription", {
+        subscriberId: s.id,
+        reason: reason.trim(),
+        notes,
       });
 
       onSaved();

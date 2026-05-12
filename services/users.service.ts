@@ -1,6 +1,6 @@
 /**
  * User Service
- * Handle all user and authentication-related business logic
+ * Read-side helpers plus protected account mutations.
  */
 
 import {
@@ -10,24 +10,12 @@ import {
   getDocs,
   doc,
   getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firestore";
-import { auth } from "@/lib/auth";
-import {
-  createUserWithEmailAndPassword,
-  deleteUser,
-  updateProfile,
-} from "firebase/auth";
+import { callUserOperation } from "@/lib/clientUserOperations";
 import { UserProfile, Permissions, Role } from "@/types";
 
 export const userService = {
-  /**
-   * Get all users
-   */
   async getAll(): Promise<UserProfile[]> {
     const q = query(collection(db, "users"));
     const snapshot = await getDocs(q);
@@ -37,9 +25,6 @@ export const userService = {
     })) as UserProfile[];
   },
 
-  /**
-   * Get user by UID
-   */
   async getById(uid: string): Promise<UserProfile | null> {
     const docRef = doc(db, "users", uid);
     const docSnap = await getDoc(docRef);
@@ -48,9 +33,6 @@ export const userService = {
       : null;
   },
 
-  /**
-   * Get users by role
-   */
   async getByRole(role: Role): Promise<UserProfile[]> {
     const q = query(collection(db, "users"), where("role", "==", role));
     const snapshot = await getDocs(q);
@@ -60,9 +42,6 @@ export const userService = {
     })) as UserProfile[];
   },
 
-  /**
-   * Get active users only
-   */
   async getActive(): Promise<UserProfile[]> {
     const q = query(collection(db, "users"), where("active", "==", true));
     const snapshot = await getDocs(q);
@@ -72,84 +51,43 @@ export const userService = {
     })) as UserProfile[];
   },
 
-  /**
-   * Create new user
-   */
   async create(
     email: string,
     password: string,
     profile: Omit<UserProfile, "uid">
   ): Promise<string> {
-    // Create Firebase Auth user
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
-    const uid = userCredential.user.uid;
-
-    // Update Auth profile
-    await updateProfile(userCredential.user, {
-      displayName: profile.name,
-    });
-
-    // Create Firestore document
-    await setDoc(doc(db, "users", uid), {
-      ...profile,
-      email,
-      uid,
-      active: true,
-      createdAt: serverTimestamp(),
-    });
-
-    return uid;
+    void email;
+    void password;
+    void profile;
+    throw new Error("User creation must happen through the protected onboarding flow.");
   },
 
-  /**
-   * Update user profile
-   */
   async update(uid: string, data: Partial<UserProfile>): Promise<void> {
-    const docRef = doc(db, "users", uid);
-    await updateDoc(docRef, {
-      ...data,
-      updatedAt: serverTimestamp(),
+    await callUserOperation("updateProfile", {
+      targetUid: uid,
+      data,
     });
   },
 
-  /**
-   * Deactivate user (soft delete)
-   */
   async deactivate(uid: string): Promise<void> {
-    await this.update(uid, { active: false });
+    await callUserOperation("setStatus", {
+      targetUid: uid,
+      newStatus: "disabled",
+    });
   },
 
-  /**
-   * Reactivate user
-   */
   async reactivate(uid: string): Promise<void> {
-    await this.update(uid, { active: true });
+    await callUserOperation("setStatus", {
+      targetUid: uid,
+      newStatus: "active",
+    });
   },
 
-  /**
-   * Delete user completely (hard delete)
-   */
   async delete(uid: string): Promise<void> {
-    // Get Firebase Auth user
-    const userCredential = await getDoc(doc(db, "users", uid));
-    if (!userCredential.exists()) {
-      throw new Error("User not found");
-    }
-
-    // Delete Firestore document first
-    await deleteDoc(doc(db, "users", uid));
-
-    // Then delete Auth user if needed (requires admin SDK in real scenario)
-    // This is a client-side limitation — use Cloud Function for complete deletion
+    void uid;
+    throw new Error("Hard deleting users is disabled. Use account status changes instead.");
   },
 
-  /**
-   * Get user permissions
-   */
   async getPermissions(role: Role): Promise<Permissions> {
     const permissionMap: Record<Role, Permissions> = {
       owner: {
@@ -187,9 +125,6 @@ export const userService = {
     return permissionMap[role];
   },
 
-  /**
-   * Check if user can perform action
-   */
   async canPerformAction(uid: string, action: keyof Permissions): Promise<boolean> {
     const user = await this.getById(uid);
     if (!user) return false;
@@ -198,9 +133,6 @@ export const userService = {
     return permissions[action] ?? false;
   },
 
-  /**
-   * Get employees only (for team assignments)
-   */
   async getEmployees(): Promise<UserProfile[]> {
     const q = query(
       collection(db, "users"),

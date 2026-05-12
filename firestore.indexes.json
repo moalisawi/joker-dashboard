@@ -2,13 +2,22 @@
   "indexes": [
 
     // ─── payments ─────────────────────────────────────────────────────────
-    // Subscriber payment history (modal, timeline)
+    // Subscriber payment history (modal, timeline) — sorted by createdAt
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "subscriberId", "order": "ASCENDING" },
         { "fieldPath": "createdAt",    "order": "DESCENDING" }
+      ]
+    },
+    // Subscriber payment history — sorted by date (profile page)
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriberId", "order": "ASCENDING" },
+        { "fieldPath": "date",         "order": "DESCENDING" }
       ]
     },
     // Monthly financial report: filter by date range, sort by amount
@@ -66,6 +75,16 @@
       "fields": [
         { "fieldPath": "subscriberId", "order": "ASCENDING" },
         { "fieldPath": "createdAt",    "order": "DESCENDING" }
+      ]
+    },
+    // Subscriber refund history filtered by date range and sorted by refundDate desc
+    {
+      "collectionGroup": "refunds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriberId", "order": "ASCENDING" },
+        { "fieldPath": "refundDate",    "order": "DESCENDING" },
+        { "fieldPath": "__name__",      "order": "ASCENDING" }
       ]
     },
     // Monthly refund totals

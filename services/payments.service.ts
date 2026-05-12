@@ -8,11 +8,9 @@ import {
   query,
   where,
   getDocs,
-  doc,
-  addDoc,
-  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firestore";
+import { callSubscriberOperation } from "@/lib/clientOperations";
 import { PaymentTransaction } from "@/types";
 
 export const paymentService = {
@@ -77,11 +75,17 @@ export const paymentService = {
    * Add payment transaction (immutable)
    */
   async add(payment: Omit<PaymentTransaction, "id">): Promise<string> {
-    const docRef = await addDoc(collection(db, "payments"), {
-      ...payment,
-      createdAt: serverTimestamp(),
+    const response = await callSubscriberOperation<{ paymentId: string }>("addPayment", {
+      subscriberId: payment.subscriberId,
+      amountOriginal: payment.amountOriginal,
+      currencyOriginal: payment.currencyOriginal,
+      exchangeRate: payment.exchangeRate,
+      paymentMethod: payment.paymentMethod,
+      receiptUrl: payment.receiptUrl,
+      date: payment.date,
+      notes: payment.notes,
     });
-    return docRef.id;
+    return response.paymentId;
   },
 
   /**
