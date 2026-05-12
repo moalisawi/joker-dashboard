@@ -10,7 +10,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { ROLE_LABELS } from "@/lib/permissions";
 import {
   Home, Users, ScrollText, LogOut, Menu, X,
-  ChevronLeft, BarChart3, Bell, Briefcase,
+  ChevronLeft, BarChart3, Bell, Briefcase, Users2,
 } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -37,6 +37,7 @@ export default function Sidebar() {
     { href: "/analytics",      label: "التحليلات",    icon: <BarChart3  size={18} /> },
     { href: "/notifications",  label: "الإشعارات",    icon: <Bell       size={18} />, badge: () => unreadCount(uid) },
     { href: "/employees",       label: "الموظفون",     icon: <Briefcase  size={18} />, permission: "canManageUsers" },
+    { href: "/teams",          label: "الفرق",        icon: <Users2     size={18} />, permission: "canManageUsers" },
     { href: "/users",          label: "المستخدمون",   icon: <Users      size={18} />, permission: "canManageUsers" },
     { href: "/logs",           label: "سجل العمليات", icon: <ScrollText size={18} />, permission: "canViewLogs" },
   ];
