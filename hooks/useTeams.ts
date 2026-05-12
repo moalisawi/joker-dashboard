@@ -45,3 +45,17 @@ export function useDeactivateTeam() {
     },
   });
 }
+
+export function useUpdateTeam() {
+  const qc   = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; active?: boolean } }) =>
+      teamsService.update(id, data, user?.uid),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: teamKeys.all });
+      qc.invalidateQueries({ queryKey: teamKeys.active });
+      qc.invalidateQueries({ queryKey: teamKeys.detail(id) });
+    },
+  });
+}

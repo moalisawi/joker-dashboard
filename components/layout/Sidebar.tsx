@@ -36,8 +36,8 @@ export default function Sidebar() {
     { href: "/",               label: "المشتركون",    icon: <Home       size={18} /> },
     { href: "/analytics",      label: "التحليلات",    icon: <BarChart3  size={18} /> },
     { href: "/notifications",  label: "الإشعارات",    icon: <Bell       size={18} />, badge: () => unreadCount(uid) },
-    { href: "/employees",       label: "الموظفون",     icon: <Briefcase  size={18} />, permission: "canManageUsers" },
-    { href: "/teams",          label: "الفرق",        icon: <Users2     size={18} />, permission: "canManageUsers" },
+    { href: "/admin/employees", label: "الموظفون",     icon: <Briefcase  size={18} />, permission: "canManageUsers" },
+    { href: "/admin/teams",    label: "الفرق",        icon: <Users2     size={18} />, permission: "canManageUsers" },
     { href: "/users",          label: "المستخدمون",   icon: <Users      size={18} />, permission: "canManageUsers" },
     { href: "/logs",           label: "سجل العمليات", icon: <ScrollText size={18} />, permission: "canViewLogs" },
   ];
