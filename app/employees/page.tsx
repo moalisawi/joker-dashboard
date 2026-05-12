@@ -13,8 +13,9 @@ import type { UserProfile, EmployeeRole, EmployeeDepartment } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import {
   Users, Plus, Edit, Trash2, CheckCircle, XCircle,
-  X, Save, Briefcase, TrendingUp, UserCheck, Trophy, Mail,
+  X, Save, Briefcase, TrendingUp, UserCheck, Trophy, Mail, Eye, EyeOff,
 } from "lucide-react";
+import { usersFeatureService } from "@/features/users/services/users.service";
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const LT = { bg:"var(--page-bg)", card:"var(--surface)", card2:"var(--surface-2)", border:"rgba(15,23,42,0.08)", t1:"var(--text-primary)", t2:"#64748b", t3:"#94a3b8", shadow:"0 1px 3px rgba(15,23,42,0.06),0 4px 12px rgba(15,23,42,0.05)" };
@@ -46,12 +47,14 @@ function avatarGradient(role:EmployeeRole) {
 
 // ── Form shape (for add & edit) ───────────────────────────────────────────────
 interface EmpForm {
+  fullName: string;
   email: string;
+  password: string;
   employeeRole: EmployeeRole;
   department: EmployeeDepartment;
   notes: string;
 }
-const EMPTY: EmpForm = { email:"", employeeRole:"sales", department:"مبيعات", notes:"" };
+const EMPTY: EmpForm = { fullName:"", email:"", password:"", employeeRole:"sales", department:"مبيعات", notes:"" };
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
 function StatCard({ icon, label, value, accent, t }:{
@@ -175,6 +178,7 @@ function EmpModal({ initial, editUid, editName, onClose, onSave, t }:{
   const [form, setForm] = useState({ ...initial });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const isEdit = Boolean(editUid);
 
   function set<K extends keyof EmpForm>(k:K, v:EmpForm[K]) {
@@ -183,16 +187,21 @@ function EmpModal({ initial, editUid, editName, onClose, onSave, t }:{
 
   async function handleSubmit(e:React.FormEvent) {
     e.preventDefault();
-    if (!isEdit && !form.email.trim()) { setErr("البريد الإلكتروني مطلوب"); return; }
+    if (!isEdit) {
+      if (!form.fullName.trim()) { setErr("الاسم الكامل مطلوب"); return; }
+      if (!form.email.trim())    { setErr("البريد الإلكتروني مطلوب"); return; }
+      if (form.password.length < 8) { setErr("كلمة المرور يجب أن تكون 8 أحرف على الأقل"); return; }
+    }
     setSaving(true);
     try {
       await onSave(form, editUid);
       onClose();
     } catch (ex) {
-      if (ex instanceof Error && ex.message === "USER_NOT_FOUND") {
-        setErr("لم يُعثر على هذا الإيميل. يجب أن يسجّل الموظف حسابه أولاً.");
+      const msg = ex instanceof Error ? ex.message : "حدث خطأ، حاول مرة أخرى";
+      if (msg === "Email already registered") {
+        setErr("هذا الإيميل مسجّل مسبقاً في النظام.");
       } else {
-        setErr("حدث خطأ، حاول مرة أخرى");
+        setErr(msg);
       }
     } finally {
       setSaving(false);
@@ -215,17 +224,51 @@ function EmpModal({ initial, editUid, editName, onClose, onSave, t }:{
           {err && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{err}</div>}
 
           {!isEdit && (
-            <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color:"var(--text-secondary)" }}>
-                البريد الإلكتروني *
-                <span className="mr-1 font-normal opacity-60">(يجب أن يكون لديه حساب مسبق)</span>
-              </label>
-              <div className="relative">
-                <input value={form.email} onChange={(e)=>set("email",e.target.value)}
-                  className="form-input" placeholder="employee@example.com" type="email" dir="ltr" required />
-                <Mail size={13} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30" />
+            <>
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color:"var(--text-secondary)" }}>
+                  الاسم الكامل *
+                </label>
+                <input value={form.fullName} onChange={(e)=>set("fullName",e.target.value)}
+                  className="form-input" placeholder="محمد أحمد" required />
               </div>
-            </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color:"var(--text-secondary)" }}>
+                  البريد الإلكتروني *
+                </label>
+                <div className="relative">
+                  <input value={form.email} onChange={(e)=>set("email",e.target.value)}
+                    className="form-input" placeholder="employee@example.com" type="email" dir="ltr" required />
+                  <Mail size={13} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-30" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={{ color:"var(--text-secondary)" }}>
+                  كلمة المرور المؤقتة *
+                  <span className="mr-1 font-normal opacity-60">(الموظف يغيّرها لاحقاً)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    value={form.password}
+                    onChange={(e)=>set("password",e.target.value)}
+                    className="form-input pr-9"
+                    placeholder="8 أحرف على الأقل"
+                    type={showPass ? "text" : "password"}
+                    dir="ltr"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={()=>setShowPass((v)=>!v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-70 transition-opacity"
+                  >
+                    {showPass ? <EyeOff size={13}/> : <Eye size={13}/>}
+                  </button>
+                </div>
+              </div>
+            </>
           )}
 
           <div className="grid grid-cols-2 gap-3">
@@ -313,13 +356,25 @@ export default function EmployeesPage() {
 
   // ── CRUD ────────────────────────────────────────────────────────────────────
   async function handleSave(data:EmpForm, uid?:string) {
-    await callUserOperation("saveEmployee", {
-      uid,
-      email: data.email,
-      employeeRole: data.employeeRole,
-      department: data.department,
-      notes: data.notes,
-    });
+    if (uid) {
+      // Edit existing employee
+      await callUserOperation("saveEmployee", {
+        uid,
+        employeeRole: data.employeeRole,
+        department:   data.department,
+        notes:        data.notes,
+      });
+    } else {
+      // Create new employee (Auth + Firestore)
+      await usersFeatureService.createEmployee({
+        fullName:     data.fullName,
+        email:        data.email,
+        password:     data.password,
+        employeeRole: data.employeeRole,
+        department:   data.department,
+        notes:        data.notes,
+      });
+    }
   }
 
   async function handleToggle(emp:UserProfile) {
@@ -466,7 +521,7 @@ export default function EmployeesPage() {
                     onEdit={()=>setModal({
                       uid: emp.uid,
                       name: emp.name,
-                      form: { email:emp.email, employeeRole:emp.employeeRole??"sales", department:emp.department??"مبيعات", notes:emp.notes??"" },
+                      form: { fullName:"", password:"", email:emp.email, employeeRole:emp.employeeRole??"sales", department:emp.department??"مبيعات", notes:emp.notes??"" },
                     })}
                     onToggle={()=>handleToggle(emp)}
                     onDemote={()=>setConfirmDel(emp)}
