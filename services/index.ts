@@ -14,5 +14,7 @@ export { permissionService } from "./permission.service";
 export { auditService } from "./audit.service";
 export { notificationService } from "./notification.service";
 export { alertEngineService } from "./alert-engine.service";
-export { teamsService } from "./teams.service";
+export { teamsService }               from "./teams.service";
+export { subscriberNotesService }     from "./subscriberNotes.service";
+export { subscriberAssignmentService } from "./subscriberAssignment.service";
 // emailService is server-only — import directly from "@/services/email.service" in API routes only

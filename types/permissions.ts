@@ -11,12 +11,24 @@ export interface GranularPermissions {
     create: boolean;
     edit: boolean;
     delete: boolean;
+    /** Assign a subscriber to a sales/nutrition employee */
+    assign?: boolean;
+    /** Transfer an already-assigned subscriber to another employee */
+    transfer?: boolean;
+    /** Change workflow status (new → interested → follow_up …) */
+    changeStatus?: boolean;
+    /** View internal notes on a subscriber */
+    viewNotes?: boolean;
+    /** Add internal notes on a subscriber */
+    addNotes?: boolean;
   };
   subscriptions: {
     renew: boolean;
     freeze: boolean;
     resume: boolean;
     withdraw: boolean;
+    /** Manage the renewal workflow (suggest, contact, track outcome) */
+    manageRenewals?: boolean;
   };
   payments: {
     create: boolean;
@@ -48,19 +60,25 @@ export const PERMISSION_LABELS: Record<
   subscribers: {
     label: "المشتركون",
     actions: {
-      view:   "عرض",
-      create: "إضافة",
-      edit:   "تعديل",
-      delete: "حذف",
+      view:        "عرض",
+      create:      "إضافة",
+      edit:        "تعديل",
+      delete:      "حذف",
+      assign:      "تعيين",
+      transfer:    "نقل",
+      changeStatus:"تغيير الحالة",
+      viewNotes:   "عرض الملاحظات",
+      addNotes:    "إضافة ملاحظات",
     },
   },
   subscriptions: {
     label: "الاشتراكات",
     actions: {
-      renew:    "تجديد",
-      freeze:   "تجميد",
-      resume:   "استئناف",
-      withdraw: "انسحاب",
+      renew:          "تجديد",
+      freeze:         "تجميد",
+      resume:         "استئناف",
+      withdraw:       "انسحاب",
+      manageRenewals: "إدارة التجديدات",
     },
   },
   payments: {

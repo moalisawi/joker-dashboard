@@ -114,4 +114,29 @@ export interface Subscriber {
   createdBy?: string;
   updatedAt?: Timestamp;
   updatedBy?: string;
+
+  // ── Workflow extension (Phase 3) ────────────────────────────────────────────
+  // Assignment
+  assignedSalesId?:          string | null;
+  assignedSalesName?:        string | null;
+  assignedNutritionistId?:   string | null;
+  assignedNutritionistName?: string | null;
+  assignedTeamId?:           string | null;
+  assignedTeamName?:         string | null;
+  assignmentType?:           import("@/constants/subscriberWorkflow").AssignmentType;
+  assignmentHistory?:        import("./subscriberWorkflow").AssignmentHistoryEntry[];
+
+  // Workflow status
+  workflowStatus?:           import("@/constants/subscriberWorkflow").WorkflowStatus;
+  workflowStatusChangedAt?:  Timestamp;
+  workflowStatusChangedBy?:  string;
+  workflowStatusNote?:       string;
+
+  // Renewal workflow
+  renewalWorkflowStatus?:    import("@/constants/subscriberWorkflow").RenewalWorkflowStatus;
+  renewalSuggestedBy?:       string | null;
+  renewalSuggestedByName?:   string | null;
+  renewalHandledBy?:         string | null;
+  renewalHandledByName?:     string | null;
+  renewalNote?:              string;
 }

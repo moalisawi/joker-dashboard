@@ -25,7 +25,7 @@ const PERM_MAP: Record<PermKey, (gp: GranularPermissions) => boolean> = {
   create_subscribers:    (gp) => gp.subscribers.create,
   edit_subscribers:      (gp) => gp.subscribers.edit,
   delete_subscribers:    (gp) => gp.subscribers.delete,
-  assign_subscribers:    (gp) => gp.subscribers.edit,   // assigning maps to edit
+  assign_subscribers:    (gp) => gp.subscribers.assign ?? gp.subscribers.edit, // explicit or fallback to edit
 
   // Subscriptions
   renew_subscriptions:   (gp) => gp.subscriptions.renew,
@@ -51,7 +51,15 @@ const PERM_MAP: Record<PermKey, (gp: GranularPermissions) => boolean> = {
   activate_accounts:     (gp) => gp.users.activateAccounts,
 
   // Settings
-  manage_settings:       (gp) => gp.settings.manage,
+  manage_settings:          (gp) => gp.settings.manage,
+
+  // Subscriber workflow (Phase 3) — optional fields default to false
+  // assign_subscribers is already defined above (updated mapping)
+  transfer_subscribers:      (gp) => gp.subscribers.transfer     ?? false,
+  change_subscriber_status:  (gp) => gp.subscribers.changeStatus ?? false,
+  view_internal_notes:       (gp) => gp.subscribers.viewNotes    ?? false,
+  add_internal_notes:        (gp) => gp.subscribers.addNotes     ?? false,
+  manage_renewals:           (gp) => gp.subscriptions.manageRenewals ?? false,
 };
 
 // ─── Generic guards ───────────────────────────────────────────────────────────
@@ -99,3 +107,11 @@ export const canViewRevenue      = (u: UserProfile | null) => hasPermission(u, "
 export const canExportAnalytics  = (u: UserProfile | null) => hasPermission(u, "export_analytics");
 export const canViewLogs         = (u: UserProfile | null) => hasPermission(u, "view_logs");
 export const canManageSettings   = (u: UserProfile | null) => hasPermission(u, "manage_settings");
+
+// Subscriber workflow (Phase 3)
+export const canAssignSubscribers       = (u: UserProfile | null) => hasPermission(u, "assign_subscribers");
+export const canTransferSubscribers     = (u: UserProfile | null) => hasPermission(u, "transfer_subscribers");
+export const canChangeSubscriberStatus  = (u: UserProfile | null) => hasPermission(u, "change_subscriber_status");
+export const canViewInternalNotes       = (u: UserProfile | null) => hasPermission(u, "view_internal_notes");
+export const canAddInternalNotes        = (u: UserProfile | null) => hasPermission(u, "add_internal_notes");
+export const canManageRenewals          = (u: UserProfile | null) => hasPermission(u, "manage_renewals");

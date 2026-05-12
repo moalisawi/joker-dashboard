@@ -78,6 +78,13 @@ export const PERM = {
 
   // Settings
   MANAGE_SETTINGS:     "manage_settings",
+
+  // Subscriber workflow (Phase 3) — ASSIGN_SUBSCRIBERS already defined above
+  TRANSFER_SUBSCRIBERS:       "transfer_subscribers",
+  CHANGE_SUBSCRIBER_STATUS:   "change_subscriber_status",
+  VIEW_INTERNAL_NOTES:        "view_internal_notes",
+  ADD_INTERNAL_NOTES:         "add_internal_notes",
+  MANAGE_RENEWALS:            "manage_renewals",
 } as const;
 
 export type PermKey = (typeof PERM)[keyof typeof PERM];

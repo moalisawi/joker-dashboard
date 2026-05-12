@@ -61,6 +61,9 @@ export type { EmployeeRole, EmployeeDepartment } from "./employee";
 // Team types
 export type { Team, TeamType } from "./team";
 
+// Subscriber workflow types (Phase 3)
+export type { SubscriberNote, AssignmentHistoryEntry, SubscriberWorkflowFields } from "./subscriberWorkflow";
+
 // Email types
 export type {
   EmailResult,

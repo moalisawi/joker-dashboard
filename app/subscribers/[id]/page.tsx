@@ -15,10 +15,14 @@ import { usePayments } from "@/hooks/usePayments";
 import { useRefunds } from "@/hooks/useRefunds";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
-import ProtectedLayout from "@/components/layout/ProtectedLayout";
-import SubscriberModal from "@/components/subscribers/SubscriberModal";
-import RenewalModal from "@/components/subscribers/RenewalModal";
-import PaymentModal from "@/components/subscribers/PaymentModal";
+import ProtectedLayout       from "@/components/layout/ProtectedLayout";
+import SubscriberModal       from "@/components/subscribers/SubscriberModal";
+import RenewalModal          from "@/components/subscribers/RenewalModal";
+import PaymentModal          from "@/components/subscribers/PaymentModal";
+import AssignmentPanel       from "@/components/subscribers/AssignmentPanel";
+import NotesPanel            from "@/components/subscribers/NotesPanel";
+import WorkflowStatusPanel   from "@/components/subscribers/WorkflowStatusPanel";
+import WorkflowStatusBadge   from "@/components/subscribers/WorkflowStatusBadge";
 import type { Subscriber } from "@/types";
 import {
   ArrowRight, Edit, RefreshCw, DollarSign, Phone,
@@ -258,6 +262,10 @@ export default function SubscriberProfilePage() {
                       <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${s.package === "ذهبية" ? "pkg-gold" : "pkg-silver"}`}>
                         {s.package}
                       </span>
+                      {/* Workflow status badge */}
+                      {s.workflowStatus && (
+                        <WorkflowStatusBadge status={s.workflowStatus} size="sm"/>
+                      )}
                       {/* Team */}
                       {s.team && (
                         <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
@@ -528,6 +536,23 @@ export default function SubscriberProfilePage() {
             )}
 
           </motion.div>
+        </div>
+
+        {/* ── Phase 3: Workflow + Assignment + Notes ── */}
+        <div className="mx-auto max-w-screen-xl px-4 md:px-6 pb-8 space-y-4">
+          {/* Workflow status + assignment in a 2-col grid on wider screens */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <WorkflowStatusPanel
+              subscriber={s}
+              onSuccess={(msg) => console.info("[workflow]", msg)}
+            />
+            <AssignmentPanel
+              subscriber={s}
+              onSuccess={(msg) => console.info("[assignment]", msg)}
+            />
+          </div>
+          {/* Notes full-width */}
+          <NotesPanel subscriberId={s.id} subscriberName={s.name}/>
         </div>
       </div>
 

@@ -95,6 +95,15 @@ service cloud.firestore {
       allow write:         if isStaff();
     }
 
+    // ─── subscriberNotes ─────────────────────────────────────────────────
+    match /subscriberNotes/{id} {
+      allow read:   if isAnyActive();
+      allow create: if isAnyActive();
+      // Author can edit/soft-delete their own notes
+      allow update: if isAuth() && request.auth.uid == resource.data.authorId;
+      allow delete: if false;
+    }
+
     // ─── deny everything else ─────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
