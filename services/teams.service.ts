@@ -76,4 +76,21 @@ export const teamsService = {
       ...(updatedBy ? { updatedBy } : {}),
     });
   },
+
+  async activate(id: string, updatedBy?: string): Promise<void> {
+    await updateDoc(doc(db, COLLECTIONS.TEAMS, id), {
+      active: true,
+      updatedAt: serverTimestamp(),
+      ...(updatedBy ? { updatedBy } : {}),
+    });
+  },
+
+  async softDelete(id: string, updatedBy?: string): Promise<void> {
+    await updateDoc(doc(db, COLLECTIONS.TEAMS, id), {
+      deleted: true,
+      active: false,
+      updatedAt: serverTimestamp(),
+      ...(updatedBy ? { updatedBy } : {}),
+    });
+  },
 };

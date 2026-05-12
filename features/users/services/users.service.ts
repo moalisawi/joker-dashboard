@@ -123,4 +123,9 @@ export const usersFeatureService = {
       granularPermissions: permissions,
     });
   },
+
+  /** Soft-delete an employee (owner-only). Marks deleted in Firestore + disables Auth. */
+  async deleteEmployee(uid: string): Promise<void> {
+    await post("/api/employees/delete", { uid });
+  },
 };

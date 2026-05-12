@@ -102,6 +102,18 @@ export function useDeactivateEmployee() {
   });
 }
 
+/** Soft-delete an employee — owner-only. */
+export function useDeleteEmployee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (uid: string) => usersFeatureService.deleteEmployee(uid),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: employeeKeys.all });
+      qc.invalidateQueries({ queryKey: employeeKeys.active });
+    },
+  });
+}
+
 /** Update granular permissions for an employee (owner-only). */
 export function useUpdatePermissions() {
   const qc = useQueryClient();

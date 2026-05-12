@@ -21,7 +21,7 @@ import { useSubscribers } from "@/hooks/useSubscribers";
 import { useTeams }       from "@/hooks/useTeams";
 import {
   useEmployeeList, useCreateEmployee, useUpdateEmployee,
-  useDeactivateEmployee, useAssignTeam, useUpdatePermissions,
+  useDeactivateEmployee, useDeleteEmployee, useAssignTeam, useUpdatePermissions,
 } from "@/features/users/hooks";
 import {
   createEmployeeSchema, updateEmployeeSchema,
@@ -39,7 +39,7 @@ import {
   Briefcase, Plus, Search, X, MoreVertical, Edit2,
   ShieldCheck, UserMinus, UserCheck, Users2,
   Users, TrendingUp, UserCheck as UCk, Trophy,
-  Eye, EyeOff, Filter, Phone, Lock,
+  Eye, EyeOff, Filter, Phone, Lock, Trash2,
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -89,13 +89,13 @@ function Toast({ msg, ok, onDone }: { msg: string; ok: boolean; onDone: () => vo
 
 // ─── Actions dropdown ─────────────────────────────────────────────────────────
 
-type ActionType = "edit" | "permissions" | "assign-team" | "deactivate" | "reactivate";
+type ActionType = "edit" | "permissions" | "assign-team" | "deactivate" | "reactivate" | "delete";
 
 function ActionsMenu({
-  emp, canEdit, canPerms,
+  emp, canEdit, canPerms, isOwner,
   onAction,
 }: {
-  emp: UserProfile; canEdit: boolean; canPerms: boolean;
+  emp: UserProfile; canEdit: boolean; canPerms: boolean; isOwner: boolean;
   onAction: (t: ActionType) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -110,8 +110,9 @@ function ActionsMenu({
     ...(canEdit  ? [{ icon: <Edit2 size={13}/>,       label: "تعديل البيانات",   type: "edit"         as ActionType }] : []),
     ...(canPerms ? [{ icon: <ShieldCheck size={13}/>, label: "تعديل الصلاحيات", type: "permissions"  as ActionType }] : []),
     ...(canEdit  ? [{ icon: <Users2 size={13}/>,      label: "تعيين فريق",      type: "assign-team"  as ActionType }] : []),
-    ...(canEdit && emp.active  ? [{ icon: <UserMinus size={13}/>, label: "تعطيل الحساب",  type: "deactivate"  as ActionType, color: "#f43f5e" }] : []),
+    ...(canEdit && emp.active  ? [{ icon: <UserMinus size={13}/>, label: "تعطيل الحساب",  type: "deactivate"  as ActionType, color: "#f59e0b" }] : []),
     ...(canEdit && !emp.active ? [{ icon: <UserCheck size={13}/>, label: "إعادة تفعيل",   type: "reactivate"  as ActionType, color: "#10b981" }] : []),
+    ...(isOwner ? [{ icon: <Trash2 size={13}/>, label: "حذف نهائياً", type: "delete" as ActionType, color: "#f43f5e" }] : []),
   ];
 
   if (!items.length) return null;
@@ -469,7 +470,7 @@ function AssignTeamModal({ employee, teams, onClose, onSuccess }:{
 type ModalState =
   | null
   | { type: "create" }
-  | { type: "edit"        | "permissions" | "assign-team" | "deactivate" | "reactivate"; emp: UserProfile };
+  | { type: "edit" | "permissions" | "assign-team" | "deactivate" | "reactivate" | "delete"; emp: UserProfile };
 
 export default function AdminEmployeesPage() {
   const router     = useRouter();
@@ -489,6 +490,7 @@ export default function AdminEmployeesPage() {
 
   // ── Mutations ─────────────────────────────────────────────────────────────────
   const deactivateMut = useDeactivateEmployee();
+  const deleteMut     = useDeleteEmployee();
   const updateMut     = useUpdateEmployee();
 
   // ── UI State ──────────────────────────────────────────────────────────────────
@@ -501,6 +503,7 @@ export default function AdminEmployeesPage() {
 
   const canEdit  = canManageUsers(user);
   const canPerms = canManagePermissions(user);
+  const isOwner  = user?.role === "owner";
 
   // ── Computed ──────────────────────────────────────────────────────────────────
   const empStats = useMemo(() => {
@@ -554,6 +557,14 @@ export default function AdminEmployeesPage() {
       updateMut.mutate({ uid: emp.uid }); // trigger cache invalidation
       setModal(null);
       toast$("تم إعادة تفعيل الحساب");
+    } catch (e) { toast$(e instanceof Error ? e.message : "حدث خطأ", false); setModal(null); }
+  }
+
+  async function handleDelete(emp: UserProfile) {
+    try {
+      await deleteMut.mutateAsync(emp.uid);
+      setModal(null);
+      toast$("تم حذف حساب الموظف نهائياً");
     } catch (e) { toast$(e instanceof Error ? e.message : "حدث خطأ", false); setModal(null); }
   }
 
@@ -748,7 +759,7 @@ export default function AdminEmployeesPage() {
                           {/* Actions */}
                           <td className="px-3 py-3">
                             <ActionsMenu
-                              emp={emp} canEdit={canEdit} canPerms={canPerms}
+                              emp={emp} canEdit={canEdit} canPerms={canPerms} isOwner={isOwner}
                               onAction={(t) => setModal({ type: t, emp })}
                             />
                           </td>
@@ -854,6 +865,16 @@ export default function AdminEmployeesPage() {
         confirmLabel="إعادة تفعيل"
         onClose={() => setModal(null)}
         onConfirm={() => { if (modal?.type === "reactivate") handleReactivate(modal.emp); }}
+      />
+
+      <ConfirmDialog
+        open={modal?.type === "delete"}
+        title="حذف الموظف نهائياً"
+        description={`سيُحذف حساب ${modal?.type === "delete" ? modal.emp.name : ""} بشكل دائم ولن تتمكن من استعادته. البيانات التاريخية ستبقى.`}
+        confirmLabel="حذف نهائياً" destructive
+        loading={deleteMut.isPending}
+        onClose={() => setModal(null)}
+        onConfirm={() => { if (modal?.type === "delete") handleDelete(modal.emp); }}
       />
     </ProtectedLayout>
   );

@@ -15,7 +15,7 @@ import RequirePermission from "@/components/auth/RequirePermission";
 
 import { useAuthStore }    from "@/store/authStore";
 import { useThemeStore }   from "@/store/themeStore";
-import { useTeams, useCreateTeam, useDeactivateTeam, useUpdateTeam } from "@/hooks/useTeams";
+import { useTeams, useCreateTeam, useDeactivateTeam, useActivateTeam, useDeleteTeam, useUpdateTeam } from "@/hooks/useTeams";
 import { useEmployeeList } from "@/features/users/hooks";
 import { createTeamSchema, type CreateTeamInput } from "@/features/users/schemas";
 import { z }               from "zod";
@@ -24,7 +24,7 @@ import { PERM }            from "@/constants/permissions";
 import { auditService }    from "@/services/audit.service";
 import type { Team }       from "@/types";
 import {
-  Users2, Plus, X, ShieldOff, Users, Edit2, Briefcase,
+  Users2, Plus, X, ShieldOff, ShieldCheck, Trash2, Users, Edit2, Briefcase,
 } from "lucide-react";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -176,9 +176,9 @@ function RenameTeamModal({ team, onClose, onSuccess }: {
 
 // ─── Team Card ────────────────────────────────────────────────────────────────
 
-function TeamCard({ team, memberCount, canEdit, onRename, onDeactivate }: {
-  team: Team; memberCount: number; canEdit: boolean;
-  onRename: () => void; onDeactivate: () => void;
+function TeamCard({ team, memberCount, canEdit, isOwner, onRename, onDeactivate, onActivate, onDelete }: {
+  team: Team; memberCount: number; canEdit: boolean; isOwner: boolean;
+  onRename: () => void; onDeactivate: () => void; onActivate: () => void; onDelete: () => void;
 }) {
   const meta = TYPE_META[team.type];
   return (
@@ -207,11 +207,24 @@ function TeamCard({ team, memberCount, canEdit, onRename, onDeactivate }: {
                   style={{ background:"#6366f112", color:"#6366f1" }}>
                   <Edit2 size={12}/>
                 </button>
-                {team.active && (
+                {team.active ? (
                   <button onClick={onDeactivate} title="تعطيل الفريق"
                     className="p-1.5 rounded-lg transition-colors"
-                    style={{ background:"#f43f5e12", color:"#f43f5e" }}>
+                    style={{ background:"#f59e0b12", color:"#f59e0b" }}>
                     <ShieldOff size={12}/>
+                  </button>
+                ) : (
+                  <button onClick={onActivate} title="إعادة تفعيل الفريق"
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{ background:"#10b98112", color:"#10b981" }}>
+                    <ShieldCheck size={12}/>
+                  </button>
+                )}
+                {isOwner && (
+                  <button onClick={onDelete} title="حذف الفريق"
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{ background:"#f43f5e12", color:"#f43f5e" }}>
+                    <Trash2 size={12}/>
                   </button>
                 )}
               </>
@@ -251,13 +264,18 @@ export default function AdminTeamsPage() {
   const { data: teams = [],    isLoading } = useTeams();
   const { data: employees = [] }           = useEmployeeList();
   const deactivateMut                      = useDeactivateTeam();
+  const activateMut                        = useActivateTeam();
+  const deleteMut                          = useDeleteTeam();
 
-  const [showCreate,  setShowCreate]   = useState(false);
-  const [renameTeam,  setRenameTeam]   = useState<Team | null>(null);
-  const [confirmTeam, setConfirmTeam]  = useState<Team | null>(null);
-  const [toast, setToast]              = useState<{ msg: string; ok: boolean } | null>(null);
+  const [showCreate,     setShowCreate]    = useState(false);
+  const [renameTeam,     setRenameTeam]    = useState<Team | null>(null);
+  const [confirmTeam,    setConfirmTeam]   = useState<Team | null>(null);
+  const [confirmActivate,setConfirmActivate] = useState<Team | null>(null);
+  const [confirmDelete,  setConfirmDelete] = useState<Team | null>(null);
+  const [toast, setToast]                  = useState<{ msg: string; ok: boolean } | null>(null);
 
-  const canEdit = canManageUsers(user);
+  const canEdit  = canManageUsers(user);
+  const isOwner  = user?.role === "owner";
 
   const memberCounts = useMemo(() => {
     const m: Record<string,number> = {};
@@ -277,20 +295,36 @@ export default function AdminTeamsPage() {
   async function handleDeactivate(team: Team) {
     try {
       await deactivateMut.mutateAsync(team.id);
-      // Audit log
-      if (user) {
-        auditService.track({
-          actor: user, action: "team_deactivated",
-          entity: "team", entityId: team.id, entityName: team.name,
-          metadata: { type: team.type },
-          tags: ["team", "deactivated"],
-        }).catch(() => undefined);
-      }
+      if (user) auditService.track({ actor: user, action: "team_deactivated", entity: "team", entityId: team.id, entityName: team.name, metadata: { type: team.type }, tags: ["team", "deactivated"] }).catch(() => undefined);
       setConfirmTeam(null);
       toast$("تم تعطيل الفريق");
     } catch (e) {
       toast$(e instanceof Error ? e.message : "حدث خطأ", false);
       setConfirmTeam(null);
+    }
+  }
+
+  async function handleActivate(team: Team) {
+    try {
+      await activateMut.mutateAsync(team.id);
+      if (user) auditService.track({ actor: user, action: "team_activated", entity: "team", entityId: team.id, entityName: team.name, tags: ["team", "activated"] }).catch(() => undefined);
+      setConfirmActivate(null);
+      toast$("تم إعادة تفعيل الفريق");
+    } catch (e) {
+      toast$(e instanceof Error ? e.message : "حدث خطأ", false);
+      setConfirmActivate(null);
+    }
+  }
+
+  async function handleDelete(team: Team) {
+    try {
+      await deleteMut.mutateAsync(team.id);
+      if (user) auditService.track({ actor: user, action: "team_deleted", entity: "team", entityId: team.id, entityName: team.name, tags: ["team", "deleted"] }).catch(() => undefined);
+      setConfirmDelete(null);
+      toast$("تم حذف الفريق");
+    } catch (e) {
+      toast$(e instanceof Error ? e.message : "حدث خطأ", false);
+      setConfirmDelete(null);
     }
   }
 
@@ -368,8 +402,11 @@ export default function AdminTeamsPage() {
                   key={team.id} team={team}
                   memberCount={memberCounts[team.id] ?? 0}
                   canEdit={canEdit}
+                  isOwner={isOwner}
                   onRename={() => setRenameTeam(team)}
                   onDeactivate={() => setConfirmTeam(team)}
+                  onActivate={() => setConfirmActivate(team)}
+                  onDelete={() => setConfirmDelete(team)}
                 />
               ))}
             </div>
@@ -415,11 +452,31 @@ export default function AdminTeamsPage() {
       <ConfirmDialog
         open={Boolean(confirmTeam)}
         title="تعطيل الفريق"
-        description={`سيُوقف الفريق "${confirmTeam?.name}" ولن يظهر في قوائم التعيين.`}
+        description={`سيُوقف الفريق "${confirmTeam?.name}" ولن يظهر في قوائم التعيين. يمكنك إعادة تفعيله لاحقاً.`}
         confirmLabel="تعطيل" destructive
         loading={deactivateMut.isPending}
         onClose={() => setConfirmTeam(null)}
         onConfirm={() => { if (confirmTeam) handleDeactivate(confirmTeam); }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmActivate)}
+        title="إعادة تفعيل الفريق"
+        description={`سيُعاد تفعيل الفريق "${confirmActivate?.name}" وسيظهر مجدداً في قوائم التعيين.`}
+        confirmLabel="تفعيل"
+        loading={activateMut.isPending}
+        onClose={() => setConfirmActivate(null)}
+        onConfirm={() => { if (confirmActivate) handleActivate(confirmActivate); }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(confirmDelete)}
+        title="حذف الفريق نهائياً"
+        description={`سيُحذف الفريق "${confirmDelete?.name}" بشكل دائم ولن تتمكن من استعادته. الموظفون المرتبطون به لن يُحذفوا.`}
+        confirmLabel="حذف نهائياً" destructive
+        loading={deleteMut.isPending}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { if (confirmDelete) handleDelete(confirmDelete); }}
       />
     </ProtectedLayout>
   );

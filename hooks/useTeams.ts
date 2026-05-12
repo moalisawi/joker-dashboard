@@ -46,6 +46,30 @@ export function useDeactivateTeam() {
   });
 }
 
+export function useActivateTeam() {
+  const qc   = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  return useMutation({
+    mutationFn: (id: string) => teamsService.activate(id, user?.uid),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: teamKeys.all });
+      qc.invalidateQueries({ queryKey: teamKeys.active });
+    },
+  });
+}
+
+export function useDeleteTeam() {
+  const qc   = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  return useMutation({
+    mutationFn: (id: string) => teamsService.softDelete(id, user?.uid),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: teamKeys.all });
+      qc.invalidateQueries({ queryKey: teamKeys.active });
+    },
+  });
+}
+
 export function useUpdateTeam() {
   const qc   = useQueryClient();
   const user = useAuthStore((s) => s.user);
