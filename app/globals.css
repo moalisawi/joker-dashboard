@@ -227,6 +227,20 @@ body {
   background: linear-gradient(90deg, #d97706, #f59e0b);
 }
 
+/* ─── Global Search kbd hints ────────────────────────────────────────────── */
+.kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(15,23,42,0.14);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(15,23,42,0.04);
+  color: #94a3b8;
+}
+
 /* ─── Calendar ───────────────────────────────────────────────────────────── */
 .cal-day {
   min-height: 70px;
@@ -325,6 +339,24 @@ body {
 @keyframes panel-in {
   from { opacity: 0; transform: scale(0.97) translateY(8px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Mobile — bottom sheet */
+@media (max-width: 639px) {
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal-panel {
+    border-radius: 1.25rem 1.25rem 0 0;
+    max-height: 95dvh;
+    border-bottom: none;
+    animation: sheet-in 0.25s cubic-bezier(0.32,0.72,0,1);
+  }
+  @keyframes sheet-in {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
 }
 
 /* ─── Form inputs ────────────────────────────────────────────────────────── */

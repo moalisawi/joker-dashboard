@@ -45,10 +45,11 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ROLE_META: Record<EmployeeRole, { label: string; color: string }> = {
-  owner:    { label: "مالك",   color: "#f59e0b" },
-  admin:    { label: "مدير",   color: "#6366f1" },
-  sales:    { label: "مبيعات", color: "#10b981" },
-  followup: { label: "متابعة", color: "#38bdf8" },
+  owner:       { label: "مالك",        color: "#f59e0b" },
+  admin:       { label: "مدير",        color: "#6366f1" },
+  team_leader: { label: "قائد فريق",   color: "#8b5cf6" },
+  sales:       { label: "مبيعات",      color: "#10b981" },
+  followup:    { label: "متابعة",      color: "#38bdf8" },
 };
 
 const TEAM_COLORS: Record<string, string> = { sales: "#10b981", nutrition: "#8b5cf6" };
@@ -169,15 +170,18 @@ function EmployeeFormModal({
     resolver: zodResolver(createEmployeeSchema),
     defaultValues: { fullName:"", email:"", password:"", phone:"", employeeRole:"sales", department:"مبيعات", teamId:"", notes:"" },
   });
-  const ef = useForm<UpdateEmployeeInput>({
-    resolver: zodResolver(updateEmployeeSchema),
+  // uid is taken from props, not from form fields — avoids SubmitHandler type mismatch
+  type EditFormData = Omit<UpdateEmployeeInput, "uid">;
+  const editSchema = updateEmployeeSchema.omit({ uid: true });
+
+  const ef = useForm<EditFormData>({
+    resolver: zodResolver(editSchema),
     defaultValues: {
-      uid:          employee?.uid          ?? "",
-      employeeRole: employee?.employeeRole ?? "sales",
-      department:   employee?.department   ?? "مبيعات",
-      phone:        employee?.phone        ?? "",
-      teamId:       employee?.teamId       ?? "",
-      notes:        employee?.notes        ?? "",
+      employeeRole: (employee?.employeeRole ?? "sales") as EditFormData["employeeRole"],
+      department:   (employee?.department   ?? "مبيعات") as EditFormData["department"],
+      phone:        employee?.phone  ?? "",
+      teamId:       employee?.teamId ?? "",
+      notes:        employee?.notes  ?? "",
     },
   });
 
@@ -191,9 +195,9 @@ function EmployeeFormModal({
     }
   }
 
-  async function onEditSubmit(data: UpdateEmployeeInput) {
+  async function onEditSubmit(data: EditFormData) {
     try {
-      await updateMut.mutateAsync({ ...data, teamId: data.teamId || null });
+      await updateMut.mutateAsync({ ...data, uid: employee!.uid, teamId: data.teamId || null });
       onSuccess("تم تحديث بيانات الموظف");
       onClose();
     } catch (e) {
@@ -209,6 +213,7 @@ function EmployeeFormModal({
     <>
       <option value="sales">مبيعات</option>
       <option value="followup">متابعة</option>
+      <option value="team_leader">قائد فريق</option>
       <option value="admin">مدير</option>
     </>
   );

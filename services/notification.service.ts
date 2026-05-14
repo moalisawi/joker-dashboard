@@ -132,6 +132,7 @@ interface CreateParams {
   financialData?: { amount?: number; currency?: string; amountUSD?: number };
   metadata?:    Record<string, unknown>;
   expiresInDays?: number;
+  targetUserIds?: string[];
 }
 
 async function create(params: CreateParams): Promise<void> {
@@ -147,6 +148,7 @@ async function create(params: CreateParams): Promise<void> {
       title:        params.title,
       description:  params.description,
       targetMinRole: params.targetMinRole,
+      targetUserIds: params.targetUserIds ?? null,
       actionUrl:    params.actionUrl ?? null,
       entityType:   params.entityType  ?? null,
       entityId:     params.entityId    ?? null,
@@ -353,6 +355,69 @@ async function createExpiringSubscriptionAlert(count: number): Promise<void> {
   });
 }
 
+/**
+ * تنبيه موظف المتابعة المعيَّن لكل مشترك ينتهي اشتراكه خلال window أيام.
+ * يُنشئ إشعاراً واحداً لكل موظف يجمع جميع مشتركيه المنتهية قريباً.
+ */
+async function createRenewalRemindersForAssignedEmployees(
+  windowDays = 7
+): Promise<void> {
+  try {
+    const today   = new Date().toISOString().split("T")[0];
+    const inXDays = new Date(Date.now() + windowDays * 86_400_000).toISOString().split("T")[0];
+
+    const snap = await getDocs(query(
+      collection(db, "subscribers"),
+      where("subscriptionState", "==",  "active"),
+      where("expiryDate",        ">=",  today),
+      where("expiryDate",        "<=",  inXDays),
+      limit(200)
+    ));
+
+    if (snap.empty) return;
+
+    // Group by assignedSalesId (or any assigned employee)
+    const byEmployee = new Map<string, { name: string; subscribers: string[] }>();
+    snap.docs.forEach((d) => {
+      const data = d.data();
+      const empId   = (data.assignedSalesId as string) ?? "";
+      const empName = (data.assignedSalesName as string) ?? "";
+      const subName = (data.name as string) ?? "";
+      const subId   = d.id;
+
+      if (!empId) return;
+      if (!byEmployee.has(empId)) byEmployee.set(empId, { name: empName, subscribers: [] });
+      byEmployee.get(empId)!.subscribers.push(`${subName} (${subId})`);
+    });
+
+    // One notification per employee — dedup per employee+day
+    const today0 = today; // YYYY-MM-DD
+    const promises: Promise<void>[] = [];
+
+    byEmployee.forEach(({ name: empName, subscribers }, empId) => {
+      const notifType = `renewal_reminder_${empId}_${today0}`;
+      promises.push(
+        createSmartAlert({
+          type:         notifType,
+          category:     "operational",
+          severity:     "warning",
+          title:        `تذكير بتجديد ${subscribers.length} مشترك`,
+          description:  `المشتركون التالية اشتراكاتهم تنتهي خلال ${windowDays} أيام: ${subscribers.slice(0, 5).map((s) => s.split(" (")[0]).join("، ")}${subscribers.length > 5 ? ` وآخرون` : ""}`,
+          targetMinRole: "employee",
+          targetUserIds: [empId],
+          actionUrl:    "/",
+          metadata:     { empId, empName, count: subscribers.length, windowDays },
+          expiresInDays: 1,
+        })
+      );
+    });
+
+    await Promise.allSettled(promises);
+  } catch (err) {
+    console.warn("[notification] createRenewalRemindersForAssignedEmployees:", err);
+  }
+}
+
 // ─── public API ───────────────────────────────────────────────────────────────
 
 export const notificationService = {
@@ -369,6 +434,7 @@ export const notificationService = {
   createUnusualRefundAlert,
   createRevenuDropAlert,
   createExpiringSubscriptionAlert,
+  createRenewalRemindersForAssignedEmployees,
 
   createSmartAlert,
 };

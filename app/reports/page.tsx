@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { usePayments }    from "@/hooks/usePayments";
+import { useRefunds }     from "@/hooks/useRefunds";
 import { useAuthStore }   from "@/store/authStore";
 import { useThemeStore }  from "@/store/themeStore";
 import {
@@ -25,6 +26,7 @@ export default function ReportsPage() {
 
   const { subscribers } = useSubscribers();
   const { payments }    = usePayments({});
+  const { refunds }     = useRefunds({});
 
   const canExport  = canExportReports(user)        || user?.role === "owner" || user?.role === "admin";
   const canViewFin = canViewFinancialReports(user)  || user?.role === "owner" || user?.role === "admin";
@@ -55,7 +57,7 @@ export default function ReportsPage() {
       description: "جميع الدفعات مع العملات وأساليب الدفع",
       color: "#10b981",
       restricted: !canViewFin,
-      onExport: () => exportPaymentsCSV(payments, dateFrom||undefined, dateTo||undefined),
+      onExport: () => exportPaymentsCSV(payments, refunds, dateFrom||undefined, dateTo||undefined),
     },
     {
       key: "employees",

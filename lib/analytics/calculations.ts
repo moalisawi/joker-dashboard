@@ -5,9 +5,10 @@
  * All inputs are plain arrays/objects derived from existing hooks.
  */
 
-import type { Subscriber } from "@/types";
-import type { Payment }    from "@/types";
-import type { Team }       from "@/types";
+import type { Subscriber }        from "@/types";
+import type { Payment }           from "@/types";
+import type { Team }              from "@/types";
+import type { RefundTransaction } from "@/types";
 
 // ─── Revenue ──────────────────────────────────────────────────────────────────
 
@@ -37,11 +38,37 @@ export function revenueGrowthRate(
   return (currentRevenue - priorRevenue) / priorRevenue;
 }
 
-/** MRR: sum of current month's net revenue */
-export function calculateMRR(payments: Payment[], yearMonth: string): number {
-  return payments
-    .filter((p) => (p.date ?? "").startsWith(yearMonth))
+/** MRR: صافي إيراد الشهر الحالي (مدفوعات - استرداد) */
+export function calculateMRR(
+  payments: Payment[],
+  yearMonth: string,
+  refunds: RefundTransaction[] = []
+): number {
+  const gross = payments
+    .filter((p) => toDateString(p.date).slice(0, 7) === yearMonth)
     .reduce((s, p) => s + (p.amountUSD ?? 0), 0);
+  const refunded = refunds
+    .filter((r) => toDateString(r.refundDate).slice(0, 7) === yearMonth)
+    .reduce((s, r) => s + (r.refundAmountUSD ?? 0), 0);
+  return Math.max(0, gross - refunded);
+}
+
+/**
+ * Churn Rate الشهري = منسحبون هذا الشهر / (نشطون بداية الشهر + جدد هذا الشهر)
+ * نستخدم تقريباً بسيطاً: منسحبون هذا الشهر / إجمالي المشتركين
+ */
+export function calculateChurnRate(subscribers: Subscriber[]): number {
+  if (!subscribers.length) return 0;
+  const ym = currentYearMonth();
+  const withdrawnThisMonth = subscribers.filter((s) => {
+    if (s.subscriptionState !== "withdrawn") return false;
+    const at = s.withdrawalData?.withdrawnAt ?? s.updatedAt ?? "";
+    return String(at).slice(0, 7) === ym ||
+      (at && typeof (at as { toDate?: () => Date }).toDate === "function"
+        ? (at as { toDate: () => Date }).toDate().toISOString().slice(0, 7) === ym
+        : false);
+  }).length;
+  return subscribers.length === 0 ? 0 : withdrawnThisMonth / subscribers.length;
 }
 
 /** Revenue grouped by YYYY-MM, returns last `months` months */

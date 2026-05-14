@@ -10,8 +10,9 @@ import {
   calculateExpiry, todayString, PHONE_COUNTRIES, RESIDENCE_COUNTRIES,
 } from "@/lib/utils";
 import PhoneInput from "@/components/ui/PhoneInput";
-import { PAYMENT_METHODS, SOURCES, TEAMS } from "@/lib/permissions";
+import { PAYMENT_METHODS, SOURCES } from "@/lib/permissions";
 import { useEmployees } from "@/hooks/useEmployees";
+import { useTeams } from "@/hooks/useTeams";
 import { X } from "lucide-react";
 
 interface Props {
@@ -32,8 +33,9 @@ export default function SubscriberModal({
   const { user, can } = useAuthStore();
   const isEdit = mode === "edit" && !!subscriber;
 
-  // Dynamic employees from Firestore
+  // Dynamic employees & teams from Firestore
   const { employees: allEmployees } = useEmployees({ activeOnly: true });
+  const { data: activeTeams = [] }  = useTeams(true);
   const salesEmployees   = allEmployees.filter((e) => e.employeeRole === "sales" || e.employeeRole === "admin" || e.employeeRole === "owner");
   const allActiveNames   = allEmployees.map((e) => e.name);
 
@@ -382,7 +384,7 @@ export default function SubscriberModal({
               <select value={form.team} onChange={(e) => setField("team", e.target.value)}
                 className="form-input">
                 <option value="">اختر الفريق...</option>
-                {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                {activeTeams.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
               </select>
             </Field>
           </div>

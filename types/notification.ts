@@ -67,6 +67,9 @@ export interface AppNotification {
   /** Minimum role level that should receive this notification */
   targetMinRole: NotificationMinRole;
 
+  /** If set, only these specific user UIDs receive this notification (in addition to admins/owners) */
+  targetUserIds?: string[];
+
   createdAt: Timestamp;
   expiresAt?: Timestamp;
 }

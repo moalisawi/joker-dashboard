@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,13 +14,15 @@ import { useAuthStore }    from "@/store/authStore";
 import { useThemeStore }   from "@/store/themeStore";
 import { useTeamDetail, useTeamMembers } from "@/features/teams";
 import { useUpdateEmployee, useAssignTeam } from "@/features/users/hooks";
+import { useSubscribers }  from "@/hooks/useSubscribers";
 import { canManageUsers }  from "@/lib/permissionGuards";
 import { auditService }    from "@/services/audit.service";
-import type { UserProfile } from "@/types";
+import { formatNumber }    from "@/lib/utils";
+import type { UserProfile, Subscriber } from "@/types";
 import {
   ArrowRight, Users2, Briefcase, User, Phone, Clock,
   ShieldCheck, ShieldOff, UserMinus, CheckCircle2, XCircle,
-  Crown, TrendingUp,
+  Crown, TrendingUp, DollarSign, Search,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -156,6 +158,151 @@ function MemberRow({
   );
 }
 
+// ─── Subscribers Section ─────────────────────────────────────────────────────
+
+const STATUS_COLOR: Record<string, string> = {
+  "نشط":           "#10b981",
+  "ينتهي قريباً":  "#f59e0b",
+  "منتهي":         "#f43f5e",
+  "موقوف":         "#f97316",
+  "متجمد":         "#38bdf8",
+  "منسحب":         "#94a3b8",
+};
+
+function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: boolean }) {
+  const { subscribers, loading } = useSubscribers();
+  const [search, setSearch] = useState("");
+
+  const teamSubs = useMemo(
+    () => subscribers.filter((s) => s.team === teamName),
+    [subscribers, teamName]
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    if (!q) return teamSubs;
+    return teamSubs.filter(
+      (s) => s.name.toLowerCase().includes(q) || s.phone?.includes(q)
+    );
+  }, [teamSubs, search]);
+
+  const revenue  = teamSubs.reduce((sum, s) => sum + (s.netAmountUSD || 0), 0);
+  const active   = teamSubs.filter((s) => s.status === "نشط").length;
+  const expiring = teamSubs.filter((s) => s.status === "ينتهي قريباً").length;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl overflow-hidden"
+      style={{ background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
+        <h2 className="font-bold text-base" style={{ color: "var(--text-primary)" }}>مشتركو الفريق</h2>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+          style={{ background: "#6366f115", color: "#6366f1" }}>
+          {teamSubs.length} مشترك
+        </span>
+      </div>
+
+      {/* Mini stats */}
+      <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 border-b" style={{ borderColor: "var(--border)" }}>
+        {[
+          { label: "الإجمالي",       value: teamSubs.length,            color: "#6366f1" },
+          { label: "نشطون",          value: active,                     color: "#10b981" },
+          { label: "ينتهي قريباً",   value: expiring,                   color: "#f59e0b" },
+          { label: "الإيراد",        value: canRev ? `$${formatNumber(revenue, 0)}` : "—", color: "#10b981" },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl p-3 text-center"
+            style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+            <p className="text-lg font-black tabular-nums" style={{ color: s.color }}>{s.value}</p>
+            <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
+        <div className="relative">
+          <Search size={13} className="absolute right-3 top-1/2 -translate-y-1/2 opacity-40"/>
+          <input
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="بحث بالاسم أو الهاتف..."
+            className="form-input w-full pr-8 text-sm"
+          />
+        </div>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>جاري التحميل...</div>
+      ) : filtered.length === 0 ? (
+        <div className="py-12">
+          <EmptyState
+            icon={<User size={40}/>}
+            title={search ? "لا توجد نتائج" : "لا يوجد مشتركون في هذا الفريق"}
+            description={search ? "جرّب تغيير كلمة البحث" : "المشتركون المرتبطون بهذا الفريق سيظهرون هنا"}
+          />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+                {["الاسم", "الحالة", "الباقة", "الأيام المتبقية", "أقنعه", ...(canRev ? ["الإيراد"] : [])].map((h) => (
+                  <th key={h} className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider"
+                    style={{ color: "var(--text-muted)" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y" style={{ borderColor: "var(--border)" }}>
+              {filtered.map((s) => (
+                <tr key={s.id} className="transition-colors hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{s.name}</p>
+                    {s.phone && (
+                      <p className="text-xs mt-0.5 tabular-nums" style={{ color: "var(--text-muted)" }} dir="ltr">
+                        {s.dialCode} {s.phone}
+                      </p>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold"
+                      style={{ background: `${STATUS_COLOR[s.status] ?? "#94a3b8"}18`, color: STATUS_COLOR[s.status] ?? "#94a3b8" }}>
+                      {s.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${s.package === "ذهبية" ? "pkg-gold" : "pkg-silver"}`}>
+                      {s.package}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-sm tabular-nums font-semibold"
+                      style={{ color: s.daysRemaining <= 7 ? "#f43f5e" : s.daysRemaining <= 30 ? "#f59e0b" : "var(--text-primary)" }}>
+                      {s.daysRemaining > 0 ? `${s.daysRemaining} يوم` : "منتهي"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{s.convincedBy || "—"}</span>
+                  </td>
+                  {canRev && (
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="text-sm font-bold tabular-nums text-emerald-500">
+                        ${formatNumber(s.netAmountUSD, 0)}
+                      </span>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function TeamDetailPage() {
@@ -177,8 +324,9 @@ export default function TeamDetailPage() {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [removing, setRemoving] = useState<UserProfile | null>(null);
 
-  const canEdit = canManageUsers(user);
-  const isOwner = user?.role === "owner";
+  const canEdit  = canManageUsers(user);
+  const isOwner  = user?.role === "owner";
+  const canRev   = user?.role === "owner" || user?.granularPermissions?.analytics?.view === true;
 
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok });
@@ -324,6 +472,9 @@ export default function TeamDetailPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Subscribers section */}
+              <SubscribersSection teamName={team.name} canRev={canRev} />
 
               {/* Members table */}
               <div className="rounded-2xl overflow-hidden"

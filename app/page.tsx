@@ -1,13 +1,14 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { usePayments } from "@/hooks/usePayments";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import StatsCards from "@/components/stats/StatsCards";
+import StatsDateFilter, { type StatsPeriod, getPeriodLabel } from "@/components/stats/StatsDateFilter";
 import CurrencyCounters from "@/components/stats/CurrencyCounters";
 import TeamPerformance from "@/components/stats/TeamPerformance";
 import Alerts from "@/components/stats/Alerts";
@@ -26,8 +27,33 @@ import ResumeModal from "@/components/subscribers/ResumeModal";
 import PausedSubscribersSection from "@/components/subscribers/PausedSubscribersSection";
 import FrozenSubscribersSection from "@/components/subscribers/FrozenSubscribersSection";
 import ExchangeRatesModal from "@/components/stats/ExchangeRatesModal";
-import type { Subscriber } from "@/types";
+import type { Subscriber, Payment, RefundTransaction } from "@/types";
 import { Plus, RefreshCw, DollarSign } from "lucide-react";
+import { useRefunds } from "@/hooks/useRefunds";
+
+function filterByPeriod<T extends object>(
+  items: T[],
+  period: StatsPeriod,
+  dateKey: keyof T = "date" as keyof T,
+): T[] {
+  const getDate = (item: T): string => {
+    const v = item[dateKey];
+    if (!v || typeof v !== "string") return "";
+    return v;
+  };
+  if (period.mode === "current_month") {
+    const ym = new Date().toISOString().slice(0, 7);
+    return items.filter((i) => getDate(i).startsWith(ym));
+  }
+  if (period.mode === "days") {
+    const cutoff = new Date(Date.now() - period.n * 86_400_000).toISOString().split("T")[0];
+    return items.filter((i) => getDate(i) >= cutoff);
+  }
+  if (period.mode === "month") {
+    return items.filter((i) => getDate(i).startsWith(period.ym));
+  }
+  return items;
+}
 
 type ModalState =
   | { type: "none" }
@@ -54,7 +80,25 @@ export default function HomePage() {
   const { user, can, exchangeRates } = useAuthStore();
   const { subscribers, loading, error } = useSubscribers();
   const { payments } = usePayments();
-  const [modal, setModal] = useState<ModalState>({ type: "none" });
+  const { refunds }  = useRefunds();
+  const [modal, setModal]         = useState<ModalState>({ type: "none" });
+  const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>({ mode: "current_month" });
+
+  const filteredSubscribers = useMemo(
+    () => filterByPeriod(subscribers as (Subscriber & { date: string })[], statsPeriod),
+    [subscribers, statsPeriod],
+  );
+  const filteredPayments = useMemo(
+    () => filterByPeriod(payments as (Payment & { date: string })[], statsPeriod),
+    [payments, statsPeriod],
+  );
+  const filteredRefunds = useMemo(
+    () => filterByPeriod(
+      refunds.map((r) => ({ ...r, date: r.refundDate })) as (RefundTransaction & { date: string })[],
+      statsPeriod,
+    ),
+    [refunds, statsPeriod],
+  );
 
   const closeModal = useCallback(() => setModal({ type: "none" }), []);
   const onSaved    = useCallback(() => toast("تم الحفظ بنجاح"), []);
@@ -125,7 +169,13 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            <StatsCards subscribers={subscribers} />
+            <StatsDateFilter value={statsPeriod} onChange={setStatsPeriod} />
+            <StatsCards
+              subscribers={filteredSubscribers}
+              payments={filteredPayments}
+              refunds={filteredRefunds}
+              periodLabel={getPeriodLabel(statsPeriod)}
+            />
             <CurrencyCounters payments={payments} />
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-6">

@@ -10,7 +10,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { ROLE_LABELS } from "@/lib/permissions";
 import {
   Home, Users, ScrollText, LogOut, Menu, X,
-  ChevronLeft, BarChart3, Bell, Briefcase, Users2, FileText,
+  ChevronLeft, BarChart3, Bell, Briefcase, Users2, FileText, Search, BookOpen,
 } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -42,6 +42,7 @@ export default function Sidebar() {
     { href: "/admin/teams",    label: "الفرق",        icon: <Users2     size={18} />, permission: "canManageUsers" },
     { href: "/users",          label: "المستخدمون",   icon: <Users      size={18} />, permission: "canManageUsers" },
     { href: "/logs",           label: "سجل العمليات", icon: <ScrollText size={18} />, permission: "canViewLogs" },
+    { href: "/guide",          label: "دليل الاستخدام", icon: <BookOpen   size={18} /> },
   ];
 
   async function handleLogout() {
@@ -77,8 +78,24 @@ export default function Sidebar() {
         </div>
       </div>
 
+      {/* Global search trigger */}
+      <div className="px-3 pt-4 pb-1">
+        <button
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))}
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors text-white/40 hover:text-white/75 hover:bg-white/[0.07]"
+          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <Search size={14} className="shrink-0" />
+          <span className="flex-1 text-right">بحث سريع</span>
+          <span className="flex items-center gap-0.5 opacity-60">
+            <kbd className="text-[9px] font-bold bg-white/10 rounded px-1 py-0.5">Ctrl</kbd>
+            <kbd className="text-[9px] font-bold bg-white/10 rounded px-1 py-0.5">K</kbd>
+          </span>
+        </button>
+      </div>
+
       {/* Section label */}
-      <div className="px-5 pt-5 pb-1">
+      <div className="px-5 pt-3 pb-1">
         <p className="section-label opacity-40 text-white">التنقل</p>
       </div>
 

@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useAuthListener } from "@/hooks/useAuth";
 import { useNotificationsListener } from "@/hooks/useNotificationsListener";
 import Sidebar from "./Sidebar";
+import GlobalSearch from "@/components/search/GlobalSearch";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   useAuthListener();
@@ -39,6 +40,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <main className="flex-1 overflow-auto min-w-0">
         {children}
       </main>
+      <GlobalSearch />
     </div>
   );
 }

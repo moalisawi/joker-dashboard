@@ -51,11 +51,17 @@ export function useNotificationsListener() {
           (d) => ({ id: d.id, ...d.data() } as AppNotification)
         );
 
-        // Filter by role: only show notifications the current user's role qualifies for
+        // Filter: show if role qualifies OR explicitly targeted by uid
         const userRank = roleRank(user.role);
-        const visible  = all.filter(
-          (n) => userRank >= minRoleRank(n.targetMinRole ?? "employee")
-        );
+        const visible  = all.filter((n) => {
+          const roleOk = userRank >= minRoleRank(n.targetMinRole ?? "employee");
+          const targeted = Array.isArray(n.targetUserIds) && n.targetUserIds.includes(user.uid);
+          // targeted notifications: show only if explicitly targeted (bypass role check for employees)
+          if (Array.isArray(n.targetUserIds) && n.targetUserIds.length > 0) {
+            return targeted || userRank >= minRoleRank("admin");
+          }
+          return roleOk;
+        });
 
         setNotifications(visible);
       },

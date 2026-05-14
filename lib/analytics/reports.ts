@@ -2,8 +2,9 @@
  * Reports: data preparation + CSV export
  */
 
-import type { Subscriber } from "@/types";
-import type { Payment }    from "@/types";
+import type { Subscriber }        from "@/types";
+import type { Payment }           from "@/types";
+import type { RefundTransaction } from "@/types";
 
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
 
@@ -83,29 +84,93 @@ export function exportSubscribersCSV(
 
 export function exportPaymentsCSV(
   payments: Payment[],
+  refunds:  RefundTransaction[] = [],
   dateFrom?: string,
   dateTo?:   string,
   filename = "payments-report.csv"
 ): void {
   let data = [...payments];
-  if (dateFrom) data = data.filter((p) => toDateStr(p.createdAt) >= dateFrom);
-  if (dateTo)   data = data.filter((p) => toDateStr(p.createdAt) <= dateTo);
+  if (dateFrom) data = data.filter((p) => toDateStr(p.date) >= dateFrom);
+  if (dateTo)   data = data.filter((p) => toDateStr(p.date) <= dateTo);
+
+  // مجموع الاسترداد لكل مشترك
+  const refundBySubscriber: Record<string, number> = {};
+  refunds.forEach((r) => {
+    if (r.subscriberId)
+      refundBySubscriber[r.subscriberId] = (refundBySubscriber[r.subscriberId] || 0) + (r.refundAmountUSD || 0);
+  });
 
   const headers = [
     "التاريخ", "المشترك", "النوع", "المبلغ الأصلي", "العملة",
-    "المبلغ USD", "صافي USD", "طريقة الدفع", "موظف المبيعات",
+    "المبلغ USD", "الاسترداد USD", "صافي USD", "طريقة الدفع", "موظف المبيعات",
   ];
 
-  const rows = data.map((p) => [
-    p.date ?? "",
-    p.subscriberName ?? p.subscriberId ?? "",
-    p.paymentType ?? "",
-    (p.amountOriginal ?? 0).toFixed(2),
-    p.currencyOriginal ?? "",
-    (p.amountUSD ?? 0).toFixed(2),
-    (p.amountUSD ?? 0).toFixed(2),
-    p.paymentMethod ?? "",
-    p.createdBy ?? "",
+  // تجميع الاسترداد على أول دفعة للمشترك فقط لتجنب التكرار
+  const seenRefund = new Set<string>();
+  const rows = data.map((p) => {
+    const sid = p.subscriberId ?? "";
+    let refundUSD = 0;
+    if (sid && !seenRefund.has(sid) && refundBySubscriber[sid]) {
+      refundUSD = refundBySubscriber[sid];
+      seenRefund.add(sid);
+    }
+    const netUSD = (p.amountUSD ?? 0) - refundUSD;
+    return [
+      p.date ?? "",
+      p.subscriberName ?? sid,
+      p.paymentType ?? "",
+      (p.amountOriginal ?? 0).toFixed(2),
+      p.currencyOriginal ?? "",
+      (p.amountUSD ?? 0).toFixed(2),
+      refundUSD.toFixed(2),
+      netUSD.toFixed(2),
+      p.paymentMethod ?? "",
+      p.createdBy ?? "",
+    ];
+  });
+
+  downloadCsv(buildCsv(headers, rows), filename);
+}
+
+// ─── Subscribers by month report ─────────────────────────────────────────────
+
+/**
+ * Export all subscribers whose subscription start date falls in the given month.
+ * @param month  "YYYY-MM"
+ */
+export function exportSubscribersByMonthCSV(
+  subscribers: Subscriber[],
+  month: string,
+  filename = `subscribers-${month}.csv`
+): void {
+  const data = subscribers.filter((s) => {
+    const d = s.startDate ?? s.date ?? "";
+    return d.slice(0, 7) === month;
+  });
+
+  const headers = [
+    "الاسم", "الهاتف", "الدولة", "الباقة", "المدة",
+    "تاريخ البدء", "تاريخ الانتهاء", "الحالة",
+    "الإيراد USD", "المدفوع USD", "المتبقي USD",
+    "أقنعه", "الفريق", "المصدر", "طريقة الدفع",
+  ];
+
+  const rows = data.map((s) => [
+    s.name,
+    s.phone ?? "",
+    s.residence ?? "",
+    s.package,
+    s.duration,
+    s.startDate ?? s.date,
+    s.expiryDate,
+    s.status,
+    (s.netAmountUSD      ?? 0).toFixed(2),
+    (s.paidAmountUSD     ?? 0).toFixed(2),
+    (s.remainingAmountUSD ?? 0).toFixed(2),
+    s.convincedBy ?? "",
+    s.team ?? "",
+    s.source ?? "",
+    s.payment ?? "",
   ]);
 
   downloadCsv(buildCsv(headers, rows), filename);

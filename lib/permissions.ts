@@ -159,8 +159,17 @@ export function canAssignRole(actorRole: Role, assignRole: Role): boolean {
 // ─── Permissions per EmployeeRole ─────────────────────────────────────────────
 
 export const EMPLOYEE_ROLE_PERMISSIONS: Record<EmployeeRole, GranularPermissions> = {
-  owner: DEFAULT_GRANULAR_PERMISSIONS.owner,
-  admin: DEFAULT_GRANULAR_PERMISSIONS.admin,
+  owner:       DEFAULT_GRANULAR_PERMISSIONS.owner,
+  admin:       DEFAULT_GRANULAR_PERMISSIONS.admin,
+  team_leader: {
+    subscribers:   { view: true,  create: true,  edit: true,  delete: false },
+    subscriptions: { renew: true, freeze: true,  resume: true, withdraw: false },
+    payments:      { create: true, edit: false,  refund: false },
+    analytics:     { view: true,  export: true   },
+    logs:          { view: true   },
+    users:         { manage: false, changeRoles: false, activateAccounts: false },
+    settings:      { manage: false },
+  },
   sales: {
     subscribers:   { view: true,  create: true,  edit: true,  delete: true  },
     subscriptions: { renew: true, freeze: true,  resume: true, withdraw: true },
@@ -183,10 +192,11 @@ export const EMPLOYEE_ROLE_PERMISSIONS: Record<EmployeeRole, GranularPermissions
 
 /** Map EmployeeRole → auth Role for the users collection */
 export const EMPLOYEE_AUTH_ROLE: Record<EmployeeRole, Role> = {
-  owner:    "owner",
-  admin:    "admin",
-  sales:    "employee",
-  followup: "employee",
+  owner:       "owner",
+  admin:       "admin",
+  team_leader: "employee",
+  sales:       "employee",
+  followup:    "employee",
 };
 
 // ─── Static data ───────────────────────────────────────────────────────────────

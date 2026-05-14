@@ -236,6 +236,7 @@ async function runAll(): Promise<void> {
     checkUnusualEmployeeRefunds(),
     checkRevenueDrop(),
     checkExpiringSubscriptions(),
+    notificationService.createRenewalRemindersForAssignedEmployees(7),
   ]);
 }
 

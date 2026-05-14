@@ -10,7 +10,7 @@ export const createEmployeeSchema = z.object({
     .max(128),
   fullName: z.string().min(2, "الاسم مطلوب").max(100),
   phone: z.string().max(20).optional(),
-  employeeRole: z.enum(["sales", "followup", "admin", "owner"]),
+  employeeRole: z.enum(["sales", "followup", "team_leader", "admin", "owner"]),
   department: z.enum(["مبيعات", "متابعة", "إدارة", "أخرى"]),
   teamId: z.string().optional(),
   notes: z.string().max(500).optional(),
@@ -22,7 +22,7 @@ export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 
 export const updateEmployeeSchema = z.object({
   uid: z.string().min(1),
-  employeeRole: z.enum(["sales", "followup", "admin", "owner"]).optional(),
+  employeeRole: z.enum(["sales", "followup", "team_leader", "admin", "owner"]).optional(),
   department: z.enum(["مبيعات", "متابعة", "إدارة", "أخرى"]).optional(),
   teamId: z.string().nullable().optional(),
   notes: z.string().max(500).optional(),

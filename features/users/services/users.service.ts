@@ -64,10 +64,11 @@ export const usersFeatureService = {
       query(
         collection(db, COLLECTIONS.USERS),
         where("isEmployee", "==", true),
-        orderBy("name", "asc")
       )
     );
-    return snap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile));
+    return snap.docs
+      .map((d) => ({ uid: d.id, ...d.data() } as UserProfile))
+      .sort((a, b) => a.name.localeCompare(b.name, "ar"));
   },
 
   async getActiveEmployees(): Promise<UserProfile[]> {
@@ -76,10 +77,11 @@ export const usersFeatureService = {
         collection(db, COLLECTIONS.USERS),
         where("isEmployee", "==", true),
         where("active", "==", true),
-        orderBy("name", "asc")
       )
     );
-    return snap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile));
+    return snap.docs
+      .map((d) => ({ uid: d.id, ...d.data() } as UserProfile))
+      .sort((a, b) => a.name.localeCompare(b.name, "ar"));
   },
 
   async getEmployeeById(uid: string): Promise<UserProfile | null> {

@@ -1,0 +1,5 @@
+name,phone,phoneCountry,dialCode,residence,age,package,duration,startDate,currency,lockedRate,totalPrice,paidAmount,payment,convincedBy,paidShift,team,source,referrer,subscriptionState,notes
+أحمد محمد علي,0791234567,JO,+962,الأردن,28,ذهبية,3,2025-02-01,JOD,0.71,150,150,تحويل بنكي,ميدو,صباحي,فريق أ,إعلان,,active,
+سارة أحمد,0501234567,SA,+966,السعودية,35,فضية,1,2025-03-15,USD,1,30,30,نقد,ميار,مسائي,فريق ب,واتساب,,active,عميلة قديمة
+محمود حسن,0521234567,AE,+971,الإمارات,,فضية,6,2024-11-01,USD,1,150,100,باي بال,حنان,,,إعلان,,active,دفع جزئي
+فاطمة يوسف,0111234567,EG,+20,مصر,22,ذهبية,12,2024-06-01,EGP,47.5,2850,2850,فودافون كاش,ميدو,صباحي,فريق أ,صديق,سارة أحمد,active,

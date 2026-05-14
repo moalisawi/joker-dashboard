@@ -1,91 +1,56 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  collection,
-  onSnapshot,
-  query,
-  where,
-  orderBy,
-  Query,
-} from "firebase/firestore";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { collection, query, where, orderBy, onSnapshot, getDocs, type Query } from "firebase/firestore";
 import { db } from "@/lib/firestore";
-import { PaymentTransaction } from "@/types";
+import type { PaymentTransaction } from "@/types";
 
 interface UsePaymentsOptions {
-  subscriberId?: string;
-  dateRange?: { start: string; end: string };
+  subscriberId?:  string;
+  dateRange?:     { start: string; end: string };
   paymentMethod?: string;
-  limit?: number;
+  limit?:         number;
+}
+
+function buildPaymentsQuery(options: UsePaymentsOptions): Query {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const constraints: any[] = [orderBy("date", "desc")];
+  if (options.subscriberId)       constraints.push(where("subscriberId",    "==", options.subscriberId));
+  if (options.dateRange)          constraints.push(where("date", ">=", options.dateRange.start), where("date", "<=", options.dateRange.end));
+  if (options.paymentMethod)      constraints.push(where("paymentMethod",   "==", options.paymentMethod));
+  return query(collection(db, "payments"), ...constraints);
 }
 
 export function usePayments(options: UsePaymentsOptions = {}) {
-  const [payments, setPayments] = useState<PaymentTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const qc       = useQueryClient();
+  const queryKey = ["payments", options.subscriberId ?? "", options.dateRange?.start ?? "", options.dateRange?.end ?? "", options.paymentMethod ?? ""] as const;
+
+  const { data: allPayments = [], isLoading, error } = useQuery<PaymentTransaction[]>({
+    queryKey,
+    queryFn: async () => {
+      const snap = await getDocs(buildPaymentsQuery(options));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() } as PaymentTransaction));
+    },
+    staleTime: Infinity,
+  });
+
+  // Apply client-side limit
+  const payments = options.limit ? allPayments.slice(0, options.limit) : allPayments;
 
   useEffect(() => {
-    try {
-      // Build constraints based on options
-      const constraints: any[] = [orderBy("date", "desc")];
+    const q     = buildPaymentsQuery(options);
+    const unsub = onSnapshot(q, (snap) => {
+      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as PaymentTransaction));
+      qc.setQueryData<PaymentTransaction[]>(queryKey, data);
+    });
+    return () => unsub();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.subscriberId, options.dateRange?.start, options.dateRange?.end, options.paymentMethod]);
 
-      if (options.subscriberId) {
-        constraints.push(where("subscriberId", "==", options.subscriberId));
-      }
-
-      if (options.dateRange) {
-        constraints.push(
-          where("date", ">=", options.dateRange.start),
-          where("date", "<=", options.dateRange.end)
-        );
-      }
-
-      if (options.paymentMethod) {
-        constraints.push(where("paymentMethod", "==", options.paymentMethod));
-      }
-
-      const q: Query = query(collection(db, "payments"), ...constraints);
-
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const data: PaymentTransaction[] = [];
-          snapshot.forEach((doc) => {
-            data.push({
-              id: doc.id,
-              ...doc.data(),
-            } as PaymentTransaction);
-          });
-
-          // Apply limit if specified
-          if (options.limit && data.length > options.limit) {
-            data.length = options.limit;
-          }
-
-          setPayments(data);
-          setLoading(false);
-          setError(null);
-        },
-        (err) => {
-          console.error("Error fetching payments:", err);
-          setError(err.message);
-          setLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch (err: any) {
-      console.error("Error setting up payments listener:", err);
-      setError(err.message);
-      setLoading(false);
-    }
-  }, [
-    options.subscriberId,
-    options.dateRange?.start,
-    options.dateRange?.end,
-    options.paymentMethod,
-    options.limit,
-  ]);
-
-  return { payments, loading, error };
+  return {
+    payments,
+    loading: isLoading,
+    error:   error instanceof Error ? error.message : null,
+  };
 }

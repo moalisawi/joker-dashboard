@@ -185,6 +185,27 @@
       ]
     },
 
+    // ─── users ────────────────────────────────────────────────────────────
+    // Employee list: filter by isEmployee, sort by name
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isEmployee", "order": "ASCENDING" },
+        { "fieldPath": "name",       "order": "ASCENDING" }
+      ]
+    },
+    // Active employee list: filter by isEmployee + active, sort by name
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isEmployee", "order": "ASCENDING" },
+        { "fieldPath": "active",     "order": "ASCENDING" },
+        { "fieldPath": "name",       "order": "ASCENDING" }
+      ]
+    },
+
     // ─── subscribers ──────────────────────────────────────────────────────
     // Status dashboard (filter by subscriptionState, sort by date)
     {

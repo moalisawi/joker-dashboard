@@ -13,7 +13,7 @@ import { usePayments } from "@/hooks/usePayments";
 import { useAuthStore } from "@/store/authStore";
 import { useThemeStore } from "@/store/themeStore";
 import { formatNumber, ARABIC_MONTHS, RESIDENCE_COUNTRIES, PHONE_COUNTRIES } from "@/lib/utils";
-import { TEAMS } from "@/lib/permissions";
+import { useTeams } from "@/hooks/useTeams";
 import Link from "next/link";
 import {
   Users, DollarSign, TrendingUp, CreditCard,
@@ -23,9 +23,11 @@ import {
 } from "lucide-react";
 import { useEmployeePerformance } from "@/hooks/useEmployeePerformance";
 import { useDashboardMetrics }    from "@/hooks/useDashboardMetrics";
+import { useRefunds }             from "@/hooks/useRefunds";
 import { canExportReports }       from "@/lib/permissionGuards";
 import {
   exportSubscribersCSV, exportPaymentsCSV, exportEmployeePerformanceCSV,
+  exportSubscribersByMonthCSV,
 } from "@/lib/analytics/reports";
 import type { Insight } from "@/lib/analytics/insights";
 
@@ -269,10 +271,13 @@ export default function AnalyticsPage() {
   const canRev        = can("canViewRevenue");
   const canExport     = canExportReports(user);
   const t             = dark ? DARK : LIGHT;
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [tab, setTab]               = useState<TabKey>("overview");
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   const { subscribers, loading } = useSubscribers();
   const { payments }             = usePayments();
+  const { refunds }              = useRefunds();
+  const { data: allTeams = [] }  = useTeams(true);
   const { performance: empPerf, loading: empLoading } = useEmployeePerformance();
   const { insights, loading: metricsLoading }         = useDashboardMetrics();
 
@@ -289,17 +294,22 @@ export default function AnalyticsPage() {
         cntMap[key] = (cntMap[key] || 0) + 1;
       }
     });
+    // طرح الاسترداد من الإيراد الشهري الصافي
+    refunds.forEach((r) => {
+      const key = toDateStr(r.refundDate).slice(0, 7);
+      if (key) revMap[key] = (revMap[key] || 0) - (r.refundAmountUSD || 0);
+    });
     const now = new Date();
     return Array.from({ length: 12 }, (_, i) => {
       const d   = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       return {
         label:   ARABIC_MONTHS[d.getMonth()].slice(0, 3),
-        revenue: +(revMap[key] || 0).toFixed(2),
+        revenue: +(Math.max(0, revMap[key] || 0)).toFixed(2),
         count:   cntMap[key] || 0,
       };
     });
-  }, [payments]);
+  }, [payments, refunds]);
 
   const kpi = useMemo(() => ({
     total:     subscribers.length,
@@ -335,17 +345,30 @@ export default function AnalyticsPage() {
     { name: "ذهبية", value: subscribers.filter((s) => s.package === "ذهبية").length, color: ACC.amber },
   ], [subscribers]);
 
-  const teamData = useMemo(() =>
-    TEAMS.map((team) => {
-      const group = subscribers.filter((s) => s.team === team || s.convincedBy === team);
-      return {
-        name:    team,
-        مشتركون: group.length,
-        إيراد:   +group.reduce((s, x) => s + (x.netAmountUSD || 0), 0).toFixed(0),
-      };
-    }), [subscribers]);
+  const teamData = useMemo(() => {
+    // Group by subscriber.team field — works even without Firestore team docs
+    const map: Record<string, { مشتركون: number; نشطون: number; إيراد: number; id: string }> = {};
+    subscribers.forEach((s) => {
+      const key = s.team?.trim();
+      if (!key) return;
+      if (!map[key]) {
+        const firestoreTeam = allTeams.find((t) => t.name === key);
+        map[key] = { مشتركون: 0, نشطون: 0, إيراد: 0, id: firestoreTeam?.id ?? "" };
+      }
+      map[key].مشتركون++;
+      if (s.subscriptionState !== "withdrawn") map[key].نشطون++;
+      map[key].إيراد = +(map[key].إيراد + (s.netAmountUSD || 0)).toFixed(0);
+    });
+    return Object.entries(map)
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.مشتركون - a.مشتركون);
+  }, [subscribers, allTeams]);
 
-  const recentPayments = useMemo(() => [...payments].slice(0, 8), [payments]);
+  const recentPayments = useMemo(() =>
+    [...payments]
+      .sort((a, b) => (toDateStr(b.date) > toDateStr(a.date) ? 1 : -1))
+      .slice(0, 8),
+  [payments]);
   const sparkRevenue   = monthly.map((m) => m.revenue);
   const sparkCount     = monthly.map((m) => m.count);
 
@@ -379,6 +402,41 @@ export default function AnalyticsPage() {
               </p>
             </motion.div>
           </motion.div>
+
+          {/* ── Export buttons ── */}
+          {canExport && (
+            <motion.div variants={fadeUp} transition={tran} className="flex flex-wrap justify-end gap-2 mb-2 items-center">
+              {/* Month export */}
+              <div className="flex items-center gap-1.5 rounded-xl border overflow-hidden"
+                style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  max={new Date().toISOString().slice(0, 7)}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="px-3 py-2 text-xs bg-transparent outline-none"
+                  style={{ color: "var(--text-primary)" }}
+                />
+                <button
+                  onClick={() => exportSubscribersByMonthCSV(subscribers, selectedMonth)}
+                  disabled={!selectedMonth}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white disabled:opacity-50 transition-opacity"
+                  style={{ background: "linear-gradient(135deg,#f59e0b,#f97316)" }}>
+                  <Download size={12}/> تصدير الشهر
+                </button>
+              </div>
+              <button onClick={() => exportSubscribersCSV(subscribers)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
+                style={{ background: "linear-gradient(135deg,#10b981,#14b8a6)" }}>
+                <Download size={12}/> تصدير الكل
+              </button>
+              <button onClick={() => exportPaymentsCSV(payments, refunds)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
+                style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+                <Download size={12}/> تصدير الدفعات
+              </button>
+            </motion.div>
+          )}
 
           {/* ── Tab navigation ── */}
           <div className="flex gap-1 p-1 rounded-xl w-fit mb-6"
@@ -539,21 +597,70 @@ export default function AnalyticsPage() {
                   </div>
                 </Shell>
 
-                <Shell t={t} title="أداء الفريق" subtitle="عدد المشتركين لكل فريق" accent={ACC.violet} height={260}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={teamData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={t.grid} vertical={false} />
-                      <XAxis dataKey="name" tick={{ ...TICK, fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={TICK} axisLine={false} tickLine={false} allowDecimals={false} />
-                      <Tooltip content={<DarkTip />} cursor={{ fill: "rgba(128,128,128,0.05)" }} />
-                      <Bar dataKey="مشتركون" radius={[6, 6, 0, 0]} maxBarSize={40}>
-                        {teamData.map((_, i) => (
-                          <Cell key={i} fill={[ACC.violet, ACC.sky, ACC.teal][i % 3]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Shell>
+                {/* Team performance — nutrition teams only */}
+                <motion.div variants={fadeUp} transition={tran}
+                  className="relative overflow-hidden rounded-2xl"
+                  style={{ background: t.card, border: `1px solid ${t.cardBorder}`, boxShadow: t.cardShadow }}>
+                  <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: t.divider }}>
+                    <div>
+                      <h3 className="text-sm font-bold" style={{ color: t.textPri }}>أداء فرق التغذية</h3>
+                      <p className="mt-0.5 text-xs" style={{ color: t.textSec }}>المشتركون الموزّعون على كل فريق</p>
+                    </div>
+                    <Link href="/admin/teams"
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors hover:opacity-80"
+                      style={{ background: `${ACC.violet}15`, color: ACC.violet }}>
+                      إدارة الفرق ←
+                    </Link>
+                  </div>
+
+                  {teamData.length === 0 ? (
+                    <div className="flex items-center justify-center py-14">
+                      <p className="text-sm" style={{ color: t.textSec }}>لا توجد فرق تغذية مُعرَّفة بعد</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Bar chart */}
+                      <div className="px-5 pt-4" dir="ltr" style={{ height: 180 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={teamData} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={t.grid} vertical={false} />
+                            <XAxis dataKey="name" tick={{ ...TICK, fontSize: 10 }} axisLine={false} tickLine={false} />
+                            <YAxis tick={TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+                            <Tooltip content={<DarkTip />} cursor={{ fill: "rgba(128,128,128,0.05)" }} />
+                            <Bar dataKey="مشتركون" name="المشتركون" radius={[5, 5, 0, 0]} maxBarSize={44} fill={ACC.violet} />
+                            <Bar dataKey="نشطون"   name="النشطون"    radius={[5, 5, 0, 0]} maxBarSize={44} fill={ACC.teal} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Team cards row — dir matches chart (ltr) */}
+                      <div className="grid gap-3 p-4" dir="ltr" style={{ gridTemplateColumns: `repeat(${Math.min(teamData.length, 3)}, 1fr)` }}>
+                        {teamData.map((td, i) => {
+                          const color = [ACC.violet, ACC.sky, ACC.teal][i % 3];
+                          const inner = (
+                            <>
+                              <p className="text-xs font-bold truncate mb-2" style={{ color: t.textPri }}>{td.name}</p>
+                              <div className="flex items-center justify-between text-xs">
+                                <span style={{ color: t.textSec }}>{td["مشتركون"]} مشترك</span>
+                                <span className="font-bold" style={{ color: ACC.teal }}>{td["نشطون"]} نشط</span>
+                              </div>
+                              {canRev && (
+                                <p className="text-xs font-black mt-1 tabular-nums" style={{ color: ACC.emerald }}>
+                                  ${formatNumber(td["إيراد"], 0)}
+                                </p>
+                              )}
+                            </>
+                          );
+                          const cls = "rounded-xl p-3 transition-all hover:opacity-80 block";
+                          const style = { background: `${color}12`, border: `1px solid ${color}25` };
+                          return td.id
+                            ? <Link key={td.name} href={`/admin/teams/${td.id}`} className={cls} style={style} dir="rtl">{inner}</Link>
+                            : <div  key={td.name} className={cls} style={style} dir="rtl">{inner}</div>;
+                        })}
+                      </div>
+                    </>
+                  )}
+                </motion.div>
               </div>
 
               {/* ── Source + Recent Payments ── */}

@@ -17,6 +17,7 @@ import { useAuthStore }    from "@/store/authStore";
 import { useThemeStore }   from "@/store/themeStore";
 import { useTeams, useCreateTeam, useDeactivateTeam, useActivateTeam, useDeleteTeam, useUpdateTeam } from "@/hooks/useTeams";
 import { useEmployeeList } from "@/features/users/hooks";
+import { useSubscribers }  from "@/hooks/useSubscribers";
 import { createTeamSchema, type CreateTeamInput } from "@/features/users/schemas";
 import { z }               from "zod";
 import { canManageUsers }  from "@/lib/permissionGuards";
@@ -176,8 +177,8 @@ function RenameTeamModal({ team, onClose, onSuccess }: {
 
 // ─── Team Card ────────────────────────────────────────────────────────────────
 
-function TeamCard({ team, memberCount, canEdit, isOwner, onRename, onDeactivate, onActivate, onDelete }: {
-  team: Team; memberCount: number; canEdit: boolean; isOwner: boolean;
+function TeamCard({ team, memberCount, subscriberCount, canEdit, isOwner, onRename, onDeactivate, onActivate, onDelete }: {
+  team: Team; memberCount: number; subscriberCount: number; canEdit: boolean; isOwner: boolean;
   onRename: () => void; onDeactivate: () => void; onActivate: () => void; onDelete: () => void;
 }) {
   const meta = TYPE_META[team.type];
@@ -238,11 +239,19 @@ function TeamCard({ team, memberCount, canEdit, isOwner, onRename, onDeactivate,
           {meta.icon}{meta.label}
         </span>
 
-        <div className="flex items-center gap-2 p-3 rounded-xl"
-          style={{ background:"var(--surface-2)", border:"1px solid var(--border)" }}>
-          <Users size={14} style={{ color:"var(--text-muted)" }}/>
-          <span className="text-sm font-bold tabular-nums" style={{ color:"var(--text-primary)" }}>{memberCount}</span>
-          <span className="text-xs" style={{ color:"var(--text-muted)" }}>موظف</span>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex items-center gap-2 p-3 rounded-xl"
+            style={{ background:"var(--surface-2)", border:"1px solid var(--border)" }}>
+            <Users size={13} style={{ color:"var(--text-muted)" }}/>
+            <span className="text-sm font-bold tabular-nums" style={{ color:"var(--text-primary)" }}>{memberCount}</span>
+            <span className="text-xs" style={{ color:"var(--text-muted)" }}>موظف</span>
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-xl"
+            style={{ background:"var(--surface-2)", border:"1px solid var(--border)" }}>
+            <Users2 size={13} style={{ color: meta.color }}/>
+            <span className="text-sm font-bold tabular-nums" style={{ color:"var(--text-primary)" }}>{subscriberCount}</span>
+            <span className="text-xs" style={{ color:"var(--text-muted)" }}>مشترك</span>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -263,6 +272,7 @@ export default function AdminTeamsPage() {
 
   const { data: teams = [],    isLoading } = useTeams();
   const { data: employees = [] }           = useEmployeeList();
+  const { subscribers }                    = useSubscribers();
   const deactivateMut                      = useDeactivateTeam();
   const activateMut                        = useActivateTeam();
   const deleteMut                          = useDeleteTeam();
@@ -282,6 +292,12 @@ export default function AdminTeamsPage() {
     employees.forEach((e) => { if (e.teamId) m[e.teamId] = (m[e.teamId] ?? 0) + 1; });
     return m;
   }, [employees]);
+
+  const subscriberCounts = useMemo(() => {
+    const m: Record<string,number> = {};
+    subscribers.forEach((s) => { if (s.team) m[s.team] = (m[s.team] ?? 0) + 1; });
+    return m;
+  }, [subscribers]);
 
   const stats = useMemo(() => ({
     total:     teams.length,
@@ -401,6 +417,7 @@ export default function AdminTeamsPage() {
                 <TeamCard
                   key={team.id} team={team}
                   memberCount={memberCounts[team.id] ?? 0}
+                  subscriberCount={subscriberCounts[team.name] ?? 0}
                   canEdit={canEdit}
                   isOwner={isOwner}
                   onRename={() => setRenameTeam(team)}

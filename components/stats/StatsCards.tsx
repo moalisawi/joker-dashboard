@@ -1,13 +1,19 @@
 "use client";
 
 import { useMemo } from "react";
-import type { Subscriber } from "@/types";
+import type { Subscriber }        from "@/types";
+import type { Payment }           from "@/types";
+import type { RefundTransaction } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
-import { Users, TrendingUp, Clock, Star, Award, PauseCircle, Snowflake, UserMinus } from "lucide-react";
+import { Users, TrendingUp, Clock, Star, Award, PauseCircle, Snowflake, UserMinus, DollarSign, TrendingDown } from "lucide-react";
+import { calculateChurnRate } from "@/lib/analytics/calculations";
 
 interface Props {
-  subscribers: Subscriber[];
+  subscribers:  Subscriber[];
+  payments?:    Payment[];
+  refunds?:     RefundTransaction[];
+  periodLabel?: string;
 }
 
 interface CardConfig {
@@ -27,6 +33,8 @@ const CARD_STYLES = {
   withdrawn: { accentBorder: "border-t-rose-500",    iconBg: "bg-rose-50",    iconColor: "text-rose-600",    cardBg: "bg-rose-50/20",    tagCls: "bg-rose-50 text-rose-700" },
   silver:    { accentBorder: "border-t-slate-400",   iconBg: "bg-slate-100",  iconColor: "text-slate-500",   cardBg: "",                 tagCls: "" },
   gold:      { accentBorder: "border-t-amber-400",   iconBg: "bg-amber-50",   iconColor: "text-amber-500",   cardBg: "",                 tagCls: "" },
+  mrr:       { accentBorder: "border-t-violet-500",  iconBg: "bg-violet-50",  iconColor: "text-violet-600",  cardBg: "bg-violet-50/20",  tagCls: "bg-violet-50 text-violet-700" },
+  churn:     { accentBorder: "border-t-rose-400",    iconBg: "bg-rose-50",    iconColor: "text-rose-500",    cardBg: "bg-rose-50/10",    tagCls: "bg-rose-50 text-rose-600" },
 } satisfies Record<string, CardConfig>;
 
 function StatCard({
@@ -78,9 +86,10 @@ function StatCard({
   );
 }
 
-export default function StatsCards({ subscribers }: Props) {
+export default function StatsCards({ subscribers, payments = [], refunds = [], periodLabel }: Props) {
   const { can } = useAuthStore();
   const canRev = can("canViewRevenue");
+  const periodTag = periodLabel ?? "هذا الشهر";
 
   const stats = useMemo(() => {
     const total = subscribers.length;
@@ -109,8 +118,12 @@ export default function StatsCards({ subscribers }: Props) {
     const remaining = subscribers
       .filter((s) => s.subscriptionState !== "withdrawn")
       .reduce((sum, s) => sum + s.remainingAmountUSD, 0);
-    return { total, active, expiring, paused, frozen, withdrawn, silver, gold, netUSD, remaining };
-  }, [subscribers]);
+    const revenue   = payments.reduce((s, p) => s + (p.amountUSD ?? 0), 0);
+    const refunded  = refunds.reduce((s, r) => s + (r.refundAmountUSD ?? 0), 0);
+    const mrr       = Math.max(0, revenue - refunded);
+    const churnRate = calculateChurnRate(subscribers);
+    return { total, active, expiring, paused, frozen, withdrawn, silver, gold, netUSD, remaining, mrr, churnRate };
+  }, [subscribers, payments, refunds]);
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6">
@@ -189,6 +202,36 @@ export default function StatsCards({ subscribers }: Props) {
         value={formatNumber(stats.gold)}
         label="باقة ذهبية"
       />
+
+      {canRev && (
+        <StatCard
+          style={CARD_STYLES.mrr}
+          icon={<DollarSign size={18} />}
+          tagContent={periodTag}
+          value={`$${formatNumber(stats.mrr, 0)}`}
+          label="الإيراد — صافي الفترة"
+          sub={
+            <p className="text-xs text-violet-600 font-semibold">صافي بعد الاسترداد</p>
+          }
+        />
+      )}
+
+      {canRev && (
+        <StatCard
+          style={CARD_STYLES.churn}
+          icon={<TrendingDown size={18} />}
+          tagContent={periodTag}
+          value={`${(stats.churnRate * 100).toFixed(1)}%`}
+          label="Churn Rate — نسبة الانسحاب"
+          sub={
+            stats.churnRate === 0
+              ? <p className="text-xs text-emerald-600 font-semibold">لا انسحاب هذا الشهر</p>
+              : <p className="text-xs text-rose-500 font-semibold">
+                  {Math.round(stats.churnRate * 100 * subscribers.length / 100)} منسحب
+                </p>
+          }
+        />
+      )}
     </div>
   );
 }
