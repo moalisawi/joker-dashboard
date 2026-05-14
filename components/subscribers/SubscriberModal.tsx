@@ -36,13 +36,23 @@ export default function SubscriberModal({
   // Dynamic employees & teams from Firestore
   const { employees: allEmployees } = useEmployees({ activeOnly: true });
   const { data: activeTeams = [] }  = useTeams(true);
-  const salesEmployees   = allEmployees.filter((e) => e.employeeRole === "sales" || e.employeeRole === "admin" || e.employeeRole === "owner");
-  const allActiveNames   = allEmployees.map((e) => e.name);
+
+  // Sales employees list for convincedBy
+  const salesEmployees = allEmployees.filter(
+    (e) => e.employeeRole === "sales" || e.employeeRole === "admin" || e.employeeRole === "owner"
+  );
+  // Nutrition teams only
+  const nutritionTeams = activeTeams.filter((t) => t.type === "nutrition");
+  // All employee names for paidShift
+  const allActiveNames = allEmployees.map((e) => e.name);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
 
-  // E.164 phone state — parsed to phoneCountry/dialCode/phone on save
+  // Duration unit toggle — "days" stores directly, "months" converts ×30
+  const [durationUnit, setDurationUnit] = useState<"days" | "months">("days");
+
+  // E.164 phone state
   const [phoneE164, setPhoneE164] = useState(() => {
     if (mode === "edit" && subscriber?.phone) {
       const dc = subscriber.dialCode || PHONE_COUNTRIES.find(c => c.iso === subscriber.phoneCountry)?.dialCode || "+970";
@@ -53,50 +63,78 @@ export default function SubscriberModal({
 
   // Form state
   const [form, setForm] = useState({
-    date: todayString(),
-    name: "",
-    residence: "فلسطين-غزة",
-    phoneCountry: "PS",
-    phone: "",
-    age: "",
-    package: "فضية" as "فضية" | "ذهبية",
-    duration: "30",
-    currency: "USD" as Currency,
-    totalPrice: "",
-    initialPayment: "",
-    payment: "",
-    source: "",
-    referrer: "",
-    convincedBy: user?.role === "employee" ? (user.employeeName || user.name || "") : "",
-    paidShift: "",
-    team: "",
-    notes: "",
+    date:            todayString(),
+    name:            "",
+    residence:       "فلسطين-غزة",
+    phoneCountry:    "PS",
+    phone:           "",
+    age:             "",
+    package:         "فضية" as "فضية" | "ذهبية",
+    duration:        "30",
+    currency:        "USD" as Currency,
+    totalPrice:      "",
+    initialPayment:  "",
+    payment:         "",
+    source:          "",
+    referrer:        "",
+    convincedBy:     user?.employeeName || user?.name || "",
+    paidShift:       user?.employeeName || user?.name || "",
+    team:            "",
+    notes:           "",
   });
 
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isEdit && subscriber) {
-      setForm({
-        date: subscriber.date || todayString(),
-        name: subscriber.name || "",
-        residence: subscriber.residence || "فلسطين-غزة",
-        phoneCountry: subscriber.phoneCountry || "PS",
-        phone: subscriber.phone || "",
-        age: subscriber.age ? String(subscriber.age) : "",
-        package: subscriber.package || "فضية",
-        duration: String(subscriber.duration || 30),
-        currency: subscriber.currencyOriginal || "USD",
-        totalPrice: String(subscriber.totalPrice || ""),
-        initialPayment: "",
-        payment: subscriber.payment || "",
-        source: subscriber.source || "",
-        referrer: subscriber.referrer || "",
-        convincedBy: subscriber.convincedBy || "",
-        paidShift: subscriber.paidShift || "",
-        team: subscriber.team || "حنان",
-        notes: subscriber.notes || "",
-      });
+      // Detect unit from stored duration for display
+      const storedDuration = subscriber.duration || 30;
+      const isMultipleOf30 = storedDuration > 0 && storedDuration % 30 === 0;
+      if (isMultipleOf30 && storedDuration >= 30) {
+        setDurationUnit("months");
+        setForm({
+          date:           subscriber.date || todayString(),
+          name:           subscriber.name || "",
+          residence:      subscriber.residence || "فلسطين-غزة",
+          phoneCountry:   subscriber.phoneCountry || "PS",
+          phone:          subscriber.phone || "",
+          age:            subscriber.age ? String(subscriber.age) : "",
+          package:        subscriber.package || "فضية",
+          duration:       String(storedDuration / 30),
+          currency:       subscriber.currencyOriginal || "USD",
+          totalPrice:     String(subscriber.totalPrice || ""),
+          initialPayment: "",
+          payment:        subscriber.payment || "",
+          source:         subscriber.source || "",
+          referrer:       subscriber.referrer || "",
+          convincedBy:    subscriber.convincedBy || "",
+          paidShift:      subscriber.paidShift || "",
+          team:           subscriber.team || "",
+          notes:          subscriber.notes || "",
+        });
+      } else {
+        setDurationUnit("days");
+        setForm({
+          date:           subscriber.date || todayString(),
+          name:           subscriber.name || "",
+          residence:      subscriber.residence || "فلسطين-غزة",
+          phoneCountry:   subscriber.phoneCountry || "PS",
+          phone:          subscriber.phone || "",
+          age:            subscriber.age ? String(subscriber.age) : "",
+          package:        subscriber.package || "فضية",
+          duration:       String(storedDuration),
+          currency:       subscriber.currencyOriginal || "USD",
+          totalPrice:     String(subscriber.totalPrice || ""),
+          initialPayment: "",
+          payment:        subscriber.payment || "",
+          source:         subscriber.source || "",
+          referrer:       subscriber.referrer || "",
+          convincedBy:    subscriber.convincedBy || "",
+          paidShift:      subscriber.paidShift || "",
+          team:           subscriber.team || "",
+          notes:          subscriber.notes || "",
+        });
+      }
     }
   }, [isEdit, subscriber]);
 
@@ -104,8 +142,13 @@ export default function SubscriberModal({
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  const lockedRate = exchangeRates[form.currency] || 1;
-  const totalPrice = parseFloat(form.totalPrice) || 0;
+  // Actual duration in days for calculations/saving
+  const durationDays = durationUnit === "months"
+    ? (parseInt(form.duration) || 0) * 30
+    : parseInt(form.duration) || 0;
+
+  const lockedRate   = exchangeRates[form.currency] || 1;
+  const totalPrice   = parseFloat(form.totalPrice) || 0;
   const totalPriceUSD = totalPrice / lockedRate;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -115,74 +158,68 @@ export default function SubscriberModal({
     setLoading(true);
 
     try {
-      // Parse E.164 phone → individual fields for backward compat
+      // Parse E.164 phone → individual fields
       const sortedCountries = [...PHONE_COUNTRIES].sort((a, b) => b.dialCode.length - a.dialCode.length);
       const matchedCountry = phoneE164
         ? sortedCountries.find((c) => phoneE164.startsWith(c.dialCode))
         : PHONE_COUNTRIES.find((c) => c.iso === "PS");
-      const resolvedDialCode = matchedCountry?.dialCode ?? "+970";
+      const resolvedDialCode    = matchedCountry?.dialCode ?? "+970";
       const resolvedPhoneCountry = matchedCountry?.iso ?? "PS";
       const resolvedPhone = phoneE164.startsWith(resolvedDialCode)
         ? phoneE164.slice(resolvedDialCode.length)
         : phoneE164.replace(/^\+\d{1,4}/, "");
 
-      const duration = Number(form.duration);
-      const expiryDate = calculateExpiry(form.date, duration);
+      const expiryDate = calculateExpiry(form.date, durationDays);
 
       let paidAmount: number, remainingAmount: number, paidAmountUSD: number, remainingAmountUSD: number;
 
       if (!isEdit) {
         const init = form.initialPayment.trim();
-        paidAmount = init === "" ? totalPrice : parseFloat(init) || 0;
-        remainingAmount = totalPrice - paidAmount;
-        paidAmountUSD = paidAmount / lockedRate;
+        paidAmount         = init === "" ? totalPrice : parseFloat(init) || 0;
+        remainingAmount    = totalPrice - paidAmount;
+        paidAmountUSD      = paidAmount / lockedRate;
         remainingAmountUSD = remainingAmount / lockedRate;
       } else {
-        paidAmountUSD = subscriber!.paidAmountUSD ?? totalPriceUSD;
-        paidAmount = subscriber!.paidAmount ?? paidAmountUSD * lockedRate;
+        paidAmountUSD      = subscriber!.paidAmountUSD ?? totalPriceUSD;
+        paidAmount         = subscriber!.paidAmount ?? paidAmountUSD * lockedRate;
         remainingAmountUSD = Math.max(0, totalPriceUSD - paidAmountUSD);
-        remainingAmount = Math.max(0, totalPrice - paidAmount);
+        remainingAmount    = Math.max(0, totalPrice - paidAmount);
       }
 
       const refundAmountUSD = subscriber?.refundAmountUSD || 0;
-      const netAmountUSD = Math.max(0, paidAmountUSD - refundAmountUSD);
-
-      const convincedBy =
-        user.role === "employee"
-          ? user.employeeName || user.name || ""
-          : form.convincedBy;
+      const netAmountUSD    = Math.max(0, paidAmountUSD - refundAmountUSD);
 
       const payload = {
-        date: form.date,
-        name: form.name.trim(),
-        residence: form.residence,
-        phoneCountry: resolvedPhoneCountry,
-        dialCode: resolvedDialCode,
-        phone: resolvedPhone,
-        phoneE164: phoneE164 || null,
-        age: form.age ? Number(form.age) : null,
-        package: form.package,
-        duration,
+        date:               form.date,
+        name:               form.name.trim(),
+        residence:          form.residence,
+        phoneCountry:       resolvedPhoneCountry,
+        dialCode:           resolvedDialCode,
+        phone:              resolvedPhone,
+        phoneE164:          phoneE164 || null,
+        age:                form.age ? Number(form.age) : null,
+        package:            form.package,
+        duration:           durationDays,
         expiryDate,
-        currencyOriginal: form.currency,
-        currency: form.currency,
+        currencyOriginal:   form.currency,
+        currency:           form.currency,
         lockedRate,
         totalPrice,
         totalPriceUSD,
-        amount: totalPrice,
-        amountUSD: totalPriceUSD,
+        amount:             totalPrice,
+        amountUSD:          totalPriceUSD,
         paidAmount,
         paidAmountUSD,
         remainingAmount,
         remainingAmountUSD,
         netAmountUSD,
-        payment: form.payment,
-        source: form.source,
-        referrer: form.referrer.trim(),
-        convincedBy,
-        paidShift: form.paidShift,
-        team: form.team,
-        notes: form.notes.trim(),
+        payment:            form.payment,
+        source:             form.source,
+        referrer:           form.referrer.trim(),
+        convincedBy:        form.convincedBy,
+        paidShift:          form.paidShift,
+        team:               form.team,
+        notes:              form.notes.trim(),
       };
 
       if (isEdit) {
@@ -191,7 +228,6 @@ export default function SubscriberModal({
           subscriber: payload,
         });
       } else {
-        // Upload receipt if present
         let receiptUrl: string | null = null;
         const file = fileRef.current?.files?.[0];
         if (file) {
@@ -204,13 +240,13 @@ export default function SubscriberModal({
           subscriber: payload,
           initialPayment: paidAmount > 0
             ? {
-            amountOriginal: paidAmount,
-            currencyOriginal: form.currency,
-            exchangeRate: lockedRate,
-            paymentMethod: form.payment,
-            receiptUrl,
-            date: form.date,
-            notes: null,
+                amountOriginal:   paidAmount,
+                currencyOriginal: form.currency,
+                exchangeRate:     lockedRate,
+                paymentMethod:    form.payment,
+                receiptUrl,
+                date:             form.date,
+                notes:            null,
               }
             : null,
         });
@@ -286,10 +322,7 @@ export default function SubscriberModal({
 
           {/* Phone */}
           <Field label="رقم الهاتف">
-            <PhoneInput
-              value={phoneE164}
-              onChange={setPhoneE164}
-            />
+            <PhoneInput value={phoneE164} onChange={setPhoneE164} />
           </Field>
 
           {/* Package */}
@@ -307,12 +340,53 @@ export default function SubscriberModal({
             </div>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="مدة الاشتراك (أيام)">
-              <input type="number" required min="1" value={form.duration}
+          {/* Duration — days OR months toggle */}
+          <Field label="مدة الاشتراك">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                required
+                min="1"
+                value={form.duration}
                 onChange={(e) => setField("duration", e.target.value)}
-                className="form-input" />
-            </Field>
+                className="form-input flex-1"
+                placeholder={durationUnit === "months" ? "عدد الأشهر" : "عدد الأيام"}
+              />
+              {/* Unit toggle */}
+              <div className="flex rounded-xl overflow-hidden border border-slate-200 shrink-0 text-sm font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setDurationUnit("days")}
+                  className={`px-3 py-2 transition-colors ${
+                    durationUnit === "days"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  يوم
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDurationUnit("months")}
+                  className={`px-3 py-2 border-r border-slate-200 transition-colors ${
+                    durationUnit === "months"
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-slate-500 hover:bg-slate-50"
+                  }`}
+                >
+                  شهر
+                </button>
+              </div>
+            </div>
+            {/* Preview in days when months selected */}
+            {durationUnit === "months" && parseInt(form.duration) > 0 && (
+              <p className="text-xs text-slate-400 mt-1">
+                = {durationDays} يوم
+              </p>
+            )}
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4">
             <Field label="العملة">
               <select value={form.currency} onChange={(e) => setField("currency", e.target.value as Currency)}
                 className="form-input">
@@ -322,9 +396,6 @@ export default function SubscriberModal({
                 <option value="ILS">شيكل ILS</option>
               </select>
             </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <Field label={`المبلغ الكلي (${form.currency})`}>
               <input type="number" required min="0" step="0.01" value={form.totalPrice}
                 onChange={(e) => setField("totalPrice", e.target.value)}
@@ -333,15 +404,16 @@ export default function SubscriberModal({
                 <p className="text-xs text-slate-400 mt-1">≈ ${(totalPrice / lockedRate).toFixed(2)}</p>
               )}
             </Field>
-            {!isEdit && (
-              <Field label="الدفعة الأولى (فارغ = كامل)">
-                <input type="number" min="0" step="0.01" value={form.initialPayment}
-                  placeholder={`فارغ = ${form.totalPrice || 0} (كامل)`}
-                  onChange={(e) => setField("initialPayment", e.target.value)}
-                  className="form-input" />
-              </Field>
-            )}
           </div>
+
+          {!isEdit && (
+            <Field label="الدفعة الأولى (فارغ = السداد الكامل)">
+              <input type="number" min="0" step="0.01" value={form.initialPayment}
+                placeholder={`فارغ = ${form.totalPrice || 0} (كامل)`}
+                onChange={(e) => setField("initialPayment", e.target.value)}
+                className="form-input" />
+            </Field>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="طريقة الدفع">
@@ -368,32 +440,40 @@ export default function SubscriberModal({
             </Field>
           )}
 
+          {/* convincedBy — all roles can now choose freely */}
           <div className="grid grid-cols-2 gap-4">
-            <Field label="أقنعه">
-              <select value={form.convincedBy}
-                disabled={user?.role === "employee"}
+            <Field label="أقنعه بالاشتراك">
+              <select
+                value={form.convincedBy}
                 onChange={(e) => setField("convincedBy", e.target.value)}
-                className="form-input disabled:bg-slate-100 disabled:text-slate-500">
-                <option value="">اختر...</option>
-                {(salesEmployees.length > 0 ? salesEmployees : []).map((e) => (
+                className="form-input"
+              >
+                <option value="">اختر الموظف...</option>
+                {salesEmployees.map((e) => (
                   <option key={e.uid} value={e.name}>{e.name}</option>
                 ))}
               </select>
             </Field>
-            <Field label="الفريق">
+
+            {/* Nutrition team */}
+            <Field label="فريق التغذية">
               <select value={form.team} onChange={(e) => setField("team", e.target.value)}
                 className="form-input">
-                <option value="">اختر الفريق...</option>
-                {activeTeams.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
+                <option value="">بدون تعيين</option>
+                {nutritionTeams.length > 0
+                  ? nutritionTeams.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)
+                  : activeTeams.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)
+                }
               </select>
             </Field>
           </div>
 
-          <Field label="من قبض الفلوس (الشيفت)">
+          {/* paidShift — all employees selectable */}
+          <Field label="شيفت الاستلام">
             <select value={form.paidShift} onChange={(e) => setField("paidShift", e.target.value)}
               className="form-input">
-              <option value="">اختر...</option>
-              {(allActiveNames.length > 0 ? allActiveNames : []).map((name) => (
+              <option value="">اختر الموظف...</option>
+              {allActiveNames.map((name) => (
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
@@ -406,7 +486,7 @@ export default function SubscriberModal({
           </Field>
 
           {!isEdit && (
-            <Field label="وصل الدفع (اختياري - JPG/PNG/PDF حتى 5MB)">
+            <Field label="وصل الدفع (اختياري — JPG/PNG/PDF حتى 5MB)">
               <input
                 ref={fileRef}
                 type="file"
