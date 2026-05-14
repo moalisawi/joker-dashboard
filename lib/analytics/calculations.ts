@@ -7,6 +7,7 @@
 
 import type { Subscriber } from "@/types";
 import type { Payment }    from "@/types";
+import type { Team }       from "@/types";
 
 // ─── Revenue ──────────────────────────────────────────────────────────────────
 
@@ -165,14 +166,153 @@ export function currentYearMonth(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
+function toDateString(date: unknown): string {
+  if (!date) return "";
+  if (typeof date === "string") return date;
+  if (typeof (date as { toDate?: () => Date }).toDate === "function")
+    return (date as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
+  if (date instanceof Date) return date.toISOString().slice(0, 10);
+  return String(date);
+}
+
 /** Payments that fall in the current calendar month */
 export function paymentsThisMonth(payments: Payment[]): Payment[] {
   const ym = currentYearMonth();
-  return payments.filter((p) => (p.date ?? "").startsWith(ym));
+  return payments.filter((p) => toDateString(p.date).startsWith(ym));
 }
 
 /** Payments created today */
 export function paymentsToday(payments: Payment[]): Payment[] {
   const today = new Date().toISOString().slice(0, 10);
-  return payments.filter((p) => (p.date ?? "").startsWith(today));
+  return payments.filter((p) => toDateString(p.date).startsWith(today));
+}
+
+// ─── Sales analytics ──────────────────────────────────────────────────────────
+
+export interface MonthlyAcquisition {
+  month:       string; // YYYY-MM
+  subscribers: number;
+  revenue:     number;
+}
+
+/**
+ * Buckets subscribers by the month they joined (s.date) for the last `months`.
+ * Revenue = paidAmountUSD at time of joining (initial payment proxy).
+ */
+export function monthlyAcquisitionTrend(
+  subscribers: Subscriber[],
+  months = 6
+): MonthlyAcquisition[] {
+  const map = new Map<string, MonthlyAcquisition>();
+
+  // Build last N month slots so we always show a full series (zeros included)
+  const now = new Date();
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const ym = d.toISOString().slice(0, 7);
+    map.set(ym, { month: ym, subscribers: 0, revenue: 0 });
+  }
+
+  for (const s of subscribers) {
+    const ym = toDateStr(s.date).slice(0, 7);
+    if (!ym || !map.has(ym)) continue;
+    const slot = map.get(ym)!;
+    slot.subscribers++;
+    slot.revenue += s.paidAmountUSD ?? 0;
+  }
+
+  return [...map.values()];
+}
+
+// ─── Team performance ─────────────────────────────────────────────────────────
+
+export interface TeamMetrics {
+  teamId:      string;
+  teamName:    string;
+  subscribers: number;
+  active:      number;
+  renewals:    number;
+  revenue:     number;
+  retentionRate: number;
+  avgValue:    number;
+}
+
+/**
+ * Build per-team metrics from subscriber data matched by assignedTeamId.
+ * Teams with zero subscribers are included if passed in.
+ */
+export function teamPerformanceFromSubscribers(
+  subscribers: Subscriber[],
+  teams: Team[]
+): TeamMetrics[] {
+  const map = new Map<string, TeamMetrics>();
+
+  for (const t of teams) {
+    map.set(t.id, {
+      teamId:        t.id,
+      teamName:      t.name,
+      subscribers:   0,
+      active:        0,
+      renewals:      0,
+      revenue:       0,
+      retentionRate: 0,
+      avgValue:      0,
+    });
+  }
+
+  for (const s of subscribers) {
+    const tid = s.assignedTeamId;
+    if (!tid) continue;
+    if (!map.has(tid)) {
+      map.set(tid, {
+        teamId:        tid,
+        teamName:      s.assignedTeamName ?? tid,
+        subscribers:   0,
+        active:        0,
+        renewals:      0,
+        revenue:       0,
+        retentionRate: 0,
+        avgValue:      0,
+      });
+    }
+    const m = map.get(tid)!;
+    m.subscribers++;
+    m.revenue  += s.netAmountUSD ?? 0;
+    m.renewals += s.renewalCount ?? 0;
+    if (s.subscriptionState === "active") m.active++;
+  }
+
+  const result = [...map.values()];
+  result.forEach((m) => {
+    m.avgValue      = m.subscribers > 0 ? m.revenue / m.subscribers : 0;
+    m.retentionRate = m.subscribers > 0 ? m.active / m.subscribers : 0;
+  });
+  return result.sort((a, b) => b.active - a.active);
+}
+
+// ─── Leaderboard helpers ──────────────────────────────────────────────────────
+
+export type LeaderboardPeriod = "this_month" | "last_month" | "last_3months" | "all_time";
+
+/** Filter subscribers whose join date falls within the given period */
+export function filterByPeriod<T extends { date: string }>(
+  items: T[],
+  period: LeaderboardPeriod
+): T[] {
+  if (period === "all_time") return items;
+  const now   = new Date();
+  let from: Date;
+  if (period === "this_month") {
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (period === "last_month") {
+    from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const to = new Date(now.getFullYear(), now.getMonth(), 0);
+    return items.filter((i) => {
+      const d = new Date(toDateStr(i.date).slice(0, 10));
+      return d >= from && d <= to;
+    });
+  } else {
+    from = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  }
+  return items.filter((i) => new Date(toDateStr(i.date).slice(0, 10)) >= from);
 }

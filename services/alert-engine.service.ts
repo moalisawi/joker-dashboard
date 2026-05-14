@@ -9,7 +9,7 @@
 
 import {
   collection, query, where, getDocs,
-  orderBy, limit, Timestamp,
+  limit, Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firestore";
 import { notificationService } from "./notification.service";
@@ -214,12 +214,20 @@ async function checkExpiringSubscriptions(): Promise<void> {
 
 // ─── run all checks ───────────────────────────────────────────────────────────
 
-let lastRunAt = 0;
-const RUN_COOLDOWN_MS = 10 * 60 * 1000; // run at most every 10 minutes
+const LS_KEY = "alertEngine_lastRunAt";
+const RUN_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes, survives page refresh
+
+function getLastRunAt(): number {
+  try { return Number(localStorage.getItem(LS_KEY) ?? 0); } catch { return 0; }
+}
+function setLastRunAt(ts: number): void {
+  try { localStorage.setItem(LS_KEY, String(ts)); } catch { /* ignore */ }
+}
 
 async function runAll(): Promise<void> {
+  const lastRunAt = getLastRunAt();
   if (now() - lastRunAt < RUN_COOLDOWN_MS) return;
-  lastRunAt = now();
+  setLastRunAt(now());
 
   await Promise.allSettled([
     checkHighRefundActivity(),
