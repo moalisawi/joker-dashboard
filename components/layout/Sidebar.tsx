@@ -5,15 +5,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/auth";
+import { logSessionLogout } from "@/lib/sessionLogger";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { ROLE_LABELS } from "@/lib/permissions";
 import {
   Home, Users, ScrollText, LogOut, Menu, X,
-  ChevronLeft, BarChart3, Bell, Briefcase, Users2, FileText, Search, BookOpen,
+  ChevronLeft, BarChart3, Bell, Briefcase, Users2, FileText, Search, BookOpen, Shield,
 } from "lucide-react";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import { useSearchStore } from "@/store/searchStore";
 
 interface NavItem {
   href:       string;
@@ -32,6 +34,7 @@ export default function Sidebar() {
   const [open, setOpen]        = useState(false);
 
   const uid = user?.uid ?? "";
+  const { openSearch } = useSearchStore();
 
   const NAV: NavItem[] = [
     { href: "/",               label: "المشتركون",    icon: <Home       size={18} /> },
@@ -42,10 +45,12 @@ export default function Sidebar() {
     { href: "/admin/teams",    label: "الفرق",        icon: <Users2     size={18} />, permission: "canManageUsers" },
     { href: "/users",          label: "المستخدمون",   icon: <Users      size={18} />, permission: "canManageUsers" },
     { href: "/logs",           label: "سجل العمليات", icon: <ScrollText size={18} />, permission: "canViewLogs" },
+    { href: "/sessions",      label: "سجل الجلسات",  icon: <Shield     size={18} />, roles: ["owner", "admin"] },
     { href: "/guide",          label: "دليل الاستخدام", icon: <BookOpen   size={18} /> },
   ];
 
   async function handleLogout() {
+    await logSessionLogout(); // mark session as logged_out before token is gone
     await signOut(auth);
     router.push("/login");
   }
@@ -81,7 +86,7 @@ export default function Sidebar() {
       {/* Global search trigger */}
       <div className="px-3 pt-4 pb-1">
         <button
-          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }))}
+          onClick={openSearch}
           className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors text-white/40 hover:text-white/75 hover:bg-white/[0.07]"
           style={{ border: "1px solid rgba(255,255,255,0.07)" }}
         >

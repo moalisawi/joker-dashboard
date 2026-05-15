@@ -10,8 +10,10 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     const html = document.documentElement;
     if (dark) {
       html.setAttribute("data-theme", "dark");
+      html.classList.add("dark");
     } else {
       html.removeAttribute("data-theme");
+      html.classList.remove("dark");
     }
   }, [dark]);
 

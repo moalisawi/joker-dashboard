@@ -25,8 +25,26 @@ import { PERM }            from "@/constants/permissions";
 import { auditService }    from "@/services/audit.service";
 import type { Team }       from "@/types";
 import {
-  Users2, Plus, X, ShieldOff, ShieldCheck, Trash2, Users, Edit2, Briefcase,
+  Users2, Plus, X, ShieldOff, ShieldCheck, Trash2, Users, Edit2, Briefcase, GripVertical,
 } from "lucide-react";
+import { toast } from "@/lib/toast";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -34,22 +52,6 @@ const TYPE_META = {
   sales:     { label: "مبيعات", color: "#10b981", icon: <Briefcase size={14}/> },
   nutrition: { label: "تغذية",  color: "#8b5cf6", icon: <Users2 size={14}/> },
 };
-
-// ─── Toast ────────────────────────────────────────────────────────────────────
-
-function Toast({ msg, ok, onDone }: { msg: string; ok: boolean; onDone: () => void }) {
-  useEffect(() => { const t = setTimeout(onDone, 3200); return () => clearTimeout(t); }, [onDone]);
-  return (
-    <motion.div
-      initial={{ opacity:0, y:-16 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-16 }}
-      transition={{ duration:0.2 }}
-      className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl shadow-lg font-bold text-sm text-white flex items-center gap-2"
-      style={{ background: ok ? "#10b981" : "#f43f5e" }}
-    >
-      {ok ? "✓" : "✕"} {msg}
-    </motion.div>
-  );
-}
 
 // ─── Create Team Modal ────────────────────────────────────────────────────────
 
@@ -177,9 +179,10 @@ function RenameTeamModal({ team, onClose, onSuccess }: {
 
 // ─── Team Card ────────────────────────────────────────────────────────────────
 
-function TeamCard({ team, memberCount, subscriberCount, canEdit, isOwner, onRename, onDeactivate, onActivate, onDelete }: {
+function TeamCard({ team, memberCount, subscriberCount, canEdit, isOwner, onRename, onDeactivate, onActivate, onDelete, dragHandle }: {
   team: Team; memberCount: number; subscriberCount: number; canEdit: boolean; isOwner: boolean;
   onRename: () => void; onDeactivate: () => void; onActivate: () => void; onDelete: () => void;
+  dragHandle?: React.ReactNode;
 }) {
   const meta = TYPE_META[team.type];
   return (
@@ -192,9 +195,12 @@ function TeamCard({ team, memberCount, subscriberCount, canEdit, isOwner, onRena
       <div className="p-5">
         {/* Top row */}
         <div className="flex items-start justify-between mb-4">
-          <div className="h-12 w-12 rounded-xl flex items-center justify-center"
-            style={{ background:`${meta.color}18`, border:`1px solid ${meta.color}28` }}>
-            <span style={{ color:meta.color, transform:"scale(1.5)" }}>{meta.icon}</span>
+          <div className="flex items-center gap-2">
+            {dragHandle}
+            <div className="h-12 w-12 rounded-xl flex items-center justify-center"
+              style={{ background:`${meta.color}18`, border:`1px solid ${meta.color}28` }}>
+              <span style={{ color:meta.color, transform:"scale(1.5)" }}>{meta.icon}</span>
+            </div>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="px-2.5 py-1 rounded-full text-xs font-bold"
@@ -258,6 +264,37 @@ function TeamCard({ team, memberCount, subscriberCount, canEdit, isOwner, onRena
   );
 }
 
+// ─── Sortable Team Card ───────────────────────────────────────────────────────
+
+function SortableTeamCard(props: {
+  team: Team; memberCount: number; subscriberCount: number; canEdit: boolean; isOwner: boolean;
+  onRename: () => void; onDeactivate: () => void; onActivate: () => void; onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.team.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.7 : undefined,
+  };
+  const handle = (
+    <button
+      {...attributes}
+      {...listeners}
+      className="p-1.5 rounded-lg cursor-grab active:cursor-grabbing touch-none"
+      style={{ color:"var(--text-muted)", background:"var(--surface-2)" }}
+      title="اسحب لإعادة الترتيب"
+    >
+      <GripVertical size={14}/>
+    </button>
+  );
+  return (
+    <div ref={setNodeRef} style={style}>
+      <TeamCard {...props} dragHandle={handle}/>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminTeamsPage() {
@@ -282,10 +319,31 @@ export default function AdminTeamsPage() {
   const [confirmTeam,    setConfirmTeam]   = useState<Team | null>(null);
   const [confirmActivate,setConfirmActivate] = useState<Team | null>(null);
   const [confirmDelete,  setConfirmDelete] = useState<Team | null>(null);
-  const [toast, setToast]                  = useState<{ msg: string; ok: boolean } | null>(null);
-
+  const [teamOrder,      setTeamOrder]     = useState<string[]>([]);
   const canEdit  = canManageUsers(user);
   const isOwner  = user?.role === "owner";
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const orderedTeams = useMemo(() => {
+    if (teamOrder.length === 0) return teams;
+    const map = Object.fromEntries(teams.map((t) => [t.id, t]));
+    const ordered = teamOrder.map((id) => map[id]).filter(Boolean) as Team[];
+    const newOnes = teams.filter((t) => !teamOrder.includes(t.id));
+    return [...ordered, ...newOnes];
+  }, [teams, teamOrder]);
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const ids = orderedTeams.map((t) => t.id);
+    const oldIndex = ids.indexOf(String(active.id));
+    const newIndex = ids.indexOf(String(over.id));
+    setTeamOrder(arrayMove(ids, oldIndex, newIndex));
+  }
 
   const memberCounts = useMemo(() => {
     const m: Record<string,number> = {};
@@ -306,16 +364,14 @@ export default function AdminTeamsPage() {
     nutrition: teams.filter((t) => t.type === "nutrition").length,
   }), [teams]);
 
-  function toast$(msg: string, ok = true) { setToast({ msg, ok }); }
-
   async function handleDeactivate(team: Team) {
     try {
       await deactivateMut.mutateAsync(team.id);
       if (user) auditService.track({ actor: user, action: "team_deactivated", entity: "team", entityId: team.id, entityName: team.name, metadata: { type: team.type }, tags: ["team", "deactivated"] }).catch(() => undefined);
       setConfirmTeam(null);
-      toast$("تم تعطيل الفريق");
+      toast.success("تم تعطيل الفريق");
     } catch (e) {
-      toast$(e instanceof Error ? e.message : "حدث خطأ", false);
+      toast.error(e instanceof Error ? e.message : "حدث خطأ");
       setConfirmTeam(null);
     }
   }
@@ -325,9 +381,9 @@ export default function AdminTeamsPage() {
       await activateMut.mutateAsync(team.id);
       if (user) auditService.track({ actor: user, action: "team_activated", entity: "team", entityId: team.id, entityName: team.name, tags: ["team", "activated"] }).catch(() => undefined);
       setConfirmActivate(null);
-      toast$("تم إعادة تفعيل الفريق");
+      toast.success("تم إعادة تفعيل الفريق");
     } catch (e) {
-      toast$(e instanceof Error ? e.message : "حدث خطأ", false);
+      toast.error(e instanceof Error ? e.message : "حدث خطأ");
       setConfirmActivate(null);
     }
   }
@@ -337,19 +393,15 @@ export default function AdminTeamsPage() {
       await deleteMut.mutateAsync(team.id);
       if (user) auditService.track({ actor: user, action: "team_deleted", entity: "team", entityId: team.id, entityName: team.name, tags: ["team", "deleted"] }).catch(() => undefined);
       setConfirmDelete(null);
-      toast$("تم حذف الفريق");
+      toast.success("تم حذف الفريق");
     } catch (e) {
-      toast$(e instanceof Error ? e.message : "حدث خطأ", false);
+      toast.error(e instanceof Error ? e.message : "حدث خطأ");
       setConfirmDelete(null);
     }
   }
 
   return (
     <ProtectedLayout>
-      <AnimatePresence>
-        {toast && <Toast key="t" msg={toast.msg} ok={toast.ok} onDone={() => setToast(null)}/>}
-      </AnimatePresence>
-
       <div className="min-h-full" style={{ background:"var(--page-bg)" }}>
         <div className="mx-auto max-w-screen-xl p-5 md:p-7 space-y-6">
 
@@ -412,21 +464,25 @@ export default function AdminTeamsPage() {
                 : undefined}
             />
           ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {teams.map((team) => (
-                <TeamCard
-                  key={team.id} team={team}
-                  memberCount={memberCounts[team.id] ?? 0}
-                  subscriberCount={subscriberCounts[team.name] ?? 0}
-                  canEdit={canEdit}
-                  isOwner={isOwner}
-                  onRename={() => setRenameTeam(team)}
-                  onDeactivate={() => setConfirmTeam(team)}
-                  onActivate={() => setConfirmActivate(team)}
-                  onDelete={() => setConfirmDelete(team)}
-                />
-              ))}
-            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={orderedTeams.map((t) => t.id)} strategy={rectSortingStrategy}>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {orderedTeams.map((team) => (
+                    <SortableTeamCard
+                      key={team.id} team={team}
+                      memberCount={memberCounts[team.id] ?? 0}
+                      subscriberCount={subscriberCounts[team.name] ?? 0}
+                      canEdit={canEdit}
+                      isOwner={isOwner}
+                      onRename={() => setRenameTeam(team)}
+                      onDeactivate={() => setConfirmTeam(team)}
+                      onActivate={() => setConfirmActivate(team)}
+                      onDelete={() => setConfirmDelete(team)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
@@ -437,7 +493,7 @@ export default function AdminTeamsPage() {
           <CreateTeamModal key="create"
             onClose={() => setShowCreate(false)}
             onSuccess={(msg, id) => {
-              toast$(msg);
+              toast.success(msg);
               // Audit log for team creation
               if (user) {
                 auditService.track({
@@ -453,7 +509,7 @@ export default function AdminTeamsPage() {
           <RenameTeamModal key="rename" team={renameTeam}
             onClose={() => setRenameTeam(null)}
             onSuccess={(msg) => {
-              toast$(msg);
+              toast.success(msg);
               if (user && renameTeam) {
                 auditService.track({
                   actor: user, action: "team_updated",

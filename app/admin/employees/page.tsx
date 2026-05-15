@@ -41,6 +41,7 @@ import {
   Users, TrendingUp, UserCheck as UCk, Trophy,
   Eye, EyeOff, Filter, Phone, Lock, Trash2,
 } from "lucide-react";
+import { toast } from "@/lib/toast";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -70,22 +71,6 @@ function permCount(user: UserProfile): { active: number; total: number } {
     }
   }
   return { active, total };
-}
-
-// ─── Toast ────────────────────────────────────────────────────────────────────
-
-function Toast({ msg, ok, onDone }: { msg: string; ok: boolean; onDone: () => void }) {
-  useEffect(() => { const t = setTimeout(onDone, 3200); return () => clearTimeout(t); }, [onDone]);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
-      transition={{ duration: 0.2 }}
-      className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl shadow-lg font-bold text-sm text-white flex items-center gap-2"
-      style={{ background: ok ? "#10b981" : "#f43f5e" }}
-    >
-      {ok ? "✓" : "✕"} {msg}
-    </motion.div>
-  );
 }
 
 // ─── Actions dropdown ─────────────────────────────────────────────────────────
@@ -504,7 +489,6 @@ export default function AdminEmployeesPage() {
   const [roleFilter, setRoleFilter]     = useState<EmployeeRole | "">("");
   const [teamFilter, setTeamFilter]     = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">("");
-  const [toast, setToast]               = useState<{ msg: string; ok: boolean } | null>(null);
 
   const canEdit  = canManageUsers(user);
   const canPerms = canManagePermissions(user);
@@ -546,31 +530,29 @@ export default function AdminEmployeesPage() {
   }), [employees]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
-  function toast$(msg: string, ok = true) { setToast({ msg, ok }); }
-
   async function handleDeactivate(emp: UserProfile) {
     try {
       await deactivateMut.mutateAsync({ uid: emp.uid });
       setModal(null);
-      toast$("تم تعطيل حساب الموظف");
-    } catch (e) { toast$(e instanceof Error ? e.message : "حدث خطأ", false); setModal(null); }
+      toast.success("تم تعطيل حساب الموظف");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "حدث خطأ"); setModal(null); }
   }
 
   async function handleReactivate(emp: UserProfile) {
     try {
       await callUserOperation("toggleEmployee", { uid: emp.uid, active: true });
-      updateMut.mutate({ uid: emp.uid }); // trigger cache invalidation
+      updateMut.mutate({ uid: emp.uid });
       setModal(null);
-      toast$("تم إعادة تفعيل الحساب");
-    } catch (e) { toast$(e instanceof Error ? e.message : "حدث خطأ", false); setModal(null); }
+      toast.success("تم إعادة تفعيل الحساب");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "حدث خطأ"); setModal(null); }
   }
 
   async function handleDelete(emp: UserProfile) {
     try {
       await deleteMut.mutateAsync(emp.uid);
       setModal(null);
-      toast$("تم حذف حساب الموظف نهائياً");
-    } catch (e) { toast$(e instanceof Error ? e.message : "حدث خطأ", false); setModal(null); }
+      toast.success("تم حذف حساب الموظف نهائياً");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "حدث خطأ"); setModal(null); }
   }
 
   const hasFilters = search || roleFilter || teamFilter || statusFilter;
@@ -578,11 +560,6 @@ export default function AdminEmployeesPage() {
 
   return (
     <ProtectedLayout>
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && <Toast key="t" msg={toast.msg} ok={toast.ok} onDone={() => setToast(null)}/>}
-      </AnimatePresence>
-
       <div className="min-h-full" style={{ background:"var(--page-bg)" }}>
         <div className="mx-auto max-w-screen-xl p-5 md:p-7 space-y-6">
 
@@ -840,16 +817,16 @@ export default function AdminEmployeesPage() {
           <EmployeeFormModal
             key="form" mode={modal.type}
             employee={modal.type === "edit" ? modal.emp : undefined}
-            teams={teams} onClose={() => setModal(null)} onSuccess={toast$}
+            teams={teams} onClose={() => setModal(null)} onSuccess={toast.success}
           />
         )}
         {modal?.type === "permissions" && (
           <PermissionsModal key="perms" employee={modal.emp}
-            onClose={() => setModal(null)} onSuccess={toast$}/>
+            onClose={() => setModal(null)} onSuccess={toast.success}/>
         )}
         {modal?.type === "assign-team" && (
           <AssignTeamModal key="team" employee={modal.emp} teams={teams}
-            onClose={() => setModal(null)} onSuccess={toast$}/>
+            onClose={() => setModal(null)} onSuccess={toast.success}/>
         )}
       </AnimatePresence>
 

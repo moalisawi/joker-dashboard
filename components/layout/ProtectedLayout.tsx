@@ -3,14 +3,16 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-import { useAuthListener } from "@/hooks/useAuth";
+import { useAuthListener }       from "@/hooks/useAuth";
 import { useNotificationsListener } from "@/hooks/useNotificationsListener";
+import { useSessionHeartbeat }   from "@/hooks/useSessionHeartbeat";
 import Sidebar from "./Sidebar";
 import GlobalSearch from "@/components/search/GlobalSearch";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   useAuthListener();
   useNotificationsListener();
+  useSessionHeartbeat();
 
   const router = useRouter();
   const { user, loading } = useAuthStore();

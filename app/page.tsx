@@ -1,7 +1,9 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import dynamicImport from "next/dynamic";
+import type { Step, CallBackProps } from "react-joyride";
 import { useAuthStore } from "@/store/authStore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { useSubscribers } from "@/hooks/useSubscribers";
@@ -27,9 +29,16 @@ import ResumeModal from "@/components/subscribers/ResumeModal";
 import PausedSubscribersSection from "@/components/subscribers/PausedSubscribersSection";
 import FrozenSubscribersSection from "@/components/subscribers/FrozenSubscribersSection";
 import ExchangeRatesModal from "@/components/stats/ExchangeRatesModal";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/Tabs";
+import TableSkeleton from "@/components/ui/TableSkeleton";
 import type { Subscriber, Payment, RefundTransaction } from "@/types";
-import { Plus, RefreshCw, DollarSign } from "lucide-react";
+import { Plus, DollarSign } from "lucide-react";
+import { Button, Skeleton } from "@heroui/react";
 import { useRefunds } from "@/hooks/useRefunds";
+import { toast } from "@/lib/toast";
+
+const Joyride = dynamicImport(() => import("@/components/ui/JoyrideWrapper"), { ssr: false });
 
 function filterByPeriod<T extends object>(
   items: T[],
@@ -58,31 +67,56 @@ function filterByPeriod<T extends object>(
 type ModalState =
   | { type: "none" }
   | { type: "add" }
-  | { type: "profile";  subscriber: Subscriber }
-  | { type: "edit";     subscriber: Subscriber }
-  | { type: "withdraw"; subscriber: Subscriber }
-  | { type: "payment";  subscriber: Subscriber }
-  | { type: "renew";    subscriber: Subscriber }
-  | { type: "pause";    subscriber: Subscriber }
-  | { type: "freeze";   subscriber: Subscriber }
-  | { type: "resume";   subscriber: Subscriber }
-  | { type: "rates" };
-
-function toast(message: string) {
-  const el = document.createElement("div");
-  el.className = "toast-success";
-  el.textContent = message;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
-}
+  | { type: "profile";       subscriber: Subscriber }
+  | { type: "edit";          subscriber: Subscriber }
+  | { type: "withdraw";      subscriber: Subscriber }
+  | { type: "payment";       subscriber: Subscriber }
+  | { type: "renew";         subscriber: Subscriber }
+  | { type: "pause";         subscriber: Subscriber }
+  | { type: "freeze";        subscriber: Subscriber }
+  | { type: "resume";        subscriber: Subscriber }
+  | { type: "rates" }
+  | { type: "confirmDelete"; subscriberId: string; subscriberName: string };
 
 export default function HomePage() {
   const { user, can, exchangeRates } = useAuthStore();
   const { subscribers, loading, error } = useSubscribers();
   const { payments } = usePayments();
   const { refunds }  = useRefunds();
-  const [modal, setModal]         = useState<ModalState>({ type: "none" });
+  const [modal, setModal]             = useState<ModalState>({ type: "none" });
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>({ mode: "current_month" });
+  const [tourRun, setTourRun]         = useState(false);
+
+  useEffect(() => {
+    const seen = localStorage.getItem("joker-tour-done");
+    if (!seen) { setTourRun(true); localStorage.setItem("joker-tour-done", "1"); }
+  }, []);
+
+  const tourSteps: Step[] = [
+    {
+      target: "#tour-header",
+      content: "مرحباً بك في لوحة التحكم! من هنا تضيف مشتركين جدد وتتابع الأسعار.",
+      placement: "bottom",
+      disableBeacon: true,
+    },
+    {
+      target: "#tour-stats",
+      content: "بطاقات الإحصائيات — تعرض الإجمالي، النشطين، المنتهين، والإيرادات حسب الفترة الزمنية التي تختارها.",
+      placement: "bottom",
+    },
+    {
+      target: "#tour-tabs",
+      content: "التبويبات — انتقل بين النظرة العامة وجدول المشتركين والتنبيهات من هنا.",
+      placement: "top",
+    },
+  ];
+
+  function handleTourCallback(data: CallBackProps) {
+    const { status } = data;
+    const finished = ["finished", "skipped"] as string[];
+    if (finished.includes(status as string)) setTourRun(false);
+  }
 
   const filteredSubscribers = useMemo(
     () => filterByPeriod(subscribers as (Subscriber & { date: string })[], statsPeriod),
@@ -101,28 +135,57 @@ export default function HomePage() {
   );
 
   const closeModal = useCallback(() => setModal({ type: "none" }), []);
-  const onSaved    = useCallback(() => toast("تم الحفظ بنجاح"), []);
+  const onSaved    = useCallback(() => toast.success("تم الحفظ بنجاح"), []);
 
   async function handleDelete(id: string, name: string) {
     if (!user || !can("canDelete")) return;
-    if (!confirm(`متأكد بدك تحذف المشترك: ${name}؟`)) return;
+    setModal({ type: "confirmDelete", subscriberId: id, subscriberName: name });
+  }
+
+  async function confirmDelete() {
+    if (modal.type !== "confirmDelete") return;
+    const { subscriberId, subscriberName } = modal;
+    setDeleteLoading(true);
     try {
       await callSubscriberOperation("deleteSubscriber", {
-        subscriberId: id,
-        subscriberName: name,
+        subscriberId,
+        subscriberName,
       });
-      toast("تم الحذف");
+      toast.success("تم الحذف بنجاح");
+      closeModal();
     } catch {
-      alert("فشل الحذف");
+      toast.error("فشل الحذف، حاول مجدداً");
+    } finally {
+      setDeleteLoading(false);
     }
   }
 
   return (
     <ProtectedLayout>
+      <Joyride
+        steps={tourSteps}
+        run={tourRun}
+        continuous
+        showSkipButton
+        showProgress
+        callback={handleTourCallback}
+        locale={{ back: "السابق", close: "إغلاق", last: "إنهاء", next: "التالي", skip: "تخطى" }}
+        styles={{
+          options: {
+            primaryColor: "#6366f1",
+            zIndex: 10000,
+            arrowColor: "#fff",
+          },
+          tooltip: { borderRadius: 14, fontFamily: "inherit", direction: "rtl" },
+          buttonNext: { borderRadius: 10, fontWeight: 700 },
+          buttonBack: { borderRadius: 10 },
+          buttonSkip: { borderRadius: 10 },
+        }}
+      />
       <div className="p-5 md:p-8 max-w-screen-2xl mx-auto">
 
         {/* Page header */}
-        <div className="flex items-center justify-between mb-7">
+        <div id="tour-header" className="flex items-center justify-between mb-7">
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">المشتركون</h1>
             <p className="text-slate-500 text-sm mt-1 font-medium">
@@ -131,24 +194,35 @@ export default function HomePage() {
             </p>
           </div>
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setTourRun(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+              style={{ background: "var(--surface-2)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+              title="جولة تعريفية"
+            >
+              🎯 جولة
+            </button>
             {can("canViewRevenue") && (
-              <button
-                onClick={() => setModal({ type: "rates" })}
-                className="flex items-center gap-1.5 text-slate-600 hover:text-blue-700 border border-slate-200 hover:border-blue-300 text-xs font-bold px-3.5 py-2 rounded-xl transition-all bg-white shadow-sm hover:shadow"
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => setModal({ type: "rates" })}
+                className="gap-1.5"
               >
-                <DollarSign size={15} />
+                <DollarSign size={14} />
                 أسعار الصرف
-              </button>
+              </Button>
             )}
             {can("canCreate") && (
-              <button
-                onClick={() => setModal({ type: "add" })}
-                className="flex items-center gap-2 text-white font-bold px-5 py-2.5 rounded-xl transition-all text-sm"
-                style={{ background: "linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)", boxShadow: "0 4px 12px rgba(37,99,235,0.35)" }}
+              <Button
+                variant="primary"
+                size="sm"
+                onPress={() => setModal({ type: "add" })}
+                className="gap-2"
               >
-                <Plus size={17} />
+                <Plus size={15} />
                 مشترك جديد
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -161,76 +235,121 @@ export default function HomePage() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <RefreshCw size={24} className="text-blue-500 animate-spin" />
-              <p className="text-slate-400 text-sm">جاري تحميل البيانات...</p>
+          <div className="space-y-6">
+            {/* Stats skeleton — @heroui Skeleton */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="panel p-5 space-y-3">
+                  <Skeleton className="w-10 h-10 rounded-xl" />
+                  <Skeleton className="h-8 w-16 rounded-lg" />
+                  <Skeleton className="h-3 w-24 rounded" />
+                </div>
+              ))}
+            </div>
+            {/* Table skeleton */}
+            <div className="panel overflow-hidden">
+              <div className="p-4" style={{ borderBottom: "1px solid var(--border)" }}>
+                <Skeleton className="h-9 w-52 rounded-xl" />
+              </div>
+              <TableSkeleton rows={8} cols={7} />
             </div>
           </div>
         ) : (
           <>
+            {/* ─── Stats strip ─────────────────────────────────────────── */}
             <StatsDateFilter value={statsPeriod} onChange={setStatsPeriod} />
-            <StatsCards
-              subscribers={filteredSubscribers}
-              payments={filteredPayments}
-              refunds={filteredRefunds}
-              periodLabel={getPeriodLabel(statsPeriod)}
-            />
+            <div id="tour-stats">
+              <StatsCards
+                subscribers={filteredSubscribers}
+                payments={filteredPayments}
+                refunds={filteredRefunds}
+                periodLabel={getPeriodLabel(statsPeriod)}
+              />
+            </div>
             <CurrencyCounters payments={payments} />
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-6">
-              <div className="xl:col-span-2">
-                <MonthlyCalendar subscribers={subscribers} />
-              </div>
-              <div className="space-y-4">
-                <div className="bg-white rounded-2xl border border-[rgba(0,0,0,0.08)] shadow-[0_1px_2px_rgba(0,0,0,0.05),_0_2px_8px_rgba(0,0,0,0.06)] p-5">
-                  <h3 className="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2">
-                    <span className="w-1 h-4 rounded-full bg-blue-500 inline-block" />
-                    أداء الفريق
-                  </h3>
-                  <TeamPerformance subscribers={subscribers} />
-                </div>
-                <div className="bg-white rounded-2xl border border-[rgba(0,0,0,0.08)] shadow-[0_1px_2px_rgba(0,0,0,0.05),_0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden">
-                  <div className="px-5 py-4 border-b border-slate-100/80 flex items-center gap-2">
-                    <span className="w-1 h-4 rounded-full bg-amber-500 inline-block" />
-                    <h3 className="font-bold text-slate-800 text-sm">تنبيهات الانتهاء</h3>
+            {/* ─── Tabbed content ───────────────────────────────────────── */}
+            <Tabs defaultValue="overview" className="mt-2">
+              <TabList id="tour-tabs" className="mb-6">
+                <Tab value="overview">النظرة العامة</Tab>
+                <Tab value="subscribers">
+                  المشتركون
+                </Tab>
+                <Tab
+                  value="alerts"
+                  badge={
+                    subscribers.filter(
+                      (s) =>
+                        s.subscriptionStatus === "paused" ||
+                        s.freezeData?.isFrozen === true ||
+                        (s.daysRemaining > 0 && s.daysRemaining <= 15 && s.subscriptionState !== "withdrawn")
+                    ).length
+                  }
+                >
+                  التنبيهات
+                </Tab>
+              </TabList>
+
+              {/* ── Tab: Overview ────────────────────────────────────── */}
+              <TabPanel value="overview">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-6">
+                  <div className="xl:col-span-2">
+                    <MonthlyCalendar subscribers={subscribers} />
                   </div>
-                  <Alerts subscribers={subscribers} />
+                  <div className="space-y-4">
+                    <div className="bg-white rounded-2xl border border-[rgba(0,0,0,0.08)] shadow-[0_1px_2px_rgba(0,0,0,0.05),_0_2px_8px_rgba(0,0,0,0.06)] p-5"
+                         style={{ background: "var(--surface)" }}>
+                      <h3 className="font-bold text-sm mb-4 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
+                        <span className="w-1 h-4 rounded-full bg-blue-500 inline-block" />
+                        أداء الفريق
+                      </h3>
+                      <TeamPerformance subscribers={subscribers} />
+                    </div>
+                    <div className="bg-white rounded-2xl border border-[rgba(0,0,0,0.08)] shadow-[0_1px_2px_rgba(0,0,0,0.05),_0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden"
+                         style={{ background: "var(--surface)" }}>
+                      <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: "var(--border)" }}>
+                        <span className="w-1 h-4 rounded-full bg-amber-500 inline-block" />
+                        <h3 className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>تنبيهات الانتهاء</h3>
+                      </div>
+                      <Alerts subscribers={subscribers} />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+                <AdvancedStats subscribers={subscribers} />
+              </TabPanel>
 
-            <Expiry15Days subscribers={subscribers} />
-            <AdvancedStats subscribers={subscribers} />
+              {/* ── Tab: Subscribers ─────────────────────────────────── */}
+              <TabPanel value="subscribers">
+                <SubscribersTable
+                  subscribers={subscribers}
+                  onProfile={(s)    => setModal({ type: "profile",  subscriber: s })}
+                  onEdit={(s)       => setModal({ type: "edit",     subscriber: s })}
+                  onWithdraw={(s)   => setModal({ type: "withdraw", subscriber: s })}
+                  onDelete={handleDelete}
+                  onAddPayment={(s) => setModal({ type: "payment",  subscriber: s })}
+                  onRenew={(s)      => setModal({ type: "renew",    subscriber: s })}
+                  onPause={(s)      => setModal({ type: "pause",    subscriber: s })}
+                  onFreeze={(s)     => setModal({ type: "freeze",   subscriber: s })}
+                  onResume={(s)     => setModal({ type: "resume",   subscriber: s })}
+                />
+              </TabPanel>
 
-            {/* Paused subscribers — separate section */}
-            <PausedSubscribersSection
-              subscribers={subscribers}
-              onProfile={(s) => setModal({ type: "profile", subscriber: s })}
-              onEdit={(s)    => setModal({ type: "edit",    subscriber: s })}
-            />
-
-            {/* Frozen subscribers — separate section */}
-            <FrozenSubscribersSection
-              subscribers={subscribers}
-              onProfile={(s) => setModal({ type: "profile", subscriber: s })}
-              onResume={(s)  => setModal({ type: "resume",  subscriber: s })}
-              onEdit={(s)    => setModal({ type: "edit",    subscriber: s })}
-            />
-
-            {/* Main subscribers table (paused excluded) */}
-            <SubscribersTable
-              subscribers={subscribers}
-              onProfile={(s)    => setModal({ type: "profile",  subscriber: s })}
-              onEdit={(s)       => setModal({ type: "edit",     subscriber: s })}
-              onWithdraw={(s)   => setModal({ type: "withdraw", subscriber: s })}
-              onDelete={handleDelete}
-              onAddPayment={(s) => setModal({ type: "payment",  subscriber: s })}
-              onRenew={(s)      => setModal({ type: "renew",    subscriber: s })}
-              onPause={(s)      => setModal({ type: "pause",    subscriber: s })}
-              onFreeze={(s)     => setModal({ type: "freeze",   subscriber: s })}
-              onResume={(s)     => setModal({ type: "resume",   subscriber: s })}
-            />
+              {/* ── Tab: Alerts ──────────────────────────────────────── */}
+              <TabPanel value="alerts">
+                <Expiry15Days subscribers={subscribers} />
+                <PausedSubscribersSection
+                  subscribers={subscribers}
+                  onProfile={(s) => setModal({ type: "profile", subscriber: s })}
+                  onEdit={(s)    => setModal({ type: "edit",    subscriber: s })}
+                />
+                <FrozenSubscribersSection
+                  subscribers={subscribers}
+                  onProfile={(s) => setModal({ type: "profile", subscriber: s })}
+                  onResume={(s)  => setModal({ type: "resume",  subscriber: s })}
+                  onEdit={(s)    => setModal({ type: "edit",    subscriber: s })}
+                />
+              </TabPanel>
+            </Tabs>
           </>
         )}
       </div>
@@ -269,7 +388,7 @@ export default function HomePage() {
         <PauseModal
           subscriber={modal.subscriber}
           onClose={closeModal}
-          onSaved={() => { closeModal(); toast("تم إيقاف الاشتراك"); }}
+          onSaved={() => { closeModal(); toast.success("تم إيقاف الاشتراك"); }}
         />
       )}
       {modal.type === "freeze" && (
@@ -277,7 +396,7 @@ export default function HomePage() {
           subscriber={modal.subscriber}
           isOpen={true}
           onClose={closeModal}
-          onFrozen={() => { closeModal(); toast("تم تجميد الاشتراك"); }}
+          onFrozen={() => { closeModal(); toast.success("تم تجميد الاشتراك"); }}
           currentUser={{ uid: user?.uid || "", displayName: user?.name || "" }}
         />
       )}
@@ -286,13 +405,27 @@ export default function HomePage() {
           subscriber={modal.subscriber}
           isOpen={true}
           onClose={closeModal}
-          onResumed={() => { closeModal(); toast("تم استئناف الاشتراك"); }}
+          onResumed={() => { closeModal(); toast.success("تم استئناف الاشتراك"); }}
           currentUser={{ uid: user?.uid || "", displayName: user?.name || "" }}
         />
       )}
       {modal.type === "rates" && (
         <ExchangeRatesModal onClose={closeModal} />
       )}
+      <ConfirmDialog
+        open={modal.type === "confirmDelete"}
+        onClose={closeModal}
+        onConfirm={confirmDelete}
+        loading={deleteLoading}
+        destructive
+        title="حذف المشترك"
+        description={
+          modal.type === "confirmDelete"
+            ? `هل أنت متأكد من حذف "${modal.subscriberName}"؟ هذا الإجراء لا يمكن التراجع عنه.`
+            : undefined
+        }
+        confirmLabel="حذف نهائياً"
+      />
     </ProtectedLayout>
   );
 }

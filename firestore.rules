@@ -104,6 +104,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ─── loginSessions — staff-read only; Admin SDK writes only ─────────
+    match /loginSessions/{id} {
+      allow read:          if isStaff();
+      allow write:         if false;
+    }
+
+    // ─── failedLogins — staff-read only; Admin SDK writes only ───────────
+    match /failedLogins/{id} {
+      allow read:          if isStaff();
+      allow write:         if false;
+    }
+
     // ─── deny everything else ─────────────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;

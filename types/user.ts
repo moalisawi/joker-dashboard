@@ -28,6 +28,10 @@ export interface UserProfile {
   /** Optional granular permissions override; when absent, role defaults apply */
   granularPermissions?: GranularPermissions;
 
+  deleted?: boolean;
+  deletedAt?: string | Timestamp;
+  deletedBy?: string;
+
   createdAt?: Timestamp;
   createdBy?: string;
   updatedAt?: Timestamp;

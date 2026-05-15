@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
+import { Spinner } from "@heroui/react";
 
 interface Props {
   open: boolean;
@@ -78,7 +79,7 @@ export default function ConfirmDialog({
                 className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm transition disabled:opacity-60"
                 style={{ background: accent }}
               >
-                {loading ? "جاري..." : confirmLabel}
+                {loading ? <Spinner size="sm" color="current" /> : confirmLabel}
               </button>
               <button
                 onClick={onClose}

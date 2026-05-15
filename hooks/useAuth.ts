@@ -9,6 +9,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/firestore";
 import { useAuthStore } from "@/store/authStore";
 import { isAccountAccessible } from "@/lib/permissions";
+import { logLoginSession } from "@/lib/sessionLogger";
 import type { UserProfile, AccountStatus } from "@/types";
 
 /**
@@ -97,6 +98,9 @@ export function useAuthListener() {
 
           setUser(profile);
           setLoading(false);
+
+          // Log session once per browser tab after user is confirmed active
+          logLoginSession();
         },
         (err) => {
           console.error("useAuth Firestore listener error:", err);

@@ -120,6 +120,10 @@ export const canViewFinancialReports = (u: UserProfile | null) => hasPermission(
 export const canExportReports        = (u: UserProfile | null) => hasPermission(u, "export_reports");
 export const canManageAutomations    = (u: UserProfile | null) => hasPermission(u, "manage_automations");
 
+// Sessions — strictly role-based, not delegatable via granular permissions
+export const canViewSessions = (u: UserProfile | null): boolean =>
+  u?.role === "owner" || u?.role === "admin";
+
 // Subscriber workflow (Phase 3)
 export const canAssignSubscribers       = (u: UserProfile | null) => hasPermission(u, "assign_subscribers");
 export const canTransferSubscribers     = (u: UserProfile | null) => hasPermission(u, "transfer_subscribers");

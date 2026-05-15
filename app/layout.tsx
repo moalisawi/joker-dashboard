@@ -3,6 +3,7 @@ import { Cairo } from "next/font/google";
 import "./globals.css";
 import ThemeProvider from "@/components/layout/ThemeProvider";
 import QueryProvider from "@/components/layout/QueryProvider";
+import { Toaster } from "sonner";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -25,6 +26,13 @@ export default function RootLayout({
       <body className="min-h-screen bg-slate-50" style={{ fontFamily: "var(--font-cairo), sans-serif" }}>
         <QueryProvider>
           <ThemeProvider>{children}</ThemeProvider>
+          <Toaster
+            position="top-center"
+            dir="rtl"
+            richColors
+            closeButton
+            toastOptions={{ style: { fontFamily: "var(--font-cairo), sans-serif" } }}
+          />
         </QueryProvider>
       </body>
     </html>

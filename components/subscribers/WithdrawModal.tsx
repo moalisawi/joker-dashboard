@@ -8,6 +8,7 @@ import { withdrawalService } from "@/services";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { X, AlertCircle, CheckCircle, UserMinus, Calendar, DollarSign } from "lucide-react";
+import { toast } from "@/lib/toast";
 
 interface Props {
   subscriber: Subscriber;
@@ -22,14 +23,6 @@ const CURRENCIES: { value: Currency; label: string }[] = [
   { value: "JOD", label: "دينار JOD" },
   { value: "ILS", label: "شيكل ILS" },
 ];
-
-function toast(msg: string) {
-  const el = document.createElement("div");
-  el.className = "toast-success";
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
-}
 
 export default function WithdrawModal({ subscriber: s, exchangeRates, onClose, onSaved }: Props) {
   const { user, can } = useAuthStore();
@@ -97,7 +90,7 @@ export default function WithdrawModal({ subscriber: s, exchangeRates, onClose, o
       });
 
       setDone(true);
-      toast("تم تسجيل الانسحاب بنجاح");
+      toast.success("تم تسجيل الانسحاب بنجاح");
       setTimeout(() => { onSaved(); onClose(); }, 1400);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");

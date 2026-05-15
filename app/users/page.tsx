@@ -22,16 +22,7 @@ import {
   RotateCcw, Save, X, AlertTriangle, Crown,
   UserCheck, UserX, Clock,
 } from "lucide-react";
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function toast(msg: string, isError = false) {
-  const el = document.createElement("div");
-  el.className = isError ? "toast-error" : "toast-success";
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
-}
+import { toast } from "@/lib/toast";
 
 function UserAvatar({ name, role }: { name: string; role: Role }) {
   const initials = (name || "?")
@@ -111,10 +102,10 @@ function PermissionsEditor({
     setSaving(true);
     try {
       await permissionService.setGranularPermissions(actor, targetUser.uid, gp);
-      toast("تم حفظ الصلاحيات");
+      toast.success("تم حفظ الصلاحيات");
       onClose();
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : "فشل الحفظ", true);
+      toast.error(e instanceof Error ? e.message : "فشل الحفظ");
     } finally {
       setSaving(false);
     }
@@ -216,7 +207,7 @@ function ConfirmModal({ action, onCancel }: { action: ConfirmAction; onCancel: (
       await action.onConfirm();
       onCancel();
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : "فشل التنفيذ", true);
+      toast.error(e instanceof Error ? e.message : "فشل التنفيذ");
     } finally {
       setLoading(false);
     }
@@ -338,7 +329,7 @@ export default function UsersPage() {
       danger: newRole === "owner",
       onConfirm: async () => {
         await permissionService.setRole(user, target.uid, target.role, newRole);
-        toast(`تم تغيير دور ${target.name} إلى ${ROLE_LABELS[newRole]}`);
+        toast.success(`تم تغيير دور ${target.name} إلى ${ROLE_LABELS[newRole]}`);
       },
     });
   }
@@ -358,7 +349,7 @@ export default function UsersPage() {
       danger: newStatus === "disabled",
       onConfirm: async () => {
         await permissionService.setStatus(user, target.uid, target.role, newStatus);
-        toast(`تم ${labels[newStatus]} حساب ${target.name}`);
+        toast.success(`تم ${labels[newStatus]} حساب ${target.name}`);
       },
     });
   }
@@ -370,9 +361,9 @@ export default function UsersPage() {
     setSavingName(target.uid);
     try {
       await permissionService.updateProfile(user, target.uid, { name: newName });
-      toast("تم حفظ الاسم");
+      toast.success("تم حفظ الاسم");
     } catch (e: unknown) {
-      toast(e instanceof Error ? e.message : "فشل الحفظ", true);
+      toast.error(e instanceof Error ? e.message : "فشل الحفظ");
     } finally {
       setSavingName(null);
     }

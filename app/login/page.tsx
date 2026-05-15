@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/auth";
+import { logFailedLogin } from "@/lib/sessionLogger";
 import { useAuthStore } from "@/store/authStore";
 import { useAuthListener } from "@/hooks/useAuth";
 
@@ -32,19 +33,19 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, email, password);
       // redirect handled by useEffect above
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "فشل تسجيل الدخول، تحقق من البيانات";
-      if (
-        msg.includes("user-not-found") ||
-        msg.includes("wrong-password") ||
-        msg.includes("invalid-credential")
-      ) {
+      const msg  = err instanceof Error ? err.message : "فشل تسجيل الدخول، تحقق من البيانات";
+      const code = (err as { code?: string }).code ?? msg;
+
+      if (msg.includes("user-not-found") || msg.includes("wrong-password") || msg.includes("invalid-credential")) {
         setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
       } else if (msg.includes("too-many-requests")) {
         setError("تم حظر الحساب مؤقتاً بسبب محاولات متعددة، حاول لاحقاً");
       } else {
         setError(msg);
       }
+
+      // Log failed attempt server-side (non-blocking)
+      logFailedLogin(email, code).catch(() => {});
     } finally {
       setSubmitting(false);
     }

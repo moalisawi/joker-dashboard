@@ -7,7 +7,10 @@ import { callSubscriberOperation } from "@/lib/clientOperations";
 import {
   formatDate, formatNumber, daysSince,
 } from "@/lib/utils";
-import { PauseCircle, PlayCircle, User } from "lucide-react";
+import { PauseCircle, PlayCircle, User, Loader2 } from "lucide-react";
+import { toast } from "@/lib/toast";
+import { useState } from "react";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 interface Props {
   subscribers: Subscriber[];
@@ -16,19 +19,13 @@ interface Props {
   onRefresh?: () => void;
 }
 
-function toast(msg: string) {
-  const el = document.createElement("div");
-  el.className = "toast-success";
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3000);
-}
-
 export default function PausedSubscribersSection({
   subscribers, onProfile, onEdit,
 }: Props) {
   const { user, can } = useAuthStore();
   const canRev = can("canViewRevenue");
+  const [resumingId, setResumingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId]   = useState<string | null>(null);
 
   const paused = useMemo(
     () => subscribers.filter((s) => s.subscriptionStatus === "paused"),
@@ -39,16 +36,17 @@ export default function PausedSubscribersSection({
 
   async function handleResume(s: Subscriber) {
     if (!user) return;
-    if (!confirm(`إعادة تفعيل اشتراك ${s.name}؟`)) return;
-
+    setConfirmId(null);
+    setResumingId(s.id);
     try {
       await callSubscriberOperation("resumePausedSubscription", {
         subscriberId: s.id,
       });
-
-      toast(`تم استئناف اشتراك ${s.name} ✓`);
+      toast.success(`تم استئناف اشتراك ${s.name}`);
     } catch (err) {
-      alert("فشل الاستئناف: " + (err instanceof Error ? err.message : ""));
+      toast.error("فشل الاستئناف: " + (err instanceof Error ? err.message : "حدث خطأ"));
+    } finally {
+      setResumingId(null);
     }
   }
 
@@ -140,10 +138,14 @@ export default function PausedSubscribersSection({
                   <td className="px-4 py-3">
                     <div className="flex gap-1 flex-wrap">
                       <button
-                        onClick={() => handleResume(s)}
-                        className="flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-semibold transition"
+                        onClick={() => setConfirmId(s.id)}
+                        disabled={resumingId === s.id}
+                        className="flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-xs font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        <PlayCircle size={12} /> استئناف
+                        {resumingId === s.id
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <PlayCircle size={12} />}
+                        استئناف
                       </button>
                       <button
                         onClick={() => onProfile(s)}
@@ -185,6 +187,18 @@ export default function PausedSubscribersSection({
           </span>
         )}
       </div>
+      <ConfirmDialog
+        open={Boolean(confirmId)}
+        onClose={() => setConfirmId(null)}
+        onConfirm={() => {
+          const s = paused.find((p) => p.id === confirmId);
+          if (s) handleResume(s);
+        }}
+        loading={Boolean(resumingId)}
+        title="استئناف الاشتراك"
+        description={`هل تريد استئناف اشتراك "${paused.find((p) => p.id === confirmId)?.name ?? ""}"؟`}
+        confirmLabel="استئناف"
+      />
     </div>
   );
 }

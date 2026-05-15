@@ -58,6 +58,9 @@ export type {
 // Employee types
 export type { EmployeeRole, EmployeeDepartment } from "./employee";
 
+// Session types
+export type { LoginSession, FailedLoginAttempt, SessionSummary, DeviceType, SessionStatus } from "./session";
+
 // Team types
 export type { Team, TeamType } from "./team";
 

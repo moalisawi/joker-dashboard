@@ -68,6 +68,7 @@ export const usersFeatureService = {
     );
     return snap.docs
       .map((d) => ({ uid: d.id, ...d.data() } as UserProfile))
+      .filter((e) => !e.deleted)
       .sort((a, b) => a.name.localeCompare(b.name, "ar"));
   },
 
@@ -81,6 +82,7 @@ export const usersFeatureService = {
     );
     return snap.docs
       .map((d) => ({ uid: d.id, ...d.data() } as UserProfile))
+      .filter((e) => !e.deleted)
       .sort((a, b) => a.name.localeCompare(b.name, "ar"));
   },
 
