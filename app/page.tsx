@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import dynamicImport from "next/dynamic";
-import type { Step, CallBackProps } from "react-joyride";
+import type { Step, EventData } from "react-joyride";
 import { useAuthStore } from "@/store/authStore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { useSubscribers } from "@/hooks/useSubscribers";
@@ -98,7 +98,7 @@ export default function HomePage() {
       target: "#tour-header",
       content: "مرحباً بك في لوحة التحكم! من هنا تضيف مشتركين جدد وتتابع الأسعار.",
       placement: "bottom",
-      disableBeacon: true,
+      skipBeacon: true,
     },
     {
       target: "#tour-stats",
@@ -112,7 +112,7 @@ export default function HomePage() {
     },
   ];
 
-  function handleTourCallback(data: CallBackProps) {
+  function handleTourCallback(data: EventData) {
     const { status } = data;
     const finished = ["finished", "skipped"] as string[];
     if (finished.includes(status as string)) setTourRun(false);
@@ -166,18 +166,18 @@ export default function HomePage() {
         steps={tourSteps}
         run={tourRun}
         continuous
-        showSkipButton
-        showProgress
-        callback={handleTourCallback}
+        onEvent={handleTourCallback}
         locale={{ back: "السابق", close: "إغلاق", last: "إنهاء", next: "التالي", skip: "تخطى" }}
+        options={{
+          primaryColor: "#6366f1",
+          zIndex: 10000,
+          arrowColor: "#fff",
+          showProgress: true,
+          buttons: ["back", "close", "primary", "skip"],
+        }}
         styles={{
-          options: {
-            primaryColor: "#6366f1",
-            zIndex: 10000,
-            arrowColor: "#fff",
-          },
           tooltip: { borderRadius: 14, fontFamily: "inherit", direction: "rtl" },
-          buttonNext: { borderRadius: 10, fontWeight: 700 },
+          buttonPrimary: { borderRadius: 10, fontWeight: 700 },
           buttonBack: { borderRadius: 10 },
           buttonSkip: { borderRadius: 10 },
         }}
