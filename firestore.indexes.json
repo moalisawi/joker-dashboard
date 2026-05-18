@@ -87,6 +87,16 @@
         { "fieldPath": "__name__",      "order": "ASCENDING" }
       ]
     },
+    // Same query but Firestore cursor uses __name__ DESC (snapshot listener variant)
+    {
+      "collectionGroup": "refunds",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriberId", "order": "ASCENDING" },
+        { "fieldPath": "refundDate",    "order": "DESCENDING" },
+        { "fieldPath": "__name__",      "order": "DESCENDING" }
+      ]
+    },
     // Monthly refund totals
     {
       "collectionGroup": "refunds",
@@ -133,6 +143,17 @@
       "fields": [
         { "fieldPath": "action",    "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    // alert-engine checkFailedLogins:
+    //   where("action","==","login_failed") + where("createdAt",">=",hourAgo)
+    // Range filter forces createdAt ASC ordering — needs its own composite index.
+    {
+      "collectionGroup": "auditLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "action",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     },
     // Role-based audit review
@@ -206,6 +227,54 @@
       ]
     },
 
+    // ─── paymentMethods ───────────────────────────────────────────────────
+    // getAll(): where(deleted != true).orderBy(name)
+    {
+      "collectionGroup": "paymentMethods",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted", "order": "ASCENDING" },
+        { "fieldPath": "name",    "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "paymentMethods",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",  "order": "ASCENDING" },
+        { "fieldPath": "country", "order": "ASCENDING" },
+        { "fieldPath": "name",    "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "paymentMethods",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted", "order": "ASCENDING" },
+        { "fieldPath": "status",  "order": "ASCENDING" },
+        { "fieldPath": "name",    "order": "ASCENDING" }
+      ]
+    },
+    // paymentMethodId balance queries
+    // sort DESC for timeline display
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "paymentMethodId", "order": "ASCENDING" },
+        { "fieldPath": "date",            "order": "DESCENDING" }
+      ]
+    },
+    // range filter (date >= periodStart) requires ASC — used by payers modal
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "paymentMethodId", "order": "ASCENDING" },
+        { "fieldPath": "date",            "order": "ASCENDING" }
+      ]
+    },
+
     // ─── subscribers ──────────────────────────────────────────────────────
     // Status dashboard (filter by subscriptionState, sort by date)
     {
@@ -269,6 +338,204 @@
       "fields": [
         { "fieldPath": "subscriptionState", "order": "ASCENDING" },
         { "fieldPath": "endDate",           "order": "ASCENDING" }
+      ]
+    },
+
+    // ─── subscribers (alert-engine + notification service) ────────────────
+    // checkExpiringSubscriptions + notification.service expiry alert:
+    //   where("subscriptionState","==","active")
+    //   + where("expiryDate",">=",today) + where("expiryDate","<=",in3Days)
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriptionState", "order": "ASCENDING" },
+        { "fieldPath": "expiryDate",        "order": "ASCENDING" }
+      ]
+    },
+    // checkWithdrawalSpike:
+    //   where("subscriptionState","==","withdrawn") + where("updatedAt",">=",x)
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriptionState", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt",         "order": "ASCENDING" }
+      ]
+    },
+
+    // ─── teams ────────────────────────────────────────────────────────────
+    // teamsService.getActive():
+    //   where("active","==",true) + where("deleted","!=",true)
+    // Firestore requires a composite index when mixing equality + inequality
+    // on different fields. The "!=" filter implicitly orders by "deleted".
+    {
+      "collectionGroup": "teams",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active",  "order": "ASCENDING" },
+        { "fieldPath": "deleted", "order": "ASCENDING" }
+      ]
+    },
+
+    // ─── notifications ────────────────────────────────────────────────────
+    // Dedup check in notification.service.ts:
+    //   where("type","==",x) + where("archived","==",false)
+    //   + where("createdAt",">",twelveHoursAgo) + limit(1)
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type",      "order": "ASCENDING" },
+        { "fieldPath": "archived",  "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+
+    // ─── activityLogs ─────────────────────────────────────────────────────
+    // activityLog.service.ts — getByEmployee, getByTeam, getByType
+    {
+      "collectionGroup": "activityLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "employeeId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "activityLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teamId",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "activityLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type",      "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+
+    // ─── subscriberAssignments ────────────────────────────────────────────
+    // assignment.service.ts — getHistoryBySubscriberId, getHistoryByEmployee
+    {
+      "collectionGroup": "subscriberAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriberId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "subscriberAssignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "transferredBy", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",     "order": "DESCENDING" }
+      ]
+    },
+
+    // ─── whatsappLeads ────────────────────────────────────────────────────
+    // Main listing: excludeDeleted() + orderBy(lastMessageAt desc)
+    {
+      "collectionGroup": "whatsappLeads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",       "order": "ASCENDING"  },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    // Date-range listing: where(deleted==false) + range on lastMessageAt
+    {
+      "collectionGroup": "whatsappLeads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",       "order": "ASCENDING"  },
+        { "fieldPath": "lastMessageAt", "order": "ASCENDING"  }
+      ]
+    },
+    // Status filter: where(deleted==false) + where(status) + orderBy(lastMessageAt)
+    {
+      "collectionGroup": "whatsappLeads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",       "order": "ASCENDING"  },
+        { "fieldPath": "status",        "order": "ASCENDING"  },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    // Country filter
+    {
+      "collectionGroup": "whatsappLeads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",       "order": "ASCENDING"  },
+        { "fieldPath": "country",       "order": "ASCENDING"  },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    // Assignment filter
+    {
+      "collectionGroup": "whatsappLeads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",       "order": "ASCENDING"  },
+        { "fieldPath": "assignedTo",    "order": "ASCENDING"  },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    // Conversation status filter
+    {
+      "collectionGroup": "whatsappLeads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",             "order": "ASCENDING"  },
+        { "fieldPath": "conversationStatus",  "order": "ASCENDING"  },
+        { "fieldPath": "lastMessageAt",       "order": "DESCENDING" }
+      ]
+    },
+    // Conversation history lookup by phone
+    {
+      "collectionGroup": "whatsappLeads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",   "order": "ASCENDING"  },
+        { "fieldPath": "phone",     "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    // Monthly analytics: date range on lastMessageAt
+    {
+      "collectionGroup": "whatsappLeads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",       "order": "ASCENDING" },
+        { "fieldPath": "lastMessageAt", "order": "ASCENDING" }
+      ]
+    },
+
+    // ─── whatsappMessages ─────────────────────────────────────────────────
+    // Load messages for a lead: where(leadId) + where(deleted==false) + orderBy(timestamp)
+    {
+      "collectionGroup": "whatsappMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "leadId",    "order": "ASCENDING" },
+        { "fieldPath": "deleted",   "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "ASCENDING" }
+      ]
+    },
+
+    // ─── cannedResponses ──────────────────────────────────────────────────
+    {
+      "collectionGroup": "cannedResponses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",   "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     }
 

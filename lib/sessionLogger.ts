@@ -24,9 +24,16 @@ export async function logLoginSession(): Promise<void> {
       const data = await res.json();
       sessionStorage.setItem(SESSION_LOGGED_KEY, "1");
       if (data.sessionId) sessionStorage.setItem(SESSION_ID_KEY, data.sessionId);
+    } else if (res.status === 202) {
+      // Server skipped logging (e.g. admin credentials missing in dev) — flag it
+      // so we don't retry every navigation.
+      sessionStorage.setItem(SESSION_LOGGED_KEY, "1");
+    } else {
+      const body = await res.json().catch(() => ({}));
+      console.warn("[sessions] log failed —", res.status, body.error ?? res.statusText);
     }
-  } catch {
-    // Non-fatal — must never break auth flow
+  } catch (err) {
+    console.warn("[sessions] log error —", err instanceof Error ? err.message : err);
   }
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse }          from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { verifyServerUser, initializeAdminApp } from "@/lib/serverAuth";
+import { hasAdminCredentials } from "@/lib/serverFirestore";
 import type { DeviceType } from "@/types";
 
 export const runtime = "nodejs";
@@ -124,6 +125,16 @@ export async function POST(request: Request): Promise<NextResponse> {
   const user = await verifyServerUser(request);
   console.log("[sessions/log] POST — user:", user?.uid ?? "null (unauthorized)");
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+  // Session logging writes via Admin SDK only (firestore.rules denies client writes).
+  // Without admin credentials in dev, the write hangs ~10s on metadata-server timeout
+  // before failing — return early so the client doesn't block on it.
+  if (!hasAdminCredentials()) {
+    return NextResponse.json(
+      { success: false, skipped: true, reason: "admin-credentials-unavailable" },
+      { status: 202 }
+    );
+  }
 
   const ua = request.headers.get("user-agent") || "";
   const ip =
