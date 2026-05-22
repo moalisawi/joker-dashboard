@@ -555,24 +555,6 @@
         { "fieldPath": "deleted",   "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
-    },
-
-    // ─── renewalHistory (sub-collection of subscribers) ───────────────────
-    // RenewalsTab: orderBy("createdAt", "desc") on the sub-collection
-    {
-      "collectionGroup": "renewalHistory",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    // Optional: lookup by renewalNumber
-    {
-      "collectionGroup": "renewalHistory",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "renewalNumber", "order": "ASCENDING" }
-      ]
     }
 
   ],
