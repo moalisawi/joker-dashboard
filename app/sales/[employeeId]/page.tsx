@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -14,7 +13,7 @@ import {
   RefreshCw, Target, AlertCircle,
 } from "lucide-react";
 
-const ACC = { indigo:"#6366f1", emerald:"#10b981", amber:"#f59e0b", rose:"#f43f5e", sky:"#38bdf8" };
+const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
 const tran = { duration:0.32, ease:"easeOut" } as const;
 const stagger = { animate:{ transition:{ staggerChildren:0.06 } } };
 const fadeUp = { initial:{ opacity:0, y:14 }, animate:{ opacity:1, y:0, transition:tran } };
@@ -94,7 +93,6 @@ export default function SalesEmployeeDetailPage() {
                 <motion.div {...fadeUp}
                   className="rounded-2xl overflow-hidden"
                   style={{ background:"var(--surface)", border:"1px solid var(--border)", boxShadow:"var(--shadow-card)" }}>
-                  <div className="h-1.5" style={{ background:`linear-gradient(90deg,${ACC.indigo},${ACC.amber})` }}/>
                   <div className="p-6 flex flex-col sm:flex-row sm:items-center gap-5">
                     <div className="h-20 w-20 rounded-2xl flex items-center justify-center
                       text-2xl font-black text-white shrink-0"
@@ -137,7 +135,7 @@ export default function SalesEmployeeDetailPage() {
                     accent={ACC.amber} icon={<DollarSign size={16}/>}/>
                   <Kpi label="الدخل الأولي"
                     value={canRev ? `$${formatNumber(metrics.initialRevenue, 0)}` : "—"}
-                    accent={ACC.sky ?? "#38bdf8"} icon={<DollarSign size={16}/>}/>
+                    accent={ACC.sky ?? "#9DB4D6"} icon={<DollarSign size={16}/>}/>
                   <Kpi label="التجديدات" value={String(metrics.renewals)}
                     accent={ACC.rose} icon={<RefreshCw size={16}/>}/>
                 </div>

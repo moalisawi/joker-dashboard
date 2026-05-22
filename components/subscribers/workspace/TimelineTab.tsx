@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
@@ -50,14 +50,14 @@ function fmtDate(iso: string): string {
 }
 
 const ACC = {
-  indigo:  "#6366f1",
-  emerald: "#10b981",
-  amber:   "#f59e0b",
-  rose:    "#f43f5e",
-  sky:     "#38bdf8",
-  violet:  "#8b5cf6",
-  orange:  "#f97316",
-  teal:    "#14b8a6",
+  indigo:  "#83A2DB",
+  emerald: "#83A2DB",
+  amber:   "#E8B570",
+  rose:    "#CE6969",
+  sky:     "#9DB4D6",
+  violet:  "#9DB4D6",
+  orange:  "#E8B570",
+  teal:    "#83A2DB",
   slate:   "#64748b",
 };
 

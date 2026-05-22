@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import type { Role } from "@/types";
 import { hasAdminCredentials, fsGet } from "@/lib/serverFirestore";
+import { DEFAULT_GRANULAR_PERMISSIONS } from "@/lib/permissions";
 
 type UserDocument = {
   role?: Role;
@@ -19,23 +20,32 @@ export type VerifiedServerUser = {
   granularPermissions?: Record<string, Record<string, boolean>>;
 };
 
-export function initializeAdminApp() {
+// ── Firebase Admin initialization ────────────────────────────────────────────
+// Runs once at module-import time (server startup), before any request handler.
+// All API route files import this module, so this executes before any request.
+function _initFirebaseAdmin() {
   if (getApps().length) return;
 
-  const projectId = process.env.FIREBASE_PROJECT_ID ?? process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const projectId   = process.env.FIREBASE_PROJECT_ID ?? process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const keyB64      = process.env.FIREBASE_PRIVATE_KEY_B64;
+  const privateKey  = keyB64
+    ? Buffer.from(keyB64, "base64").toString("utf8")
+    : process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
   if (clientEmail && privateKey) {
-    initializeApp({
-      credential: cert({ projectId, clientEmail, privateKey }),
-      projectId,
-    });
-    return;
+    initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId });
+  } else {
+    initializeApp({ projectId });
   }
-
-  initializeApp({ projectId });
 }
+
+_initFirebaseAdmin();
+
+/** No-op kept for backward compatibility — initialization is now at module level. */
+export function initializeAdminApp() { /* already initialized above */ }
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function bearerToken(request: Request): string | null {
   const header = request.headers.get("authorization");
@@ -53,8 +63,15 @@ export function hasServerPermission(
   category: string,
   action: string
 ): boolean {
-  if (user.role === "owner" || user.role === "admin") return true;
-  return user.granularPermissions?.[category]?.[action] === true;
+  // Only the owner role gets unconditional access.
+  // Admins are subject to their configured granular permissions so that
+  // per-admin restrictions (e.g. no refunds) are actually enforced.
+  if (user.role === "owner") return true;
+  // Fall back to role defaults if the user doc has no granularPermissions yet
+  // (e.g. accounts created before the granular permission system was introduced).
+  const gp = (user.granularPermissions ?? DEFAULT_GRANULAR_PERMISSIONS[user.role]) as
+    Record<string, Record<string, boolean>> | undefined;
+  return gp?.[category]?.[action] === true;
 }
 
 export function getBearerToken(request: Request): string | null {
@@ -65,9 +82,6 @@ export async function verifyServerUser(request: Request): Promise<VerifiedServer
   const token = bearerToken(request);
   if (!token) return null;
 
-  initializeAdminApp();
-
-  // verifyIdToken uses Google public keys — works without admin credentials
   let uid: string;
   let email: string | undefined;
   try {
@@ -78,7 +92,6 @@ export async function verifyServerUser(request: Request): Promise<VerifiedServer
     return null;
   }
 
-  // Read user document — Admin SDK if credentials available, else Firestore REST API
   let data: UserDocument | null = null;
 
   if (hasAdminCredentials()) {
@@ -90,8 +103,6 @@ export async function verifyServerUser(request: Request): Promise<VerifiedServer
       return null;
     }
   } else {
-    // Fallback: Firestore REST API with the user's own token
-    // Rules allow: allow read if request.auth.uid == uid
     const raw = await fsGet("users", uid, token);
     if (!raw) return null;
     data = {

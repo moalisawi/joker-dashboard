@@ -2,9 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import {
-  doc, onSnapshot,
-} from "firebase/firestore";
+import { doc, onSnapshot, getDoc } from "firebase/firestore";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/firestore";
 import { useAuthStore } from "@/store/authStore";
@@ -18,102 +16,145 @@ import type { UserProfile, AccountStatus } from "@/types";
  *  2. Realtime Firestore listener on the user document
  *     → permissions / status changes apply instantly
  *     → suspended/disabled accounts are force-logged out
+ *
+ * Design principles:
+ *  - Effect runs ONCE (empty dep array). Auth and Firestore listeners are
+ *    managed internally, not re-created on parent re-renders.
+ *  - Async work inside onAuthStateChanged is guarded by a per-invocation
+ *    `isCancelled` flag so stale callbacks never write stale state.
+ *  - State updates are ATOMIC (single setState call) to prevent the
+ *    intermediate state where user is set but loading is still true.
  */
 export function useAuthListener() {
-  const { setUser, setLoading } = useAuthStore();
-
-  // Keep Firestore unsubscriber across re-renders without causing loops
   const unsubFirestoreRef = useRef<(() => void) | null>(null);
+  // Cancels the in-flight async setup when auth state changes again
+  const cancelAsyncRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      // Clean up previous Firestore listener before starting a new one
+    // If Firebase Auth doesn't resolve within 15s, unblock the UI
+    const safetyTimer = setTimeout(() => {
+      useAuthStore.setState({ loading: false });
+    }, 15_000);
+
+    const unsubAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      clearTimeout(safetyTimer);
+
+      // Cancel any in-flight async setup from the previous auth event
+      cancelAsyncRef.current?.();
+      cancelAsyncRef.current = null;
+
+      // Tear down the previous Firestore listener synchronously
       unsubFirestoreRef.current?.();
       unsubFirestoreRef.current = null;
 
       if (!firebaseUser) {
-        setUser(null);
-        setLoading(false);
+        useAuthStore.setState({ user: null, loading: false });
         return;
       }
 
+      // --- Async setup, guarded by isCancelled ---
+      let isCancelled = false;
+      cancelAsyncRef.current = () => { isCancelled = true; };
+
       const userRef = doc(db, "users", firebaseUser.uid);
 
-      // Ensure user document exists (first login auto-provisioning)
-      try {
-        const initSnap = await import("firebase/firestore").then((m) => m.getDoc(userRef));
-        if (!initSnap.exists()) {
-          const token = await firebaseUser.getIdToken();
-          await fetch("/api/bootstrap-user", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-          });
-        }
-      } catch {
-        // Non-fatal — onSnapshot below will still fire
-      }
+      (async () => {
+        // Ensure the user document exists (first-login auto-provisioning)
+        try {
+          const initSnap = await Promise.race([
+            getDoc(userRef),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("getDoc timeout")), 6_000)
+            ),
+          ]);
 
-      // Realtime listener — fires immediately and on every doc change
-      unsubFirestoreRef.current = onSnapshot(
-        userRef,
-        async (snap) => {
-          if (!snap.exists()) {
-            await auth.signOut();
-            setUser(null);
-            setLoading(false);
-            return;
+          if (isCancelled) return;
+
+          if (!initSnap.exists()) {
+            const token = await firebaseUser.getIdToken();
+            if (isCancelled) return;
+            await fetch("/api/bootstrap-user", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (isCancelled) return;
           }
-
-          const data = snap.data();
-          const status: AccountStatus = data.status ?? (data.active ? "active" : "disabled");
-
-          // Enforce account status — force logout for non-active accounts
-          if (!isAccountAccessible(status, data.active ?? true)) {
-            await auth.signOut();
-            setUser(null);
-            setLoading(false);
-            return;
-          }
-
-          const profile: UserProfile = {
-            uid:                  firebaseUser.uid,
-            email:                firebaseUser.email || "",
-            name:                 data.name || data.email || "",
-            employeeName:         data.employeeName || "",
-            role:                 data.role || "employee",
-            status,
-            active:               data.active ?? true,
-            granularPermissions:  data.granularPermissions,
-            lastLoginAt:          data.lastLoginAt,
-            createdAt:            data.createdAt,
-            updatedAt:            data.updatedAt,
-            // employee-extended fields
-            isEmployee:           data.isEmployee ?? false,
-            employeeRole:         data.employeeRole,
-            department:           data.department,
-            phone:                data.phone,
-            teamId:               data.teamId,
-            notes:                data.notes,
-          };
-
-          setUser(profile);
-          setLoading(false);
-
-          // Log session once per browser tab after user is confirmed active
-          logLoginSession();
-        },
-        (err) => {
-          console.error("useAuth Firestore listener error:", err);
-          setUser(null);
-          setLoading(false);
+        } catch (err) {
+          if (isCancelled) return;
+          console.warn("[AUTH] getDoc/bootstrap error (non-fatal):", err);
         }
-      );
+
+        if (isCancelled) return;
+
+        // Realtime listener — fires immediately and on every doc change
+        unsubFirestoreRef.current = onSnapshot(
+          userRef,
+          (snap) => {
+            if (isCancelled) return;
+
+            if (!snap.exists()) {
+              auth.signOut();
+              useAuthStore.setState({ user: null, loading: false });
+              return;
+            }
+
+            const data = snap.data();
+            const status: AccountStatus =
+              data.status ?? (data.active ? "active" : "disabled");
+
+            if (!isAccountAccessible(status, data.active ?? true)) {
+              auth.signOut();
+              useAuthStore.setState({ user: null, loading: false });
+              return;
+            }
+
+            const profile: UserProfile = {
+              uid:                 firebaseUser.uid,
+              email:               firebaseUser.email || "",
+              name:                data.name || data.email || "",
+              employeeName:        data.employeeName || "",
+              role:                data.role || "employee",
+              status,
+              active:              data.active ?? true,
+              granularPermissions: data.granularPermissions,
+              lastLoginAt:         data.lastLoginAt,
+              createdAt:           data.createdAt,
+              updatedAt:           data.updatedAt,
+              isEmployee:          data.isEmployee ?? false,
+              employeeRole:        data.employeeRole,
+              department:          data.department,
+              phone:               data.phone,
+              teamId:              data.teamId,
+              notes:               data.notes,
+            };
+
+            // Single atomic state update — prevents the double-render caused
+            // by calling setUser() and setLoading() as separate operations.
+            useAuthStore.setState({ user: profile, loading: false });
+
+            // Log the session once per browser tab (guarded by sessionStorage)
+            logLoginSession();
+          },
+          (err) => {
+            if (isCancelled) return;
+            console.error("[FIRESTORE] user listener error:", err);
+            useAuthStore.setState({ user: null, loading: false });
+          }
+        );
+      })();
     });
 
     return () => {
+      // Mark all pending async work as cancelled
+      cancelAsyncRef.current?.();
+      cancelAsyncRef.current = null;
+      clearTimeout(safetyTimer);
       unsubAuth();
       unsubFirestoreRef.current?.();
       unsubFirestoreRef.current = null;
     };
-  }, [setUser, setLoading]);
+  // Empty dep array: this effect is intentionally a singleton.
+  // Auth/Firestore listeners manage their own lifecycle internally.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }

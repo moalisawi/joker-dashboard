@@ -10,43 +10,10 @@ interface Props {
 }
 
 const CURRENCIES = [
-  {
-    code: "ILS",
-    label: "إجمالي الشيكل",
-    symbol: "₪",
-    accentBorder: "border-t-blue-500",
-    iconBg: "bg-blue-50",
-    iconText: "text-blue-600",
-    badge: "bg-slate-100 text-slate-600",
-  },
-  {
-    code: "JOD",
-    label: "إجمالي الدينار",
-    symbol: "JD",
-    accentBorder: "border-t-amber-500",
-    iconBg: "bg-amber-50",
-    iconText: "text-amber-600",
-    badge: "bg-slate-100 text-slate-600",
-  },
-  {
-    code: "EGP",
-    label: "إجمالي الجنيه",
-    symbol: "ج.م",
-    accentBorder: "border-t-orange-500",
-    iconBg: "bg-orange-50",
-    iconText: "text-orange-600",
-    badge: "bg-slate-100 text-slate-600",
-  },
-  {
-    code: "USD",
-    label: "إجمالي الدولار",
-    symbol: "$",
-    accentBorder: "border-t-emerald-500",
-    iconBg: "bg-emerald-50",
-    iconText: "text-emerald-600",
-    badge: "bg-slate-100 text-slate-600",
-    showTotal: true,
-  },
+  { code: "ILS",  label: "إجمالي الشيكل",  symbol: "₪",   iconColor: "#83A2DB" },
+  { code: "JOD",  label: "إجمالي الدينار", symbol: "JD",  iconColor: "#E8B570" },
+  { code: "EGP",  label: "إجمالي الجنيه",  symbol: "ج.م", iconColor: "#CE6969" },
+  { code: "USD",  label: "إجمالي الدولار", symbol: "$",   iconColor: "#9DB4D6", showTotal: true },
 ] as const;
 
 export default function CurrencyCounters({ payments }: Props) {
@@ -69,32 +36,54 @@ export default function CurrencyCounters({ payments }: Props) {
       {CURRENCIES.map((cur) => (
         <div
           key={cur.code}
-          className={`
-            group relative bg-white rounded-2xl p-5 border border-t-[3px] overflow-hidden
-            ${cur.accentBorder}
-            shadow-[0_1px_3px_rgba(15,23,42,0.05),_0_4px_12px_rgba(15,23,42,0.04)]
-            hover:shadow-[0_4px_16px_rgba(15,23,42,0.09),_0_10px_30px_rgba(15,23,42,0.06)]
-            hover:-translate-y-0.5 transition-all duration-200
-            border-l-[rgba(15,23,42,0.07)] border-r-[rgba(15,23,42,0.07)] border-b-[rgba(15,23,42,0.07)]
-          `}
+          className="group relative"
+          style={{
+            background: "var(--jk-surface)",
+            border: "1px solid var(--jk-border)",
+            borderRadius: 22,
+            padding: 22,
+            boxShadow: "var(--jk-shadow-stat)",
+            transition: "transform .25s ease",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${cur.iconBg} transition-transform duration-200 group-hover:scale-110`}>
-              <span className={`text-sm font-black ${cur.iconText}`}>{cur.symbol}</span>
+          <div className="flex items-center justify-between" style={{ marginBottom: 14 }}>
+            <div
+              style={{
+                width: 44, height: 44, borderRadius: "50%",
+                background: "#F3F5F8", color: cur.iconColor,
+                border: "1px solid var(--jk-border)",
+                fontSize: 14, fontWeight: 800,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              {cur.symbol}
             </div>
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${cur.badge}`}>
+            <span
+              style={{
+                background: `${cur.iconColor}24`,
+                color: cur.iconColor,
+                borderRadius: 999,
+                border: `1px solid ${cur.iconColor}48`,
+                padding: "4px 12px",
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
               {cur.code}
             </span>
           </div>
 
-          <p className="font-semibold mb-1.5 tracking-wide uppercase text-slate-400" style={{ fontSize: "0.68rem" }}>{cur.label}</p>
-          <p className="text-2xl font-black tabular-nums leading-none tracking-tight text-slate-900">
+          <p style={{ color: "var(--jk-text)", fontSize: 30, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums", margin: 0 }}>
             {formatNumber(totals.byCurrency[cur.code] ?? 0, 2)}{" "}
-            <span className="text-sm font-semibold text-slate-400">{cur.symbol}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--jk-subtle)" }}>{cur.symbol}</span>
           </p>
+          <p style={{ color: "var(--jk-muted)", fontSize: 13, fontWeight: 500, marginTop: 6 }}>{cur.label}</p>
 
           {cur.code === "USD" && (
-            <p className="text-xs mt-2 font-medium text-slate-400">
+            <p style={{ color: "var(--jk-subtle)", fontSize: 12, marginTop: 8 }}>
               ≈ ${formatNumber(totals.totalUSDAll, 2)} مجمّع
             </p>
           )}

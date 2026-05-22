@@ -2,6 +2,7 @@ import { NextResponse }  from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { verifyServerUser, hasServerPermission, getBearerToken } from "@/lib/serverAuth";
 import { hasAdminCredentials, fsGet, fsPatch, fsAdd }           from "@/lib/serverFirestore";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { z } from "zod";
 import { ASSIGNMENT_TYPE } from "@/constants/subscriberWorkflow";
 
@@ -25,6 +26,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`assign:${ip}`, 60, 60 * 1000)) return jsonError("Too many requests", 429);
+
   // ── Auth ─────────────────────────────────────────────────────────────────────
   let actor;
   try { actor = await verifyServerUser(request); } catch { return jsonError("Unauthorized", 401); }
@@ -108,6 +112,36 @@ export async function POST(request: Request): Promise<NextResponse> {
       assignmentHistory: [...existing, historyEntry],
     }, token);
   }
+
+  // ── Write immutable assignment history record (Admin SDK) ────────────────────
+  const assignmentRecord = {
+    subscriberId,
+    subscriberName,
+    fromTeamId:          (before?.assignedTeamId        as string | null) ?? null,
+    fromTeamName:        (before?.assignedTeamName      as string | null) ?? null,
+    fromEmployeeId:      (before?.assignedSalesId       as string | null) ?? (before?.assignedNutritionistId as string | null) ?? null,
+    fromEmployeeName:    (before?.assignedSalesName     as string | null) ?? (before?.assignedNutritionistName as string | null) ?? null,
+    fromAssignmentType:  (before?.assignmentType        as string | null) ?? null,
+    toTeamId:            assignedTeamId          ?? null,
+    toTeamName:          assignedTeamName        ?? null,
+    toEmployeeId:        assignedSalesId         ?? assignedNutritionistId         ?? null,
+    toEmployeeName:      assignedSalesName       ?? assignedNutritionistName       ?? null,
+    toAssignmentType:    assignmentType,
+    reason:              reason                  ?? null,
+    transferredBy:       actor.uid,
+    transferredByName:   actor.email             ?? actor.uid,
+  };
+
+  try {
+    if (hasAdminCredentials()) {
+      await getFirestore().collection("subscriberAssignments").add({
+        ...assignmentRecord,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    } else {
+      await fsAdd("subscriberAssignments", { ...assignmentRecord, createdAt: new Date().toISOString() }, token);
+    }
+  } catch { /* non-fatal — subscriber update already succeeded */ }
 
   // ── Audit log ─────────────────────────────────────────────────────────────────
   const auditDoc = {

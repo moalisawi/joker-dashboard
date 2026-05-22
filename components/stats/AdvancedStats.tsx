@@ -1,11 +1,12 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import type { Subscriber } from "@/types";
 import { formatNumber, ARABIC_MONTHS, RESIDENCE_COUNTRIES, PHONE_COUNTRIES } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
-import { EMPLOYEES } from "@/lib/permissions";
+import { useEmployeeNames } from "@/hooks/useEmployeeNames";
 import { SlidersHorizontal } from "lucide-react";
+import { CHART_PALETTE } from "@/lib/statusColors";
 
 interface Props {
   subscribers: Subscriber[];
@@ -20,14 +21,15 @@ function getResidenceLabel(v: string) {
 }
 
 const EMP_COLORS: Record<string, { bar: string; badge: string }> = {
-  حنان: { bar: "#8b5cf6", badge: "bg-purple-100 text-purple-700" },
-  ميار: { bar: "#14b8a6", badge: "bg-teal-100 text-teal-700"   },
-  ميدو: { bar: "#f97316", badge: "bg-orange-100 text-orange-700" },
+  حنان: { bar: CHART_PALETTE[3], badge: "bg-blue-100 text-blue-700" },
+  ميار: { bar: CHART_PALETTE[0], badge: "bg-blue-100 text-blue-700" },
+  ميدو: { bar: CHART_PALETTE[2], badge: "bg-orange-100 text-orange-700" },
 };
 
 export default function AdvancedStats({ subscribers }: Props) {
   const { can } = useAuthStore();
   const canRev = can("canViewRevenue");
+  const employeeNames = useEmployeeNames();
 
   const [filterPkg, setFilterPkg]         = useState("");
   const [filterCountry, setFilterCountry] = useState("");
@@ -70,11 +72,11 @@ export default function AdvancedStats({ subscribers }: Props) {
   }), [filtered]);
 
   const empStats = useMemo(() => {
-    return EMPLOYEES.map((emp) => {
+    return employeeNames.map((emp) => {
       const d = filtered.filter((s) => s.convincedBy === emp);
       return { name: emp, count: d.length, rev: d.reduce((a, s) => a + s.netAmountUSD, 0) };
     }).sort((a, b) => b.rev - a.rev);
-  }, [filtered]);
+  }, [filtered, employeeNames]);
   const maxEmpRev = Math.max(...empStats.map((e) => e.rev), 1);
 
   const pmStats = useMemo(() => {
@@ -116,7 +118,7 @@ export default function AdvancedStats({ subscribers }: Props) {
           <select value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}
             className="form-input w-auto">
             <option value="">كل الموظفين</option>
-            {EMPLOYEES.map((e) => <option key={e} value={e}>{e}</option>)}
+            {employeeNames.map((e) => <option key={e} value={e}>{e}</option>)}
           </select>
           <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)}
             className="form-input w-auto">
@@ -173,7 +175,7 @@ export default function AdvancedStats({ subscribers }: Props) {
             </h4>
             <div className="space-y-3">
               {empStats.map((e) => {
-                const style = EMP_COLORS[e.name] || { bar: "#6366f1", badge: "bg-indigo-100 text-indigo-700" };
+                const style = EMP_COLORS[e.name] || { bar: "#83A2DB", badge: "bg-indigo-100 text-indigo-700" };
                 return (
                   <div key={e.name}>
                     <div className="flex items-center justify-between text-xs mb-1">

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { verifyServerUser, hasServerPermission, getBearerToken } from "@/lib/serverAuth";
 import { hasAdminCredentials, fsGet, fsPatch, fsAdd } from "@/lib/serverFirestore";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import {
   canManageRole,
   canAssignRole,
@@ -24,6 +25,9 @@ const bodySchema = updateEmployeeSchema.extend({
 type Body = z.infer<typeof bodySchema>;
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`emp-update:${ip}`, 30, 60 * 1000)) return jsonError("Too many requests", 429);
+
   // ── 1. Auth ──────────────────────────────────────────────────────────────────
   let actor;
   try { actor = await verifyServerUser(request); } catch { return jsonError("Unauthorized", 401); }

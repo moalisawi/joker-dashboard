@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -465,7 +465,7 @@ export default function GuideContent({ data }: { data: GuideData }) {
         <div
           className="print:hidden"
           style={{
-            background: "linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)",
+            background: "linear-gradient(135deg, #10141A 0%, #83A2DB 50%, #83A2DB 100%)",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
           }}
         >

@@ -1,14 +1,18 @@
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
+import "@heroui/styles/css";
 import "./globals.css";
 import ThemeProvider from "@/components/layout/ThemeProvider";
 import QueryProvider from "@/components/layout/QueryProvider";
+import AuthProvider from "@/components/layout/AuthProvider";
 import { Toaster } from "sonner";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
   variable: "--font-cairo",
   display: "swap",
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
@@ -23,8 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={cairo.variable} data-scroll-behavior="smooth">
-      <body className="min-h-screen bg-slate-50" style={{ fontFamily: "var(--font-cairo), sans-serif" }}>
+      <body className="min-h-screen">
         <QueryProvider>
+          <AuthProvider />
           <ThemeProvider>{children}</ThemeProvider>
           <Toaster
             position="top-center"

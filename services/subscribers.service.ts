@@ -15,58 +15,46 @@ import { db } from "@/lib/firestore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { Subscriber } from "@/types";
 
+const SUBS = "subscribers";
+
+// Client-side guard: excludes soft-deleted documents from any result set.
+// Server-side filtering via where("deleted","!=",true) requires a composite
+// index with every orderBy field — indexes are added to firestore.indexes.json.
+// Until those indexes are deployed, this client-side filter is the safety net.
+function excludeDeleted(docs: Subscriber[]): Subscriber[] {
+  return docs.filter((d) => d.deleted !== true);
+}
+
 export const subscriberService = {
-  /**
-   * Get all subscribers
-   */
   async getAll(): Promise<Subscriber[]> {
-    const q = query(collection(db, "subscribers"));
+    const q = query(collection(db, SUBS), where("deleted", "!=", true));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Subscriber[];
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Subscriber));
   },
 
-  /**
-   * Get subscriber by ID
-   */
   async getById(id: string): Promise<Subscriber | null> {
-    const docRef = doc(db, "subscribers", id);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists()
-      ? ({ id: docSnap.id, ...docSnap.data() } as Subscriber)
-      : null;
+    const snap = await getDoc(doc(db, SUBS, id));
+    if (!snap.exists()) return null;
+    const data = { id: snap.id, ...snap.data() } as Subscriber;
+    return data.deleted === true ? null : data;
   },
 
-  /**
-   * Get active subscribers
-   */
   async getActive(): Promise<Subscriber[]> {
     const q = query(
-      collection(db, "subscribers"),
+      collection(db, SUBS),
       where("subscriptionState", "==", "active")
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Subscriber[];
+    return excludeDeleted(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Subscriber)));
   },
 
-  /**
-   * Get withdrawn subscribers
-   */
   async getWithdrawn(): Promise<Subscriber[]> {
     const q = query(
-      collection(db, "subscribers"),
+      collection(db, SUBS),
       where("subscriptionState", "==", "withdrawn")
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Subscriber[];
+    return excludeDeleted(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Subscriber)));
   },
 
   /**

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { hasServerPermission, verifyServerUser } from "@/lib/serverAuth";
+import { hasAdminCredentials } from "@/lib/serverFirestore";
+import { createServerNotification } from "@/lib/serverNotification";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import {
   EMPLOYEE_AUTH_ROLE,
   EMPLOYEE_ROLE_PERMISSIONS,
@@ -59,6 +62,12 @@ function assertCanManageUsers(user: ServerUser) {
   }
 }
 
+function sanitizeForFirestore(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => [k, v === undefined ? null : v])
+  );
+}
+
 async function writeAudit(
   user: ServerUser,
   action: string,
@@ -72,6 +81,7 @@ async function writeAudit(
     email: user.email ?? "",
     role: user.role,
   };
+  const safeMeta = sanitizeForFirestore(metadata);
 
   await getFirestore().collection("auditLogs").add({
     action,
@@ -80,14 +90,14 @@ async function writeAudit(
     source: "server",
     entityType: "user",
     entityId: targetUid,
-    entityName: metadata.targetName ?? null,
+    entityName: safeMeta.targetName ?? null,
     description,
     previousData: null,
     newData: null,
     changedFields: [],
     performedBy: performer,
     financialData: null,
-    metadata,
+    metadata: safeMeta,
     tags: ["server-operation", "user"],
     status: "completed",
     actorUid: performer.uid,
@@ -95,13 +105,30 @@ async function writeAudit(
     actorRole: performer.role,
     targetType: "user",
     targetId: targetUid,
-    targetName: metadata.targetName ?? null,
+    targetName: safeMeta.targetName ?? null,
     summary: description,
     createdAt: FieldValue.serverTimestamp(),
   });
+
+  // Fire-and-forget notification (non-blocking)
+  createServerNotification({
+    action,
+    entityType:  "user",
+    entityId:    targetUid,
+    entityName:  metadata.targetName as string | undefined,
+    description,
+    performedBy: performer,
+    metadata,
+  }).catch(() => {});
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // Rate limit: 30 user-management operations per IP per minute
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`user-ops:${ip}`, 30, 60 * 1000)) {
+    return jsonError("Too many requests", 429);
+  }
+
   let user;
   try {
     user = await verifyServerUser(request);
@@ -111,6 +138,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   if (!user) return jsonError("Unauthorized", 401);
+
+  // All operations write users/auditLogs via Admin SDK only.
+  if (!hasAdminCredentials()) {
+    return jsonError("Admin credentials غير مفعّلة على السيرفر", 503);
+  }
 
   let body: Body;
   try {
@@ -148,7 +180,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     const message = err instanceof Error ? err.message : String(err);
     const status = message === "Forbidden" ? 403 : message === "User not found" ? 404 : 500;
     console.error("[user-operations] operation failed:", message);
-    return jsonError(message, status);
+    // Expose safe domain errors; hide raw Firestore/internal strings
+    const SAFE_MESSAGES = new Set([
+      "Forbidden", "User not found", "Missing status payload", "Missing role payload",
+      "Missing targetUid", "Missing reset payload", "No profile fields to update",
+      "Cannot change your own account status", "Cannot change your own role",
+      "Cannot change your own permissions", "Cannot manage yourself from employee editor",
+      "Cannot demote yourself", "Missing employee email", "USER_NOT_FOUND",
+    ]);
+    const clientMessage = SAFE_MESSAGES.has(message) ? message : "Operation failed";
+    return jsonError(clientMessage, status);
   }
 }
 

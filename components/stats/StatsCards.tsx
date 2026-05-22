@@ -17,24 +17,36 @@ interface Props {
 }
 
 interface CardConfig {
-  accentBorder: string;
-  iconBg: string;
-  iconColor: string;
-  cardBg: string;
-  tagCls: string;
+  iconColor:   string;
+  tagColor:    string;
+  cardBg?:     string;
+  cardBorder?: string;
+  labelColor?: string;
 }
 
 const CARD_STYLES = {
-  total:     { accentBorder: "border-t-blue-500",    iconBg: "bg-blue-50",    iconColor: "text-blue-600",    cardBg: "",              tagCls: "bg-blue-50 text-blue-600" },
-  active:    { accentBorder: "border-t-emerald-500", iconBg: "bg-emerald-50", iconColor: "text-emerald-600", cardBg: "bg-emerald-50/20", tagCls: "bg-emerald-50 text-emerald-700" },
-  expiring:  { accentBorder: "border-t-amber-500",   iconBg: "bg-amber-50",   iconColor: "text-amber-600",   cardBg: "bg-amber-50/20",   tagCls: "bg-amber-50 text-amber-700" },
-  paused:    { accentBorder: "border-t-orange-500",  iconBg: "bg-orange-50",  iconColor: "text-orange-600",  cardBg: "bg-orange-50/20",  tagCls: "bg-orange-50 text-orange-700" },
-  frozen:    { accentBorder: "border-t-sky-500",     iconBg: "bg-sky-50",     iconColor: "text-sky-600",     cardBg: "bg-sky-50/20",     tagCls: "bg-sky-50 text-sky-700" },
-  withdrawn: { accentBorder: "border-t-rose-500",    iconBg: "bg-rose-50",    iconColor: "text-rose-600",    cardBg: "bg-rose-50/20",    tagCls: "bg-rose-50 text-rose-700" },
-  silver:    { accentBorder: "border-t-slate-400",   iconBg: "bg-slate-100",  iconColor: "text-slate-500",   cardBg: "",                 tagCls: "" },
-  gold:      { accentBorder: "border-t-amber-400",   iconBg: "bg-amber-50",   iconColor: "text-amber-500",   cardBg: "",                 tagCls: "" },
-  mrr:       { accentBorder: "border-t-violet-500",  iconBg: "bg-violet-50",  iconColor: "text-violet-600",  cardBg: "bg-violet-50/20",  tagCls: "bg-violet-50 text-violet-700" },
-  churn:     { accentBorder: "border-t-rose-400",    iconBg: "bg-rose-50",    iconColor: "text-rose-500",    cardBg: "bg-rose-50/10",    tagCls: "bg-rose-50 text-rose-600" },
+  total:     { iconColor: "#10141A",  tagColor: "#64748B" },
+  active:    { iconColor: "#83A2DB",  tagColor: "#83A2DB" },
+  expiring:  { iconColor: "#E8B570",  tagColor: "#E8B570" },
+  paused:    { iconColor: "#E8B570",  tagColor: "#E8B570" },
+  frozen:    { iconColor: "#9DB4D6",  tagColor: "#9DB4D6" },
+  withdrawn: { iconColor: "#94A3B8",  tagColor: "#94A3B8" },
+  silver: {
+    iconColor:   "#5A6680",
+    tagColor:    "#475569",
+    cardBg:      "linear-gradient(145deg, #E2E6EF 0%, #F8F9FC 52%, #D4D9E5 100%)",
+    cardBorder:  "1px solid rgba(255,255,255,.85)",
+    labelColor:  "#475569",
+  },
+  gold: {
+    iconColor:   "#B07D10",
+    tagColor:    "#92640A",
+    cardBg:      "linear-gradient(145deg, #F5E4A6 0%, #FEF7E6 52%, #EDD078 100%)",
+    cardBorder:  "1px solid rgba(210,155,30,.28)",
+    labelColor:  "#92640A",
+  },
+  mrr:       { iconColor: "#83A2DB",  tagColor: "#83A2DB" },
+  churn:     { iconColor: "#CE6969",  tagColor: "#CE6969" },
 } satisfies Record<string, CardConfig>;
 
 function StatCard({
@@ -56,32 +68,61 @@ function StatCard({
 }) {
   return (
     <div
-      className={`
-        group relative rounded-2xl p-5 border border-t-[3px] overflow-hidden
-        transition-all duration-200 cursor-default
-        hover:-translate-y-0.5
-        ${style.accentBorder}
-        ${style.cardBg}
-        bg-white
-        shadow-[0_1px_2px_rgba(0,0,0,0.05),_0_2px_8px_rgba(0,0,0,0.06)]
-        hover:shadow-[0_4px_16px_rgba(0,0,0,0.10),_0_1px_3px_rgba(0,0,0,0.06)]
-        border-l-[rgba(0,0,0,0.07)] border-r-[rgba(0,0,0,0.07)] border-b-[rgba(0,0,0,0.07)]
-      `}
+      className="group relative cursor-default"
+      style={{
+        background: style.cardBg ?? "var(--jk-surface)",
+        border: style.cardBorder ?? "1px solid var(--jk-border)",
+        borderRadius: 22,
+        padding: 22,
+        boxShadow: "var(--jk-shadow-stat)",
+        transition: "box-shadow .25s ease, transform .25s ease",
+      }}
+      onMouseEnter={e => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.transform = "translateY(-2px)";
+        el.style.boxShadow = `0 2px 4px rgba(16,20,26,.04), 0 14px 32px -8px ${style.iconColor}38`;
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLElement;
+        el.style.transform = "translateY(0)";
+        el.style.boxShadow = "var(--jk-shadow-stat)";
+        el.style.background = style.cardBg ?? "var(--jk-surface)";
+      }}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${style.iconBg} transition-transform duration-200 group-hover:scale-110`}>
-          <span className={style.iconColor}>{icon}</span>
+      <div className="flex items-start justify-between" style={{ marginBottom: 14 }}>
+        <div
+          className="flex items-center justify-center flex-shrink-0"
+          style={{
+            width: 44, height: 44, borderRadius: "50%",
+            background: `${style.iconColor}1A`,
+            color: style.iconColor,
+            border: `1px solid ${style.iconColor}33`,
+            flexShrink: 0,
+          }}
+        >
+          {icon}
         </div>
         {tag || (tagContent && (
-          <span className={`text-xs font-bold px-2 py-1 rounded-lg ${style.tagCls}`}>
+          <span
+            style={{
+              background: `${style.tagColor}24`,
+              color: style.tagColor,
+              borderRadius: 999,
+              border: `1px solid ${style.tagColor}48`,
+              padding: "4px 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              lineHeight: 1.2,
+            }}
+          >
             {tagContent}
           </span>
         ))}
       </div>
 
-      <p className="text-3xl font-black text-slate-900 leading-none tabular-nums tracking-tight">{value}</p>
-      <p className="text-xs font-semibold text-slate-400 mt-1.5 tracking-wide uppercase" style={{ fontSize: "0.68rem" }}>{label}</p>
-      {sub && <div className="mt-1.5">{sub}</div>}
+      <p style={{ color: style.labelColor ? "#10141A" : "var(--jk-text)", fontSize: 30, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums", margin: 0 }}>{value}</p>
+      <p style={{ color: style.labelColor ?? "var(--jk-muted)", fontSize: 13, fontWeight: 500, marginTop: 6 }}>{label}</p>
+      {sub && <div style={{ marginTop: 8, fontSize: 12, color: "var(--jk-subtle)" }}>{sub}</div>}
     </div>
   );
 }
@@ -134,7 +175,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         value={formatNumber(stats.total)}
         label="إجمالي المشتركين"
         sub={canRev && (
-          <p className="text-xs text-emerald-600 font-bold">${formatNumber(stats.netUSD, 2)}</p>
+          <p style={{ color: "#83A2DB", fontSize: 12, fontWeight: 700 }}>${formatNumber(stats.netUSD, 2)}</p>
         )}
       />
 
@@ -153,7 +194,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         value={formatNumber(stats.expiring)}
         label="ينتهي قريباً"
         sub={canRev && stats.remaining > 0 && (
-          <p className="text-xs text-amber-600 font-bold">متبقي ${formatNumber(stats.remaining, 2)}</p>
+          <p style={{ color: "#E8B570", fontSize: 12, fontWeight: 700 }}>متبقي ${formatNumber(stats.remaining, 2)}</p>
         )}
       />
 
@@ -211,7 +252,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           value={`$${formatNumber(stats.mrr, 0)}`}
           label="الإيراد — صافي الفترة"
           sub={
-            <p className="text-xs text-violet-600 font-semibold">صافي بعد الاسترداد</p>
+            <p style={{ color: "#83A2DB", fontSize: 12, fontWeight: 600 }}>صافي بعد الاسترداد</p>
           }
         />
       )}
@@ -222,11 +263,11 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           icon={<TrendingDown size={18} />}
           tagContent={periodTag}
           value={`${(stats.churnRate * 100).toFixed(1)}%`}
-          label="Churn Rate — نسبة الانسحاب"
+          label="نسبة الانسحاب"
           sub={
             stats.churnRate === 0
-              ? <p className="text-xs text-emerald-600 font-semibold">لا انسحاب هذا الشهر</p>
-              : <p className="text-xs text-rose-500 font-semibold">
+              ? <p style={{ color: "#83A2DB", fontSize: 12, fontWeight: 600 }}>لا انسحاب هذا الشهر</p>
+              : <p style={{ color: "#CE6969", fontSize: 12, fontWeight: 600 }}>
                   {Math.round(stats.churnRate * 100 * subscribers.length / 100)} منسحب
                 </p>
           }

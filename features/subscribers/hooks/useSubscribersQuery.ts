@@ -40,7 +40,8 @@ export function useSubscribersQuery() {
 
   const queryKey = subscriberKeys.list(user?.uid);
 
-  // Seed cache from one-shot fetch (prevents empty flash on first mount)
+  // Seed cache from one-shot fetch (prevents empty flash on first mount).
+  // getAll() already applies where("deleted","!=",true) server-side.
   const result = useQuery({
     queryKey,
     queryFn: () => subscriberService.getAll(),
@@ -62,6 +63,7 @@ export function useSubscribersQuery() {
       (snap) => {
         const data = snap.docs
           .map((d) => normalizeSubscriber({ id: d.id, ...d.data() } as Record<string, unknown> & { id: string }))
+          .filter((s) => s.deleted !== true)
           .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
         queryClient.setQueryData<Subscriber[]>(queryKey, data);

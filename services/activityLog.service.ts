@@ -1,14 +1,13 @@
 import {
   collection,
-  addDoc,
   query,
   where,
   orderBy,
   limit,
   getDocs,
-  serverTimestamp,
 } from "firebase/firestore";
 import { db }          from "@/lib/firestore";
+import { auth }        from "@/lib/auth";
 import { COLLECTIONS } from "@/constants/collections";
 import type { ActivityLog, ActivityLogActor, ActivityLogType } from "@/types";
 
@@ -16,9 +15,12 @@ type LogInput = Omit<ActivityLog, "id" | "createdAt">;
 
 async function write(input: LogInput): Promise<void> {
   try {
-    await addDoc(collection(db, COLLECTIONS.ACTIVITY_LOGS), {
-      ...input,
-      createdAt: serverTimestamp(),
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) return;
+    await fetch("/api/activity-log", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body:    JSON.stringify(input),
     });
   } catch (err) {
     console.warn("[activityLog] write failed:", err);

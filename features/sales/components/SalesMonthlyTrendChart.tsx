@@ -55,8 +55,8 @@ interface Props {
 
 export default function SalesMonthlyTrendChart({ data, canRev, height = 200 }: Props) {
   const { dark } = useThemeStore();
-  const axisColor = dark ? "#334155" : "#cbd5e1";
-  const gridColor = dark ? "#1e293b" : "#f1f5f9";
+  const axisColor = dark ? "#64748B" : "#94A3B8";
+  const gridColor = dark ? "#10141A" : "#f1f5f9";
 
   const chartData = data.map((d) => ({
     ...d,
@@ -87,7 +87,7 @@ export default function SalesMonthlyTrendChart({ data, canRev, height = 200 }: P
           yAxisId="subs"
           dataKey="subscribers"
           name="subscribers"
-          fill="#6366f1"
+          fill="#83A2DB"
           radius={[4,4,0,0]}
           maxBarSize={40}
         />

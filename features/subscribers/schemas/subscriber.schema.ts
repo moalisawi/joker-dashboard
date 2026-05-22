@@ -14,7 +14,9 @@ const currencySchema = z.enum([
 
 export const createSubscriberSchema = z.object({
   name:             z.string().min(2, "الاسم مطلوب"),
-  phone:            z.string().min(7, "رقم الهاتف غير صحيح"),
+  phone:            z.string()
+                     .min(7,  "رقم الهاتف يجب أن يكون 7 أرقام على الأقل")
+                     .regex(/^\d+$/, "رقم الهاتف يجب أن يحتوي على أرقام فقط"),
   phoneCountry:     z.string().min(1, "الدولة مطلوبة"),
   dialCode:         z.string().min(1),
   residence:        z.string().min(1, "مكان الإقامة مطلوب"),
@@ -26,8 +28,6 @@ export const createSubscriberSchema = z.object({
 
   currencyOriginal: currencySchema,
   totalPrice:       z.number().nonnegative(),
-  paidAmount:       z.number().nonnegative(),
-
   payment:          z.string().min(1, "طريقة الدفع مطلوبة"),
   source:           z.string().min(1, "المصدر مطلوب"),
   convincedBy:      z.string().min(1, "المقنِع مطلوب"),
@@ -36,6 +36,8 @@ export const createSubscriberSchema = z.object({
 
   notes:            z.string().optional(),
   referrer:         z.string().optional(),
+  sourceDetail:     z.string().optional(),
+  paidAmount:       z.number().nonnegative().optional(),
 });
 
 export type CreateSubscriberInput = z.infer<typeof createSubscriberSchema>;

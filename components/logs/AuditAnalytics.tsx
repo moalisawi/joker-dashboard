@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
@@ -26,17 +26,17 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  success:  "#10b981",
-  info:     "#3b82f6",
-  warning:  "#f59e0b",
-  critical: "#ef4444",
+  success:  "#83A2DB",
+  info:     "#83A2DB",
+  warning:  "#E8B570",
+  critical: "#CE6969",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  subscriber: "#6366f1",
-  financial:  "#10b981",
-  user:       "#f59e0b",
-  auth:       "#ef4444",
+  subscriber: "#83A2DB",
+  financial:  "#83A2DB",
+  user:       "#E8B570",
+  auth:       "#CE6969",
   system:     "#94a3b8",
 };
 

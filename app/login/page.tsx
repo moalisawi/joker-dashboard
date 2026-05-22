@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -7,11 +6,8 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/auth";
 import { logFailedLogin } from "@/lib/sessionLogger";
 import { useAuthStore } from "@/store/authStore";
-import { useAuthListener } from "@/hooks/useAuth";
 
 export default function LoginPage() {
-  useAuthListener();
-
   const router = useRouter();
   const { user, loading } = useAuthStore();
   const [email, setEmail] = useState("");
@@ -40,8 +36,10 @@ export default function LoginPage() {
         setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
       } else if (msg.includes("too-many-requests")) {
         setError("تم حظر الحساب مؤقتاً بسبب محاولات متعددة، حاول لاحقاً");
+      } else if (msg.includes("network") || msg.includes("fetch")) {
+        setError("خطأ في الاتصال بالشبكة، يرجى المحاولة مرة أخرى");
       } else {
-        setError(msg);
+        setError("حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى");
       }
 
       // Log failed attempt server-side (non-blocking)
@@ -53,37 +51,63 @@ export default function LoginPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-8 h-8 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--page-bg)" }}>
+        <div className="w-8 h-8 rounded-full border-4 border-t-transparent animate-spin" style={{ borderColor: "#10141A", borderTopColor: "transparent" }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: "var(--page-bg)" }}
+    >
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-lg shadow-blue-200 mb-4">
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 mb-4"
+            style={{
+              background: "#10141A",
+              borderRadius: 18,
+              boxShadow: "var(--jk-shadow-logo)",
+            }}
+          >
             <span className="text-white font-black text-2xl">ج</span>
           </div>
-          <h1 className="text-2xl font-black text-slate-800">نظام الجوكر</h1>
-          <p className="text-slate-500 text-sm mt-1">إدارة مشتركي الأكاديمية</p>
+          <h1 className="text-2xl font-black" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>نظام الجوكر</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>إدارة مشتركي الأكاديمية</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/60 p-8 border border-slate-100">
-          <h2 className="text-lg font-bold text-slate-800 mb-6 text-center">تسجيل الدخول</h2>
+        <div
+          className="p-8"
+          style={{
+            background: "var(--jk-surface)",
+            borderRadius: 28,
+            boxShadow: "var(--jk-shadow-modal)",
+            border: "1px solid var(--jk-border)",
+          }}
+        >
+          <h2 className="text-lg font-bold mb-6 text-center" style={{ color: "var(--text-primary)" }}>تسجيل الدخول</h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-medium">
+            <div
+              className="mb-4 p-3 text-sm font-medium"
+              style={{
+                background: "rgba(206,105,105,.10)",
+                border: "1px solid rgba(206,105,105,.25)",
+                borderRadius: "var(--radius-md)",
+                color: "#CE6969",
+              }}
+            >
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label className="block text-sm font-semibold mb-1.5" style={{ color: "var(--text-primary)" }}>
                 البريد الإلكتروني
               </label>
               <input
@@ -94,11 +118,11 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="example@email.com"
                 dir="ltr"
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-slate-50"
+                className="form-input"
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <label className="block text-sm font-semibold mb-1.5" style={{ color: "var(--text-primary)" }}>
                 كلمة المرور
               </label>
               <input
@@ -109,21 +133,22 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 dir="ltr"
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-slate-50"
+                className="form-input"
               />
             </div>
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-blue-200 mt-2"
+              className="btn-primary w-full mt-2"
+              style={{ padding: "13px 20px", fontSize: 14.5, justifyContent: "center" }}
             >
               {submitting ? "جاري الدخول..." : "دخول"}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
+        <p className="text-center text-xs mt-6" style={{ color: "var(--text-muted)" }}>
           نظام إدارة أكاديمية التغذية © 2026
         </p>
       </div>

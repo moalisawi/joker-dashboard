@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { emailService } from "@/services/email.service";
 import { hasServerPermission, verifyServerUser } from "@/lib/serverAuth";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import type { SendEmailRequest, EmailResult } from "@/types/email";
 
 export const runtime = "nodejs";
@@ -13,6 +14,12 @@ export const runtime = "nodejs";
  * Body: SendEmailRequest { type, to, data }
  */
 export async function POST(request: Request): Promise<NextResponse> {
+  // Rate limit: 20 emails per IP per hour
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`send-email:${ip}`, 20, 60 * 60 * 1000)) {
+    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
+  }
+
   let currentUser;
   try {
     currentUser = await verifyServerUser(request);

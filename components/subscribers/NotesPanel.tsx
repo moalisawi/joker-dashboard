@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -55,7 +55,7 @@ function NoteItem({
             </button>
             <button onClick={() => onDelete(note.id)}
               className="p-1 rounded-lg opacity-50 hover:opacity-80 transition-opacity"
-              style={{ color: "#f43f5e" }}>
+              style={{ color: "#CE6969" }}>
               <Trash2 size={11}/>
             </button>
           </div>
@@ -118,13 +118,13 @@ export default function NotesPanel({ subscriberId, subscriberName }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center gap-2.5">
-          <StickyNote size={15} style={{ color: "#f59e0b" }}/>
+          <StickyNote size={15} style={{ color: "#E8B570" }}/>
           <span className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>
             الملاحظات الداخلية
           </span>
           {notes.length > 0 && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: "#f59e0b18", color: "#f59e0b" }}>
+              style={{ background: "#E8B57018", color: "#E8B570" }}>
               {notes.length}
             </span>
           )}
@@ -132,7 +132,7 @@ export default function NotesPanel({ subscriberId, subscriberName }: Props) {
         {canAdd && (
           <button onClick={() => setShowForm((v) => !v)}
             className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl text-white"
-            style={{ background: showForm ? "#94a3b8" : "linear-gradient(135deg,#f59e0b,#d97706)" }}>
+            style={{ background: showForm ? "#94a3b8" : "linear-gradient(135deg,#E8B570,#E8B570)" }}>
             {showForm ? <X size={12}/> : <Plus size={12}/>}
             {showForm ? "إلغاء" : "إضافة"}
           </button>
@@ -170,7 +170,7 @@ export default function NotesPanel({ subscriberId, subscriberName }: Props) {
               <div className="flex gap-2">
                 <button onClick={handleAdd} disabled={!content.trim() || addNote.isPending}
                   className="flex-1 py-2 rounded-xl text-white font-bold text-xs disabled:opacity-60"
-                  style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)" }}>
+                  style={{ background: "linear-gradient(135deg,#E8B570,#E8B570)" }}>
                   {addNote.isPending ? "جاري..." : "إضافة الملاحظة"}
                 </button>
               </div>

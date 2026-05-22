@@ -1,8 +1,8 @@
-"use client";
-export const dynamic = "force-dynamic";
+﻿"use client";
 
 import { motion } from "framer-motion";
 import ProtectedLayout  from "@/components/layout/ProtectedLayout";
+import PageHeader       from "@/components/layout/PageHeader";
 import LeaderboardCard  from "@/features/leaderboards/components/LeaderboardCard";
 import PeriodSelector   from "@/features/leaderboards/components/PeriodSelector";
 import { useLeaderboards } from "@/features/leaderboards/hooks/useLeaderboards";
@@ -13,7 +13,7 @@ import {
   RefreshCw, TrendingUp, AlertCircle,
 } from "lucide-react";
 
-const ACC = { indigo:"#6366f1", emerald:"#10b981", amber:"#f59e0b", rose:"#f43f5e" };
+const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969" };
 const tran = { duration:0.3, ease:"easeOut" } as const;
 const fadeUp = { initial:{ opacity:0, y:12 }, animate:{ opacity:1, y:0, transition:tran } };
 const stagger = { animate:{ transition:{ staggerChildren:0.07 } } };
@@ -45,24 +45,11 @@ export default function LeaderboardsPage() {
         <div className="mx-auto max-w-6xl px-4 py-7 md:px-8 space-y-7">
 
           {/* ── Header ── */}
-          <motion.div {...fadeUp}
-            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-11 w-11 flex items-center justify-center rounded-2xl"
-                style={{ background:`linear-gradient(135deg,${ACC.amber},${ACC.rose})` }}>
-                <Trophy size={20} className="text-white"/>
-              </div>
-              <div>
-                <h1 className="text-2xl font-black" style={{ color:"var(--text-primary)" }}>
-                  لوحة المتصدرين
-                </h1>
-                <p className="text-sm mt-0.5" style={{ color:"var(--text-muted)" }}>
-                  ترتيب الأداء لموظفي المبيعات والفرق
-                </p>
-              </div>
-            </div>
-            <PeriodSelector value={period} onChange={setPeriod}/>
-          </motion.div>
+          <PageHeader
+            title="لوحة المتصدرين"
+            subtitle="أداء الموظفين والفرق حسب الفترة الزمنية"
+            actions={<PeriodSelector value={period} onChange={setPeriod}/>}
+          />
 
           {/* ── Sales Leaderboards ── */}
           <motion.div initial="initial" animate="animate" variants={stagger} className="space-y-4">

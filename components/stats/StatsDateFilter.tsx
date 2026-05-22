@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 
@@ -47,18 +48,37 @@ export default function StatsDateFilter({ value, onChange }: Props) {
   const isMonthMode = value.mode === "month";
 
   const pill = (active: boolean) =>
-    `text-xs px-3 py-1.5 rounded-lg font-bold transition-all border whitespace-nowrap ${
-      active
-        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-        : "bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600"
-    }`;
+    `transition-all whitespace-nowrap ${active ? "" : "hover:text-slate-700"}`;
+
+  const pillStyle = (active: boolean): React.CSSProperties => ({
+    padding: "7px 18px",
+    fontSize: 12.5,
+    fontWeight: 600,
+    border: "none",
+    cursor: "pointer",
+    fontFamily: "inherit",
+    background: active ? "#10141A" : "transparent",
+    color: active ? "#fff" : "var(--jk-muted)",
+    boxShadow: active ? "var(--jk-shadow-nav)" : "none",
+    borderRadius: 999,
+  });
 
   return (
-    <div className="flex items-center gap-2 flex-wrap mb-5" dir="rtl">
-      <span className="text-[11px] font-bold text-slate-400">إحصائيات:</span>
-
+    <div
+      className="flex items-center gap-1 flex-wrap mb-5"
+      dir="rtl"
+      style={{
+        background: "var(--jk-surface)",
+        border: "1px solid var(--jk-border)",
+        borderRadius: 999,
+        padding: 5,
+        boxShadow: "var(--jk-shadow-flat)",
+        width: "fit-content",
+      }}
+    >
       <button
         className={pill(value.mode === "current_month")}
+        style={pillStyle(value.mode === "current_month")}
         onClick={() => { onChange({ mode: "current_month" }); setShowPicker(false); }}
       >
         الشهر الحالي
@@ -68,6 +88,7 @@ export default function StatsDateFilter({ value, onChange }: Props) {
         <button
           key={n}
           className={pill(isActive({ mode: "days", n }))}
+          style={pillStyle(isActive({ mode: "days", n }))}
           onClick={() => { onChange({ mode: "days", n }); setShowPicker(false); }}
         >
           آخر {n} يوم
@@ -78,32 +99,41 @@ export default function StatsDateFilter({ value, onChange }: Props) {
       <div ref={ref} className="relative">
         <button
           className={`${pill(isMonthMode)} flex items-center gap-1.5`}
+          style={pillStyle(isMonthMode)}
           onClick={() => setShowPicker((v) => !v)}
         >
-          <Calendar size={12} />
+          <Calendar size={13} />
           {isMonthMode ? getPeriodLabel(value) : "شهر محدد"}
         </button>
 
         {showPicker && (
           <div
-            className="absolute top-full mt-2 right-0 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-4 w-60"
+            className="absolute top-full mt-2 right-0 z-50 p-4 w-60"
             dir="rtl"
+            style={{
+              background: "var(--jk-surface)",
+              border: "1px solid var(--jk-border)",
+              borderRadius: 22,
+              boxShadow: "var(--jk-shadow-modal)",
+            }}
           >
             {/* Year navigation */}
             <div className="flex items-center justify-between mb-3">
               <button
-                className="p-1 hover:bg-slate-100 rounded-lg transition"
+                className="p-1 transition rounded-full"
+                style={{ color: "#64748B" }}
                 onClick={() => setPickerYear((y) => y - 1)}
               >
-                <ChevronRight size={15} className="text-slate-500" />
+                <ChevronRight size={15} />
               </button>
-              <span className="text-sm font-black text-slate-800">{pickerYear}</span>
+              <span className="text-sm font-black" style={{ color: "#10141A" }}>{pickerYear}</span>
               <button
-                className="p-1 hover:bg-slate-100 rounded-lg transition disabled:opacity-30"
+                className="p-1 transition rounded-full disabled:opacity-30"
+                style={{ color: "#64748B" }}
                 onClick={() => setPickerYear((y) => y + 1)}
                 disabled={pickerYear >= currentYear}
               >
-                <ChevronLeft size={15} className="text-slate-500" />
+                <ChevronLeft size={15} />
               </button>
             </div>
 
@@ -120,13 +150,13 @@ export default function StatsDateFilter({ value, onChange }: Props) {
                     key={ym}
                     disabled={isFuture}
                     onClick={() => { onChange({ mode: "month", ym }); setShowPicker(false); }}
-                    className={`text-xs py-1.5 rounded-lg font-bold transition-all ${
-                      selected
-                        ? "bg-blue-600 text-white"
-                        : isFuture
-                        ? "text-slate-300 cursor-not-allowed"
-                        : "text-slate-600 hover:bg-blue-50 hover:text-blue-700"
-                    }`}
+                    className="text-xs py-1.5 font-bold transition-all"
+                    style={{
+                      borderRadius: 9999,
+                      background: selected ? "#10141A" : "transparent",
+                      color: selected ? "#fff" : isFuture ? "#94A3B8" : "#64748B",
+                      cursor: isFuture ? "not-allowed" : "pointer",
+                    }}
                   >
                     {name}
                   </button>

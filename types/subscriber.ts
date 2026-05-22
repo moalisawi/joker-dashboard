@@ -139,4 +139,9 @@ export interface Subscriber {
   renewalHandledBy?:         string | null;
   renewalHandledByName?:     string | null;
   renewalNote?:              string;
+
+  // Soft delete
+  deleted?:    boolean;
+  deletedAt?:  Timestamp;
+  deletedBy?:  string;
 }

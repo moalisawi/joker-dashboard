@@ -1,17 +1,17 @@
-"use client";
+﻿"use client";
 
 import { motion } from "framer-motion";
 import {
   DollarSign, RefreshCw, Clock, CreditCard, Calendar,
   Globe, Phone, AlertCircle, CheckCircle2, XCircle,
-  PauseCircle, Snowflake, TrendingUp, User, Star,
+  PauseCircle, Snowflake, User,
 } from "lucide-react";
 import { formatDate, formatNumber, getWhatsAppLink, RESIDENCE_COUNTRIES, PHONE_COUNTRIES } from "@/lib/utils";
 import type { Subscriber } from "@/types";
 import type { PaymentTransaction } from "@/types";
 import type { RefundTransaction } from "@/types";
 
-const ACC = { indigo:"#6366f1", emerald:"#10b981", amber:"#f59e0b", rose:"#f43f5e", sky:"#38bdf8" };
+const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
 const fadeUp = { hidden:{opacity:0,y:12}, show:{opacity:1,y:0} };
 const tran   = { duration:0.32, ease:"easeOut" } as const;
 const stagger = { show:{transition:{staggerChildren:0.05}} };
@@ -44,7 +44,7 @@ function statusColor(status: string) {
   if (status === "نشط")          return ACC.emerald;
   if (status === "ينتهي قريباً") return ACC.amber;
   if (status === "منتهي")        return ACC.rose;
-  if (status === "موقوف")        return "#f97316";
+  if (status === "موقوف")        return "#E8B570";
   if (status === "متجمد")        return ACC.sky;
   return "#64748b";
 }
@@ -276,21 +276,37 @@ export default function OverviewTab({ subscriber: s, payments, refunds, canRev }
       </div>
 
       {/* ── Freeze/Pause status ── */}
-      {(s.subscriptionStatus === "paused" || s.subscriptionStatus === "frozen") && (
+      {s.subscriptionStatus === "paused" && (
         <motion.div variants={fadeUp} transition={tran}
           className="rounded-2xl p-4 flex items-start gap-3"
           style={{ background:`${ACC.amber}10`, border:`1px solid ${ACC.amber}30` }}>
           <PauseCircle size={18} style={{ color:ACC.amber, marginTop:1 }}/>
           <div>
-            <p className="text-sm font-bold" style={{ color:ACC.amber }}>
-              الاشتراك {s.subscriptionStatus === "paused" ? "موقوف" : "متجمد"}
-            </p>
+            <p className="text-sm font-bold" style={{ color:ACC.amber }}>الاشتراك موقوف</p>
             {s.pauseReason && (
               <p className="text-xs mt-0.5" style={{ color:"var(--text-secondary)" }}>{s.pauseReason}</p>
             )}
             {s.remainingDaysAtPause != null && (
               <p className="text-xs mt-0.5" style={{ color:"var(--text-muted)" }}>
-                أيام متبقية عند الإيقاف: {s.remainingDaysAtPause}
+                أيام محفوظة: {s.remainingDaysAtPause}
+              </p>
+            )}
+          </div>
+        </motion.div>
+      )}
+      {s.freezeData?.isFrozen && (
+        <motion.div variants={fadeUp} transition={tran}
+          className="rounded-2xl p-4 flex items-start gap-3"
+          style={{ background:`${ACC.sky}10`, border:`1px solid ${ACC.sky}30` }}>
+          <Snowflake size={18} style={{ color:ACC.sky, marginTop:1 }}/>
+          <div>
+            <p className="text-sm font-bold" style={{ color:ACC.sky }}>الاشتراك متجمد</p>
+            {s.freezeData.freezeReason && (
+              <p className="text-xs mt-0.5" style={{ color:"var(--text-secondary)" }}>{s.freezeData.freezeReason}</p>
+            )}
+            {s.freezeData.remainingDays != null && (
+              <p className="text-xs mt-0.5" style={{ color:"var(--text-muted)" }}>
+                أيام محفوظة: {s.freezeData.remainingDays}
               </p>
             )}
           </div>

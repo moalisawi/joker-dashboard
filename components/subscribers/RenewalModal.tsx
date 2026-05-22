@@ -5,7 +5,10 @@ import type { Subscriber, Currency } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { calculateExpiry, todayString, formatDate, formatNumber } from "@/lib/utils";
-import { PAYMENT_METHODS, EMPLOYEES } from "@/lib/permissions";
+import { PAYMENT_METHODS } from "@/lib/permissions";
+import { useEmployeeNames } from "@/hooks/useEmployeeNames";
+import { useActiveMethodsForResidenceQuery } from "@/features/paymentMethods/hooks/useActiveMethodsForResidenceQuery";
+import { getAllowedCurrencies, CURRENCY_LABELS } from "@/features/paymentMethods/utils/countryMapping";
 import { X, RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
 
 interface Props {
@@ -17,6 +20,7 @@ interface Props {
 
 export default function RenewalModal({ subscriber: s, exchangeRates, onClose, onSaved }: Props) {
   const { user } = useAuthStore();
+  const employeeNames = useEmployeeNames();
 
   // Form state
   const [pkg, setPkg]             = useState<"فضية" | "ذهبية">(s.package);
@@ -24,7 +28,8 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
   const [currency, setCurrency]   = useState<Currency>(s.currencyOriginal || "USD");
   const [totalPrice, setTotalPrice] = useState("");
   const [initPayment, setInitPayment] = useState("");
-  const [payment, setPayment]     = useState(s.payment || "");
+  const [payment, setPayment]         = useState(s.payment || "");
+  const [paymentMethodId, setPaymentMethodId] = useState("");
   const [renewedBy, setRenewedBy] = useState("");
   const [renewalDate, setRenewalDate] = useState(todayString());
   const [notes, setNotes]         = useState("");
@@ -32,6 +37,21 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
   const [error, setError]         = useState("");
 
   // Derived
+  const { methods: firestoreMethods, isLoading: methodsLoading } =
+    useActiveMethodsForResidenceQuery(s.residence);
+
+  const selectedFirestoreMethod = firestoreMethods.find((m) => m.id === paymentMethodId);
+  const allowedCurrencies = selectedFirestoreMethod
+    ? getAllowedCurrencies(selectedFirestoreMethod.supportedCurrencies)
+    : ["USD", "EGP", "JOD", "ILS"] as Currency[];
+
+  function handleMethodChange(value: string) {
+    if (!value) { setPayment(""); setPaymentMethodId(""); return; }
+    const fm = firestoreMethods.find((m) => m.id === value);
+    if (fm) { setPayment(fm.name); setPaymentMethodId(fm.id); }
+    else     { setPayment(value);  setPaymentMethodId(""); }
+  }
+
   const lockedRate     = exchangeRates[currency] || 1;
   const totalPriceN    = parseFloat(totalPrice) || 0;
   const totalPriceUSD  = totalPriceN / lockedRate;
@@ -62,17 +82,18 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
       const by           = renewedBy || user.employeeName || user.name || "";
 
       await callSubscriberOperation("renewSubscription", {
-        subscriberId: s.id,
-        package: pkg,
-        duration: dur,
+        subscriberId:    s.id,
+        package:         pkg,
+        duration:        dur,
         currency,
-        totalPrice: totalPriceN,
+        totalPrice:      totalPriceN,
         paidAmount,
-        paymentMethod: payment,
+        paymentMethod:   payment,
+        paymentMethodId: paymentMethodId || undefined,
         renewalDate,
-        exchangeRate: lockedRate,
+        exchangeRate:    lockedRate,
         notes,
-        renewedByName: by,
+        renewedByName:   by,
       });
 
       onSaved();
@@ -228,10 +249,9 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">العملة</label>
                 <select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}
                   className="form-input">
-                  <option value="USD">دولار USD</option>
-                  <option value="EGP">جنيه EGP</option>
-                  <option value="JOD">دينار JOD</option>
-                  <option value="ILS">شيكل ILS</option>
+                  {allowedCurrencies.map((c) => (
+                    <option key={c} value={c}>{CURRENCY_LABELS[c] ?? c}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -266,11 +286,23 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
             {/* Payment method */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">طريقة الدفع</label>
-              <select value={payment} onChange={(e) => setPayment(e.target.value)}
-                className="form-input">
+              <select
+                value={paymentMethodId || payment}
+                onChange={(e) => handleMethodChange(e.target.value)}
+                className="form-input"
+              >
                 <option value="">اختر...</option>
-                {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                {!methodsLoading && firestoreMethods.length > 0 ? (
+                  firestoreMethods.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))
+                ) : (
+                  PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)
+                )}
               </select>
+              {methodsLoading && (
+                <p className="text-xs text-slate-400 mt-1">جاري تحميل طرق الدفع...</p>
+              )}
             </div>
 
             {/* Renewed by */}
@@ -281,7 +313,7 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
               <select value={renewedBy} onChange={(e) => setRenewedBy(e.target.value)}
                 className="form-input">
                 <option value="">اختر...</option>
-                {EMPLOYEES.map((e) => <option key={e} value={e}>{e}</option>)}
+                {employeeNames.map((e) => <option key={e} value={e}>{e}</option>)}
               </select>
             </div>
 

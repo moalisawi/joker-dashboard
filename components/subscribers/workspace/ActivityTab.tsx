@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
@@ -17,7 +17,7 @@ import {
   Filter, Clock, User,
 } from "lucide-react";
 
-const ACC = { indigo:"#6366f1", emerald:"#10b981", amber:"#f59e0b", rose:"#f43f5e", sky:"#38bdf8" };
+const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
 const fadeUp = { hidden:{opacity:0,y:8}, show:{opacity:1,y:0} };
 const tran   = { duration:0.25, ease:"easeOut" } as const;
 const stagger = { show:{transition:{staggerChildren:0.03}} };

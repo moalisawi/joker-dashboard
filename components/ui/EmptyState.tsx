@@ -7,19 +7,36 @@ interface Props {
 
 export default function EmptyState({ icon, title, description, action }: Props) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
+    <div
+      className="flex flex-col items-center justify-center text-center"
+      style={{ padding: "48px 20px", gap: 12 }}
+    >
       {icon && (
-        <div className="opacity-20 mb-1">{icon}</div>
+        <div
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: "50%",
+            background: "var(--jk-panel)",
+            color: "var(--jk-subtle)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 4,
+          }}
+        >
+          {icon}
+        </div>
       )}
-      <p className="font-bold text-base" style={{ color: "var(--text-primary)" }}>
+      <p style={{ color: "var(--jk-text)", fontSize: 15, fontWeight: 700 }}>
         {title}
       </p>
       {description && (
-        <p className="text-sm max-w-xs" style={{ color: "var(--text-secondary)" }}>
+        <p style={{ color: "var(--jk-muted)", fontSize: 13, maxWidth: 320, lineHeight: 1.6 }}>
           {description}
         </p>
       )}
-      {action && <div className="mt-2">{action}</div>}
+      {action && <div style={{ marginTop: 8 }}>{action}</div>}
     </div>
   );
 }

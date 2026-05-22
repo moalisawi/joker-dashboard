@@ -141,6 +141,6 @@ export async function fsAdd(
 export function hasAdminCredentials(): boolean {
   return Boolean(
     process.env.FIREBASE_CLIENT_EMAIL &&
-    process.env.FIREBASE_PRIVATE_KEY
+    (process.env.FIREBASE_PRIVATE_KEY_B64 || process.env.FIREBASE_PRIVATE_KEY)
   );
 }

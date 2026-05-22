@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import * as firebaseApp from "firebase/app";
 
 // Fallback values allow the build to succeed without Firebase credentials.
 // Set real NEXT_PUBLIC_FIREBASE_* values in .env.local for dev/production.
@@ -11,4 +11,10 @@ const firebaseConfig = {
   appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID             ?? "1:000000000000:web:0000000000000000",
 };
 
-export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+// Namespace import (not destructured named imports) — the firebase/app wrapper
+// re-exports via Object.defineProperty getters that webpack can't statically
+// analyze for named imports, so reading them off the namespace object at
+// runtime is the reliable path on both CJS and ESM resolutions.
+export const app = firebaseApp.getApps().length
+  ? firebaseApp.getApp()
+  : firebaseApp.initializeApp(firebaseConfig);

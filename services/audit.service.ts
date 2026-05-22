@@ -39,11 +39,25 @@ const ACTION_SEVERITY: Record<string, AuditSeverity> = {
   settings_updated:     "warning",
   data_imported:        "info",
   data_exported:        "info",
+  // payment methods
+  paymentMethod_created:        "success",
+  paymentMethod_updated:        "info",
+  paymentMethod_status_changed: "warning",
+  paymentMethod_deleted:        "critical",
   // legacy
   payment_added:              "success",
   payment_transaction_created: "success",
   subscriber_refund_created:   "warning",
   analytics_recalculated:      "info",
+  // whatsapp
+  whatsapp_lead_created:                   "info",
+  whatsapp_lead_status_changed:            "info",
+  whatsapp_lead_assigned:                  "info",
+  whatsapp_conversation_status_changed:    "info",
+  whatsapp_internal_note_added:            "info",
+  whatsapp_note_added:                     "info",
+  whatsapp_note_removed:                   "warning",
+  whatsapp_tags_updated:                   "info",
 };
 
 const ACTION_CATEGORY: Record<string, AuditCategory> = {
@@ -73,11 +87,25 @@ const ACTION_CATEGORY: Record<string, AuditCategory> = {
   settings_updated:     "system",
   data_imported:        "system",
   data_exported:        "system",
+  // payment methods
+  paymentMethod_created:        "system",
+  paymentMethod_updated:        "system",
+  paymentMethod_status_changed: "system",
+  paymentMethod_deleted:        "system",
   // legacy
   payment_added:              "financial",
   payment_transaction_created: "financial",
   subscriber_refund_created:   "financial",
   analytics_recalculated:      "system",
+  // whatsapp
+  whatsapp_lead_created:                   "whatsapp",
+  whatsapp_lead_status_changed:            "whatsapp",
+  whatsapp_lead_assigned:                  "whatsapp",
+  whatsapp_conversation_status_changed:    "whatsapp",
+  whatsapp_internal_note_added:            "whatsapp",
+  whatsapp_note_added:                     "whatsapp",
+  whatsapp_note_removed:                   "whatsapp",
+  whatsapp_tags_updated:                   "whatsapp",
 };
 
 // ─── core writer ─────────────────────────────────────────────────────────────

@@ -48,4 +48,5 @@ export interface Permissions {
   canDelete: boolean;
   canManageUsers: boolean;
   canViewLogs: boolean;
+  canManagePaymentMethods: boolean;
 }

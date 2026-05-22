@@ -66,7 +66,7 @@ export default function PauseModal({ subscriber: s, onClose, onSaved }: Props) {
               </span>
               <span>ينتهي: {formatDate(s.expiryDate)}</span>
               <span className="text-amber-700 font-semibold">
-                سيُجمَّد {Math.max(0, s.daysRemaining)} يوم متبقٍ
+                سيُحفَظ {Math.max(0, s.daysRemaining)} يوم متبقٍ
               </span>
             </div>
           </div>

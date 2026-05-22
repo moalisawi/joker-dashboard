@@ -1,5 +1,4 @@
-"use client";
-export const dynamic = "force-dynamic";
+﻿"use client";
 
 import { useState, useCallback } from "react";
 import {
@@ -10,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
+import PageHeader from "@/components/layout/PageHeader";
 import AuditFilters from "@/components/logs/AuditFilters";
 import AuditCard from "@/components/logs/AuditCard";
 import AuditAnalytics from "@/components/logs/AuditAnalytics";
@@ -89,14 +89,18 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon, color, sub }: StatCardProps) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3">
+    <div style={{
+      background: "var(--surface)", border: "1px solid var(--border-soft)",
+      borderRadius: 16, boxShadow: "var(--shadow-card)",
+      padding: "14px 16px", display: "flex", alignItems: "center", gap: 12,
+    }}>
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
         {icon}
       </div>
       <div>
-        <p className="text-xl font-black text-slate-800">{value.toLocaleString("ar-EG")}</p>
-        <p className="text-xs text-slate-500">{label}</p>
-        {sub && <p className="text-xs text-slate-400">{sub}</p>}
+        <p style={{ fontSize: 20, fontWeight: 900, color: "var(--text-primary)" }}>{value.toLocaleString("ar-EG")}</p>
+        <p style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{label}</p>
+        {sub && <p style={{ fontSize: 11, color: "var(--text-muted)" }}>{sub}</p>}
       </div>
     </div>
   );
@@ -110,32 +114,43 @@ function ExportMenu({ logs }: { logs: NormalizedAuditLog[] }) {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition shadow-sm"
+        style={{
+          display: "flex", alignItems: "center", gap: 6, padding: "7px 14px",
+          borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer",
+          background: "var(--surface)", border: "1px solid var(--border)",
+          color: "var(--text-secondary)", fontFamily: "inherit", transition: "all .15s",
+        }}
       >
-        <Download size={14} />
+        <Download size={13} />
         تصدير
-        <ChevronDown size={13} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={12} style={{ transition: "transform .15s", transform: open ? "rotate(180deg)" : "none" }} />
       </button>
       {open && (
-        <div className="absolute top-full mt-1 left-0 bg-white border border-slate-200 rounded-xl shadow-lg py-1 z-20 min-w-[140px]">
-          <button
-            onClick={() => { exportCsv(logs); setOpen(false); }}
-            className="w-full text-right px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
-          >
-            CSV / Excel
-          </button>
-          <button
-            onClick={() => { exportJson(logs); setOpen(false); }}
-            className="w-full text-right px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
-          >
-            JSON
-          </button>
-          <button
-            onClick={() => { window.print(); setOpen(false); }}
-            className="w-full text-right px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
-          >
-            طباعة / PDF
-          </button>
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", insetInlineStart: 0,
+          background: "var(--surface)", border: "1px solid var(--border)",
+          borderRadius: 12, boxShadow: "var(--shadow-panel)", padding: "4px 0",
+          zIndex: 20, minWidth: 150,
+        }}>
+          {[
+            { label: "CSV / Excel", fn: () => exportCsv(logs) },
+            { label: "JSON",        fn: () => exportJson(logs) },
+            { label: "طباعة / PDF", fn: () => window.print() },
+          ].map(({ label, fn }) => (
+            <button key={label}
+              onClick={() => { fn(); setOpen(false); }}
+              style={{
+                width: "100%", textAlign: "right", padding: "8px 14px",
+                fontSize: 13, color: "var(--text-secondary)",
+                background: "none", border: "none", cursor: "pointer",
+                fontFamily: "inherit", transition: "background .1s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-2)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "none")}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -205,54 +220,42 @@ export default function LogsPage() {
       <div className="p-5 md:p-7 max-w-7xl mx-auto space-y-5 print:p-0">
 
         {/* ── header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <ScrollText size={21} className="text-indigo-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-slate-800">سجل العمليات</h1>
-              <p className="text-xs text-slate-400">
-                Audit Log — سجل غير قابل للتعديل
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 print:hidden">
-            <ExportMenu logs={logs} />
-          </div>
-        </div>
+        <PageHeader
+          title="سجل العمليات"
+          subtitle={`${stats.total} عملية مسجلة · ${stats.today} اليوم`}
+          actions={<ExportMenu logs={logs} />}
+        />
 
         {/* ── stat cards ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print:hidden">
           <StatCard
             label="إجمالي السجلات"
             value={stats.total}
-            icon={<ScrollText size={18} className="text-indigo-600" />}
-            color="bg-indigo-50"
+            icon={<ScrollText size={18} style={{ color: "#83A2DB" }} />}
+            color=""
           />
           <StatCard
             label="اليوم"
             value={stats.today}
-            icon={<Calendar size={18} className="text-blue-600" />}
-            color="bg-blue-50"
+            icon={<Calendar size={18} style={{ color: "var(--jk-blue)" }} />}
+            color=""
           />
           <StatCard
             label="أحداث حرجة"
             value={stats.critical}
-            icon={<AlertTriangle size={18} className="text-red-600" />}
-            color="bg-red-50"
+            icon={<AlertTriangle size={18} style={{ color: "var(--jk-red)" }} />}
+            color=""
           />
           <StatCard
             label="عمليات مالية"
             value={stats.financial}
-            icon={<DollarSign size={18} className="text-emerald-600" />}
-            color="bg-emerald-50"
+            icon={<DollarSign size={18} style={{ color: "#83A2DB" }} />}
+            color=""
           />
         </div>
 
         {/* ── tabs ───────────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 w-fit print:hidden">
+        <div className="flex items-center gap-1 rounded-xl p-1 w-fit print:hidden" style={{ background: "var(--surface-2)", border: "1px solid var(--border-soft)" }}>
           <TabBtn active={tab === "timeline"} onClick={() => setTab("timeline")}>
             <List size={14} /> الجدول الزمني
           </TabBtn>
@@ -353,11 +356,12 @@ function TabBtn({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-        active
-          ? "bg-white shadow-sm text-slate-800"
-          : "text-slate-500 hover:text-slate-700"
-      }`}
+      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+      style={{
+        background: active ? "var(--surface)" : "transparent",
+        color: active ? "var(--text-primary)" : "var(--text-muted)",
+        boxShadow: active ? "var(--shadow-card)" : "none",
+      }}
     >
       {children}
     </button>

@@ -2,6 +2,7 @@ import { NextResponse }          from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { verifyServerUser, initializeAdminApp } from "@/lib/serverAuth";
 import { hasAdminCredentials } from "@/lib/serverFirestore";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import type { DeviceType } from "@/types";
 
 export const runtime = "nodejs";
@@ -73,13 +74,13 @@ function parseUA(ua: string): ParsedUA {
 }
 
 // ── Geo lookup ────────────────────────────────────────────────────────────────
-// Prefer edge-provided headers (Vercel / Cloudflare / AWS).
-// Falls back to ip-api.com for self-hosted deployments.
+// Uses only CDN/edge-provided headers. No external HTTP calls — they add
+// latency, expose user IPs over unencrypted connections, and fail under load.
+// Vercel: x-vercel-ip-country / x-vercel-ip-city (automatic)
+// Cloudflare: cf-ipcountry
+// AWS CloudFront: x-country-code
 
-const geoCache = new Map<string, { country?: string; city?: string }>();
-
-async function getGeo(ip: string, request: Request): Promise<{ country?: string; city?: string }> {
-  // Edge/CDN geo headers — zero latency
+function getGeo(request: Request): { country?: string; city?: string } {
   const country =
     request.headers.get("x-vercel-ip-country") ??
     request.headers.get("cf-ipcountry") ??
@@ -89,32 +90,7 @@ async function getGeo(ip: string, request: Request): Promise<{ country?: string;
     request.headers.get("x-vercel-ip-city") ??
     request.headers.get("x-city") ??
     undefined;
-  if (country) return { country, city };
-
-  // Skip private / local IPs
-  if (!ip || ip === "Unknown" || /^(127\.|::1$|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(ip)) {
-    return { country: "Local", city: undefined };
-  }
-
-  if (geoCache.has(ip)) return geoCache.get(ip)!;
-
-  try {
-    const controller = new AbortController();
-    const timeout    = setTimeout(() => controller.abort(), 2000);
-    const res  = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,city`, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = await res.json() as { status: string; country?: string; city?: string };
-      if (data.status === "success") {
-        const result = { country: data.country, city: data.city };
-        geoCache.set(ip, result);
-        return result;
-      }
-    }
-  } catch {
-    // Non-fatal
-  }
-  return {};
+  return { country, city };
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -122,8 +98,13 @@ async function getGeo(ip: string, request: Request): Promise<{ country?: string;
 export async function POST(request: Request): Promise<NextResponse> {
   initializeAdminApp();
 
+  // Rate limit: 5 session log requests per IP per minute (one per login)
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`session-log:${ip}`, 5, 60 * 1000)) {
+    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
+  }
+
   const user = await verifyServerUser(request);
-  console.log("[sessions/log] POST — user:", user?.uid ?? "null (unauthorized)");
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
   // Session logging writes via Admin SDK only (firestore.rules denies client writes).
@@ -137,18 +118,20 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const ua = request.headers.get("user-agent") || "";
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "Unknown";
-
   const parsed = parseUA(ua);
-  const geo    = await getGeo(ip, request);
+  const geo    = getGeo(request);
 
   try {
     const userSnap  = await getFirestore().collection("users").doc(user.uid).get();
     const userData  = userSnap.data();
     const now       = FieldValue.serverTimestamp();
+
+    // Sessions expire after 8 hours of inactivity.
+    // The heartbeat endpoint resets expiresAt on each ping.
+    // A background job or Cloud Function should mark stale sessions as timed_out
+    // by querying where("expiresAt", "<", now) periodically.
+    const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+    const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
     const docRef = await getFirestore().collection("loginSessions").add({
       uid:            user.uid,
@@ -160,6 +143,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       loginAt:        now,
       lastSeenAt:     now,
       createdAt:      now,
+      expiresAt,
       ipAddress:      ip,
       country:        geo.country,
       city:           geo.city,

@@ -1,9 +1,9 @@
-"use client";
-export const dynamic = "force-dynamic";
+﻿"use client";
 
 import { useState } from "react";
 import { motion } from "framer-motion";
 import ProtectedLayout     from "@/components/layout/ProtectedLayout";
+import PageHeader          from "@/components/layout/PageHeader";
 import SalesEmployeeCard   from "@/features/sales/components/SalesEmployeeCard";
 import { useSalesEmployees } from "@/features/sales/hooks/useSalesEmployees";
 import { useAuthStore }    from "@/store/authStore";
@@ -13,7 +13,7 @@ import {
   LayoutGrid, List, AlertCircle,
 } from "lucide-react";
 
-const ACC = { indigo:"#6366f1", emerald:"#10b981", amber:"#f59e0b", rose:"#f43f5e" };
+const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969" };
 const tran = { duration:0.32, ease:"easeOut" } as const;
 
 function KpiStrip({ label, value, accent, icon }: {
@@ -66,31 +66,25 @@ export default function SalesListPage() {
         <div className="mx-auto max-w-6xl px-4 py-7 md:px-8 space-y-6">
 
           {/* ── Header ── */}
-          <motion.div initial={{ opacity:0, y:-10 }} animate={{ opacity:1, y:0 }} transition={tran}
-            className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <h1 className="text-2xl font-black" style={{ color:"var(--text-primary)" }}>
-                قسم المبيعات
-              </h1>
-              <p className="text-sm mt-1" style={{ color:"var(--text-muted)" }}>
-                أداء موظفي المبيعات وإحصائياتهم
-              </p>
-            </div>
-            {/* View toggle */}
-            <div className="flex items-center gap-1 p-1 rounded-xl"
-              style={{ background:"var(--surface)", border:"1px solid var(--border)" }}>
-              {([["grid","grid"],["table","list"]] as const).map(([key]) => (
-                <button key={key} onClick={() => setView(key)}
-                  className="p-2 rounded-lg transition-all"
-                  style={{
-                    background: view === key ? `${ACC.indigo}18` : "transparent",
-                    color:      view === key ? ACC.indigo : "var(--text-muted)",
-                  }}>
-                  {key === "grid" ? <LayoutGrid size={15}/> : <List size={15}/>}
-                </button>
-              ))}
-            </div>
-          </motion.div>
+          <PageHeader
+            title="المبيعات"
+            subtitle="أداء فريق المبيعات والإحصائيات"
+            actions={
+              <div className="flex items-center gap-1 p-1 rounded-xl"
+                style={{ background:"var(--surface)", border:"1px solid var(--border)" }}>
+                {([["grid","grid"],["table","list"]] as const).map(([key]) => (
+                  <button key={key} onClick={() => setView(key)}
+                    className="p-2 rounded-lg transition-all"
+                    style={{
+                      background: view === key ? `${ACC.indigo}18` : "transparent",
+                      color:      view === key ? ACC.indigo : "var(--text-muted)",
+                    }}>
+                    {key === "grid" ? <LayoutGrid size={15}/> : <List size={15}/>}
+                  </button>
+                ))}
+              </div>
+            }
+          />
 
           {/* ── KPI strip ── */}
           <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }}
@@ -145,7 +139,7 @@ export default function SalesListPage() {
                   </thead>
                   <tbody>
                     {data.map((m, i) => (
-                      <tr key={m.uid} className="transition-colors hover:bg-[#6366f108]"
+                      <tr key={m.uid} className="transition-colors hover:bg-[#83A2DB08]"
                         style={{ borderBottom:"1px solid var(--divider)" }}>
                         <td className="px-5 py-3 font-black tabular-nums" style={{ color:ACC.indigo }}>
                           {i + 1}

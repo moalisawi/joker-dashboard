@@ -1,4 +1,4 @@
-import type { AccountStatus } from "@/types";
+﻿import type { AccountStatus } from "@/types";
 
 interface Props {
   active: boolean;
@@ -6,9 +6,9 @@ interface Props {
 }
 
 const CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  active:    { label: "نشط",           bg: "#10b98118", color: "#10b981" },
-  pending:   { label: "معلّق التفعيل", bg: "#f59e0b18", color: "#f59e0b" },
-  suspended: { label: "موقوف",         bg: "#f43f5e18", color: "#f43f5e" },
+  active:    { label: "نشط",           bg: "#83A2DB18", color: "#83A2DB" },
+  pending:   { label: "معلّق التفعيل", bg: "#E8B57018", color: "#E8B570" },
+  suspended: { label: "موقوف",         bg: "#CE696918", color: "#CE6969" },
   disabled:  { label: "معطّل",         bg: "#94a3b818", color: "#94a3b8" },
   inactive:  { label: "غير نشط",       bg: "#94a3b818", color: "#94a3b8" },
 };

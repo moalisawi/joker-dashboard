@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
@@ -7,241 +7,289 @@ import { formatNumber, ARABIC_MONTHS } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { ChevronRight, ChevronLeft, X, ExternalLink } from "lucide-react";
 
-interface Props {
-  subscribers: Subscriber[];
-}
+interface Props { subscribers: Subscriber[] }
+
+const DAY_HEADERS = ["أحد", "اثن", "ثلا", "أرب", "خمي", "جمع", "سبت"];
 
 export default function MonthlyCalendar({ subscribers }: Props) {
   const { can } = useAuthStore();
-  const canRev = can("canViewRevenue");
+  const canRev  = can("canViewRevenue");
 
   const [currentMonth, setCurrentMonth] = useState(() => {
-    const d = new Date();
-    d.setDate(1);
-    return d;
+    const d = new Date(); d.setDate(1); return d;
   });
-  const [empFilter, setEmpFilter] = useState("");
-  const [pkgFilter, setPkgFilter] = useState("");
   const [dayModal, setDayModal] = useState<{ date: string; data: Subscriber[] } | null>(null);
 
-  const year = currentMonth.getFullYear();
+  const year  = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const monthData = useMemo(() => {
-    return subscribers.filter((s) => {
+  const monthData = useMemo(() =>
+    subscribers.filter((s) => {
       const d = new Date(s.date);
-      if (d.getFullYear() !== year || d.getMonth() !== month) return false;
-      if (empFilter && s.convincedBy !== empFilter) return false;
-      if (pkgFilter && s.package !== pkgFilter) return false;
-      return true;
-    });
-  }, [subscribers, year, month, empFilter, pkgFilter]);
+      return d.getFullYear() === year && d.getMonth() === month;
+    }),
+  [subscribers, year, month]);
 
-  // Day → count map
   const dayMap = useMemo(() => {
     const m: Record<string, Subscriber[]> = {};
-    monthData.forEach((s) => {
-      if (!m[s.date]) m[s.date] = [];
-      m[s.date].push(s);
-    });
+    monthData.forEach((s) => { (m[s.date] ??= []).push(s); });
     return m;
   }, [monthData]);
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInMonth   = new Date(year, month + 1, 0).getDate();
   const firstDayOffset = (new Date(year, month, 1).getDay() + 1) % 7;
 
-  const monthRevenue = monthData.reduce((s, x) => s + x.netAmountUSD, 0);
-  const dayCounts = Object.fromEntries(
-    Object.entries(dayMap).map(([d, arr]) => [new Date(d).getDate(), arr.length])
-  );
-  const bestDayNum = Object.keys(dayCounts).reduce<string | null>(
-    (best, d) => (!best || dayCounts[d] > dayCounts[best]) ? d : best,
-    null
-  );
-  const avgDaily = (monthData.length / daysInMonth).toFixed(1);
-
   function prevMonth() {
-    setCurrentMonth((d) => {
-      const nd = new Date(d);
-      nd.setMonth(nd.getMonth() - 1);
-      return nd;
-    });
+    setCurrentMonth((d) => { const nd = new Date(d); nd.setMonth(nd.getMonth() - 1); return nd; });
   }
   function nextMonth() {
-    setCurrentMonth((d) => {
-      const nd = new Date(d);
-      nd.setMonth(nd.getMonth() + 1);
-      return nd;
-    });
+    setCurrentMonth((d) => { const nd = new Date(d); nd.setMonth(nd.getMonth() + 1); return nd; });
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-[rgba(0,0,0,0.08)] shadow-[0_1px_2px_rgba(0,0,0,0.05),_0_2px_8px_rgba(0,0,0,0.06)] p-5">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
-            <ChevronRight size={18} />
+    <div className="panel p-5" style={{ minHeight: 500 }}>
+
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
+        {/* Navigation — left (RTL end) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button
+            onClick={prevMonth}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)",
+              background: "var(--surface-2)", color: "var(--text-muted)",
+              display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+            }}
+          >
+            <ChevronRight size={15} />
           </button>
-          <h3 className="font-bold text-slate-800 text-base">
+          <span style={{ fontSize: "var(--fs-small)", fontWeight: 700, color: "var(--text-primary)", minWidth: 80, textAlign: "center" }}>
             {ARABIC_MONTHS[month]} {year}
-          </h3>
-          <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors">
-            <ChevronLeft size={18} />
+          </span>
+          <button
+            onClick={nextMonth}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)",
+              background: "var(--surface-2)", color: "var(--text-muted)",
+              display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+            }}
+          >
+            <ChevronLeft size={15} />
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="flex gap-2">
-          <select
-            value={empFilter}
-            onChange={(e) => setEmpFilter(e.target.value)}
-            className="border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-600 bg-white hover:border-slate-300 transition-colors cursor-pointer"
-          >
-            <option value="">كل الموظفين</option>
-            {["حنان","ميار","ميدو"].map((e) => <option key={e} value={e}>{e}</option>)}
-          </select>
-          <select
-            value={pkgFilter}
-            onChange={(e) => setPkgFilter(e.target.value)}
-            className="border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-600 bg-white hover:border-slate-300 transition-colors cursor-pointer"
-          >
-            <option value="">كل الباقات</option>
-            <option value="فضية">فضية</option>
-            <option value="ذهبية">ذهبية</option>
-          </select>
+        {/* Title — right (RTL start) */}
+        <div style={{ textAlign: "right" }}>
+          <p style={{ fontSize: "var(--fs-heading)", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.2 }}>
+            التقويم الشهري
+          </p>
+          <p style={{ fontSize: "var(--fs-micro)", color: "var(--text-muted)", marginTop: 3 }}>
+            نشاط الاشتراكات لكل يوم
+          </p>
         </div>
       </div>
 
-      {/* Summary mini-cards */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
-        {[
-          { label: "الاشتراكات",   value: formatNumber(monthData.length),                              accent: "border-t-blue-500"    },
-          { label: "الإيرادات",    value: canRev ? `$${formatNumber(monthRevenue, 2)}` : "مخفي",       accent: "border-t-emerald-500" },
-          { label: "أفضل يوم",     value: bestDayNum ? `يوم ${bestDayNum}` : "—",                     accent: "border-t-amber-500"   },
-          { label: "المعدل اليومي",value: formatNumber(parseFloat(avgDaily), 1),                       accent: "border-t-purple-500"  },
-        ].map((c) => (
-          <div key={c.label} className={`bg-slate-50/80 border border-t-2 ${c.accent} border-x-slate-100 border-b-slate-100 rounded-xl p-3 text-center`}>
-            <p className="text-xs text-slate-400 font-medium mb-1">{c.label}</p>
-            <p className="font-black text-slate-800 text-sm tabular-nums">{c.value}</p>
+      {/* ── Day headers ────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 8 }}>
+        {DAY_HEADERS.map((d) => (
+          <div key={d} style={{
+            textAlign: "center", paddingBlock: 6,
+            fontSize: "var(--fs-micro)", fontWeight: 700,
+            letterSpacing: "0.06em", color: "var(--text-muted)",
+          }}>
+            {d}
           </div>
         ))}
       </div>
 
-      {/* Days of week header */}
-      <div className="grid grid-cols-7 mb-2">
-        {["أحد","اثن","ثلا","أرب","خمي","جمع","سبت"].map((d) => (
-          <div key={d} className="text-center py-1.5" style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.06em", color: "#94a3b8" }}>{d}</div>
-        ))}
-      </div>
+      {/* ── Calendar grid ──────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
 
-      {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1.5">
+        {/* Empty offset cells */}
         {Array.from({ length: firstDayOffset }).map((_, i) => (
-          <div key={`empty-${i}`} className="cal-day opacity-0 pointer-events-none" />
+          <div key={`e${i}`} style={{ minHeight: 78 }} />
         ))}
+
+        {/* Day cells */}
         {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1;
+          const day     = i + 1;
           const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-          const dayData = dayMap[dateStr] || [];
+          const dayData = dayMap[dateStr] ?? [];
           const isToday = dateStr === todayStr;
-          const silver = dayData.filter((s) => s.package === "فضية").length;
-          const gold = dayData.filter((s) => s.package === "ذهبية").length;
+          const hasData = dayData.length > 0;
+          const silver  = dayData.filter((s) => s.package === "فضية").length;
+          const gold    = dayData.filter((s) => s.package === "ذهبية").length;
 
           return (
             <div
               key={day}
-              onClick={() => dayData.length > 0 && setDayModal({ date: dateStr, data: dayData })}
-              className={`cal-day ${dayData.length > 0 ? "has-data" : ""} ${isToday ? "today" : ""}`}
+              onClick={() => hasData && setDayModal({ date: dateStr, data: dayData })}
+              style={{
+                minHeight: 78,
+                borderRadius: 12,
+                padding: "8px 7px 7px",
+                cursor: hasData ? "pointer" : "default",
+                background: hasData
+                  ? "rgba(99,102,241,.11)"
+                  : "rgba(255,255,255,.38)",
+                border: isToday
+                  ? "2px solid #10141A"
+                  : hasData
+                    ? "1px solid rgba(99,102,241,.20)"
+                    : "1px solid transparent",
+                transition: "all .15s ease",
+                display: "flex", flexDirection: "column",
+                boxShadow: isToday ? "0 0 0 1px rgba(16,20,26,.06)" : "none",
+              }}
+              onMouseEnter={e => {
+                if (hasData) (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,.18)";
+              }}
+              onMouseLeave={e => {
+                if (hasData) (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,.11)";
+              }}
             >
-              <div className={`day-num text-xs font-bold mb-1.5 ${isToday ? "" : "text-slate-500"}`}>
+              {/* Day number */}
+              <span style={{
+                fontSize: "var(--fs-micro)", fontWeight: isToday ? 800 : 600,
+                color: isToday ? "var(--text-primary)" : "var(--text-muted)",
+                display: "block", textAlign: "right", lineHeight: 1,
+                ...(isToday ? {
+                  background: "#10141A", color: "#fff",
+                  width: 20, height: 20, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  marginRight: "auto",
+                } : {}),
+              }}>
                 {day}
-              </div>
-              {dayData.length > 0 && (
-                <>
-                  <div className="text-blue-700 font-black text-sm leading-none mb-1">{dayData.length}</div>
-                  <div className="flex gap-0.5 flex-wrap">
-                    {silver > 0 && (
-                      <span className="text-[9px] font-bold bg-slate-200/80 text-slate-600 px-1.5 py-0.5 rounded-md">{silver}ف</span>
-                    )}
-                    {gold > 0 && (
-                      <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md">{gold}ذ</span>
-                    )}
-                  </div>
-                </>
+              </span>
+
+              {/* Badges */}
+              {hasData && (
+                <div style={{
+                  marginTop: "auto", paddingTop: 6,
+                  display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "flex-end",
+                }}>
+                  {silver > 0 && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, lineHeight: 1,
+                      padding: "2px 5px", borderRadius: 5,
+                      background: "rgba(131,162,219,.20)", color: "#4A78C0",
+                    }}>
+                      {silver}ف
+                    </span>
+                  )}
+                  {gold > 0 && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, lineHeight: 1,
+                      padding: "2px 5px", borderRadius: 5,
+                      background: "rgba(232,181,112,.22)", color: "#9A6A10",
+                    }}>
+                      {gold}ذ
+                    </span>
+                  )}
+                  {dayData.length > silver + gold && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, lineHeight: 1,
+                      padding: "2px 5px", borderRadius: 5,
+                      background: "rgba(99,102,241,.18)", color: "#4F46E5",
+                    }}>
+                      {dayData.length - silver - gold}+
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* Day detail modal */}
+      {/* ── Day detail modal ───────────────────────────────────── */}
       {dayModal && (
         <div className="modal-overlay" onClick={() => setDayModal(null)}>
-          <div
-            className="modal-panel max-w-md w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <div>
-                <h3 className="font-black text-slate-900 text-base">
+          <div className="modal-panel max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "18px 22px", borderBottom: "1px solid var(--border-soft)",
+            }}>
+              <button
+                onClick={() => setDayModal(null)}
+                style={{
+                  width: 32, height: 32, borderRadius: "50%",
+                  background: "var(--surface-2)", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "var(--text-muted)",
+                }}
+              >
+                <X size={16} />
+              </button>
+              <div style={{ textAlign: "right" }}>
+                <p style={{ fontSize: "var(--fs-heading)", fontWeight: 700, color: "var(--text-primary)" }}>
                   {new Date(dayModal.date).toLocaleDateString("ar-EG", {
                     weekday: "long", day: "numeric", month: "long",
                   })}
-                </h3>
-                <p className="text-xs font-medium text-slate-400 mt-0.5">
+                </p>
+                <p style={{ fontSize: "var(--fs-micro)", color: "var(--text-muted)", marginTop: 2 }}>
                   {dayModal.data.length} اشتراك جديد
                 </p>
               </div>
-              <button
-                onClick={() => setDayModal(null)}
-                className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X size={18} />
-              </button>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
               {canRev && (
-                <div className="rounded-2xl p-4 border border-t-[3px] border-t-emerald-500 border-x-emerald-100 border-b-emerald-100 bg-gradient-to-br from-emerald-50 to-white text-center">
-                  <p className="text-xs font-semibold text-emerald-500 mb-1" style={{ letterSpacing: "0.06em" }}>إيرادات اليوم</p>
-                  <p className="text-2xl font-black text-emerald-900 tracking-tight tabular-nums">
+                <div style={{
+                  borderRadius: 16, padding: "14px 18px", textAlign: "center",
+                  background: "rgba(34,197,94,.08)",
+                  border: "1px solid rgba(34,197,94,.20)",
+                }}>
+                  <p style={{ fontSize: "var(--fs-micro)", fontWeight: 700, color: "#83A2DB", letterSpacing: "0.06em", marginBottom: 4 }}>
+                    إيرادات اليوم
+                  </p>
+                  <p style={{ fontSize: "var(--fs-display)", fontWeight: 800, color: "#83A2DB", letterSpacing: "-0.03em", lineHeight: 1.1 }}>
                     ${formatNumber(dayModal.data.reduce((s, x) => s + x.netAmountUSD, 0), 2)}
                   </p>
                 </div>
               )}
 
-              <div className="space-y-2">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {dayModal.data.map((s) => (
                   <Link
                     key={s.id}
                     href={`/subscribers/${s.id}`}
                     onClick={() => setDayModal(null)}
-                    className="flex items-center justify-between px-4 py-3 bg-slate-50/80 rounded-xl border border-slate-100 hover:bg-blue-50 hover:border-blue-200 transition-colors group"
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "12px 14px", borderRadius: 12, textDecoration: "none",
+                      background: "var(--surface-2)", border: "1px solid var(--border-soft)",
+                      transition: "all .15s",
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,.08)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,.22)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface-2)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border-soft)"; }}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-[10px] font-black text-white"
-                        style={{ background: "linear-gradient(135deg,#6366f1,#38bdf8)" }}>
-                        {s.name.split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-slate-800 text-sm group-hover:text-blue-700 transition-colors flex items-center gap-1">
-                          {s.name}
-                          <ExternalLink size={11} className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
-                        </p>
-                        <p className="text-xs text-slate-400 mt-0.5">{s.dialCode}{s.phone}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-xs px-2.5 py-1 rounded-lg font-bold ${s.package === "فضية" ? "pkg-silver" : "pkg-gold"}`}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: "var(--fs-caption)", fontWeight: 700, color: "#4F46E5" }}>
+                        ${formatNumber(s.netAmountUSD, 0)}
+                      </span>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${s.package === "فضية" ? "pkg-silver" : "pkg-gold"}`}>
                         {s.package}
                       </span>
-                      {canRev && (
-                        <span className="text-xs font-black text-emerald-700 tabular-nums">
-                          ${formatNumber(s.netAmountUSD, 2)}
-                        </span>
-                      )}
+                      <ExternalLink size={11} style={{ color: "var(--text-muted)" }} />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, textAlign: "right" }}>
+                      <div>
+                        <p style={{ fontSize: "var(--fs-small)", fontWeight: 600, color: "var(--text-primary)" }}>{s.name}</p>
+                        <p style={{ fontSize: "var(--fs-micro)", color: "var(--text-muted)", marginTop: 2 }} dir="ltr">
+                          {s.dialCode}{s.phone}
+                        </p>
+                      </div>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                        background: "linear-gradient(135deg, #83A2DB, #9DB4D6)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#fff", fontSize: 11, fontWeight: 700,
+                      }}>
+                        {s.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("")}
+                      </div>
                     </div>
                   </Link>
                 ))}

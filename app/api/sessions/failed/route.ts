@@ -2,6 +2,8 @@ import { NextResponse }           from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireRole }             from "@/lib/requireRole";
 import { initializeAdminApp }      from "@/lib/serverAuth";
+import { hasAdminCredentials }     from "@/lib/serverFirestore";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -33,6 +35,20 @@ function parseUAMinimal(ua: string) {
 export async function POST(request: Request): Promise<NextResponse> {
   initializeAdminApp();
 
+  // Rate limit: 10 failed login attempts per IP per 5 minutes
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`failed-login:${ip}`, 10, 5 * 60 * 1000)) {
+    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
+  }
+
+  // failedLogins writes via Admin SDK only (rules deny client writes).
+  if (!hasAdminCredentials()) {
+    return NextResponse.json(
+      { success: false, skipped: true, reason: "admin-credentials-unavailable" },
+      { status: 202 }
+    );
+  }
+
   let body: { email?: string; reason?: string };
   try {
     body = await request.json();
@@ -41,17 +57,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const ua = request.headers.get("user-agent") || "";
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "Unknown";
-
   const { browser, os, device } = parseUAMinimal(ua);
 
   // Sanitize email — store as-is but never trust it for auth
   const safeEmail  = typeof body.email === "string"
     ? body.email.trim().toLowerCase().slice(0, 254)
-    : undefined;
+    : null;
 
   const safeReason = typeof body.reason === "string"
     ? body.reason.slice(0, 100)
@@ -82,6 +93,13 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   const result = await requireRole(request, "admin");
   if (result instanceof NextResponse) return result;
+
+  if (!hasAdminCredentials()) {
+    return NextResponse.json(
+      { success: true, attempts: [], skipped: true, reason: "admin-credentials-unavailable" },
+      { status: 200 }
+    );
+  }
 
   try {
     const snap = await getFirestore()

@@ -9,10 +9,10 @@ import { useAuthStore } from "@/store/authStore";
 import { useSearchStore } from "@/store/searchStore";
 
 function statusColor(status: string): string {
-  if (status === "نشط")           return "#10b981";
-  if (status === "ينتهي قريباً")  return "#f59e0b";
-  if (status === "منتهي")         return "#94a3b8";
-  return "#6366f1";
+  if (status === "نشط")           return "#83A2DB";
+  if (status === "ينتهي قريباً")  return "#E8B570";
+  if (status === "منتهي")         return "#94A3B8";
+  return "#CE6969";
 }
 
 export default function GlobalSearch() {
@@ -49,23 +49,24 @@ export default function GlobalSearch() {
     sub:   [s.phone, s.residence, s.package].filter(Boolean).join(" · "),
     href:  `/subscribers/${s.id}`,
     badge: s.subscriptionState === "withdrawn" ? "منسحب" : s.status,
-    color: s.subscriptionState === "withdrawn" ? "#f43f5e" : statusColor(s.status),
+    color: s.subscriptionState === "withdrawn" ? "#CE6969" : statusColor(s.status),
     searchValue: `${s.name} ${s.phone} ${s.residence} ${s.package} ${s.convincedBy}`.toLowerCase(),
   }));
 
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-start justify-center pt-[10vh] px-4"
-      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+      style={{ background: "rgba(16,20,26,.45)", backdropFilter: "blur(8px)" }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) closeSearch(); }}
     >
       <Command
         dir="rtl"
-        className="w-full max-w-xl rounded-2xl overflow-hidden"
+        className="w-full max-w-xl overflow-hidden"
         style={{
-          background: "var(--surface)",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.15)",
-          border: "1px solid var(--border)",
+          background: "var(--jk-surface)",
+          boxShadow: "var(--jk-shadow-modal)",
+          border: "1px solid var(--jk-border)",
+          borderRadius: 28,
         }}
         shouldFilter={false}
       >
@@ -115,8 +116,8 @@ export default function GlobalSearch() {
                 }}
               >
                 <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-                  style={{ background: `${r.color}18` }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center"
+                  style={{ background: `${r.color}24`, border: `1px solid ${r.color}48`, borderRadius: "50%" }}
                 >
                   <Users size={14} style={{ color: r.color }} />
                 </div>
@@ -130,8 +131,8 @@ export default function GlobalSearch() {
                 </div>
                 {r.badge && (
                   <span
-                    className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: `${r.color}18`, color: r.color }}
+                    className="shrink-0"
+                    style={{ background: `${r.color}24`, color: r.color, border: `1px solid ${r.color}48`, padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600 }}
                   >
                     {r.badge}
                   </span>
@@ -162,7 +163,7 @@ export default function GlobalSearch() {
       {/* cmdk selected item highlight */}
       <style>{`
         [cmdk-item][data-selected="true"] {
-          background: var(--surface-2);
+          background: var(--jk-panel);
         }
         [cmdk-item] {
           transition: background 80ms;

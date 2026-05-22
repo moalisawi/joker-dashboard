@@ -45,6 +45,7 @@ export function useSubscribers() {
     const unsub = onSnapshot(q, (snap) => {
       const data = snap.docs
         .map((d) => normalizeSubscriber({ id: d.id, ...d.data() } as Record<string, unknown> & { id: string }))
+        .filter((s) => s.deleted !== true)
         .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
       qc.setQueryData<Subscriber[]>(queryKey, data);
     });

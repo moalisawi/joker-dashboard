@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { verifyServerUser, hasServerPermission, getBearerToken } from "@/lib/serverAuth";
 import { hasAdminCredentials, fsPatch, fsAdd } from "@/lib/serverFirestore";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { z } from "zod";
 import { WORKFLOW_STATUS } from "@/constants/subscriberWorkflow";
 
@@ -19,6 +20,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`workflow-status:${ip}`, 60, 60 * 1000)) return jsonError("Too many requests", 429);
+
   // ── Auth ──────────────────────────────────────────────────────────────────────
   let actor;
   try { actor = await verifyServerUser(request); } catch { return jsonError("Unauthorized", 401); }

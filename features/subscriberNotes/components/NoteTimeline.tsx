@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -106,7 +106,7 @@ function NoteItem({
               <button onClick={handleDelete}
                 disabled={deleteNote.isPending}
                 className="p-1 rounded-lg transition-colors disabled:opacity-40"
-                style={{ color: "#f43f5e" }}
+                style={{ color: "#CE6969" }}
                 title="حذف">
                 <Trash2 size={12}/>
               </button>
@@ -125,7 +125,7 @@ function NoteItem({
             <div className="flex gap-2">
               <button onClick={handleSave} disabled={editNote.isPending}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60"
-                style={{ background: "#6366f1" }}>
+                style={{ background: "#83A2DB" }}>
                 <Check size={11}/> حفظ
               </button>
               <button onClick={() => setEditing(false)}

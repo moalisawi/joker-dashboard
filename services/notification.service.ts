@@ -1,7 +1,7 @@
 import {
   collection, addDoc, updateDoc, doc,
   serverTimestamp, query, where, getDocs,
-  orderBy, limit, Timestamp,
+  orderBy, limit, Timestamp, arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firestore";
 import type {
@@ -218,7 +218,7 @@ function createFromAuditAction(params: AuditEventParams): void {
 async function markAsRead(notificationId: string, uid: string): Promise<void> {
   try {
     await updateDoc(doc(db, "notifications", notificationId), {
-      readBy: [...(await getReadBy(notificationId)), uid].filter((v, i, a) => a.indexOf(v) === i),
+      readBy: arrayUnion(uid),
     });
   } catch (err) {
     console.warn("[notification] markAsRead failed:", err);
@@ -235,16 +235,6 @@ async function archiveNotification(notificationId: string): Promise<void> {
     await updateDoc(doc(db, "notifications", notificationId), { archived: true });
   } catch (err) {
     console.warn("[notification] archive failed:", err);
-  }
-}
-
-async function getReadBy(id: string): Promise<string[]> {
-  try {
-    const { getDoc } = await import("firebase/firestore");
-    const snap = await getDoc(doc(db, "notifications", id));
-    return (snap.data()?.readBy as string[]) ?? [];
-  } catch {
-    return [];
   }
 }
 

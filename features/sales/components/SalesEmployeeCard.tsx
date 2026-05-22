@@ -5,19 +5,20 @@ import { motion } from "framer-motion";
 import { formatNumber } from "@/lib/utils";
 import type { SalesEmployeeMetrics } from "@/features/sales/lib/salesMetrics";
 import { Users, TrendingUp, DollarSign, RefreshCw, ArrowLeft } from "lucide-react";
+import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
-const ACC = { indigo:"#6366f1", emerald:"#10b981", amber:"#f59e0b", rose:"#f43f5e" };
+const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969" };
 
 function initials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 }
 
 const AVATAR_GRADIENTS = [
-  "linear-gradient(135deg,#6366f1,#8b5cf6)",
-  "linear-gradient(135deg,#10b981,#059669)",
-  "linear-gradient(135deg,#f59e0b,#d97706)",
-  "linear-gradient(135deg,#f43f5e,#e11d48)",
-  "linear-gradient(135deg,#38bdf8,#0284c7)",
+  "linear-gradient(135deg,#83A2DB,#9DB4D6)",
+  "linear-gradient(135deg,#83A2DB,#83A2DB)",
+  "linear-gradient(135deg,#E8B570,#E8B570)",
+  "linear-gradient(135deg,#CE6969,#CE6969)",
+  "linear-gradient(135deg,#9DB4D6,#83A2DB)",
 ];
 
 interface Props {
@@ -42,7 +43,7 @@ export default function SalesEmployeeCard({ metrics: m, rank, canRev }: Props) {
       }}>
 
       {/* Top accent */}
-      <div className="h-1" style={{ background: grad }}/>
+      
 
       <div className="p-5">
         {/* Header */}
@@ -54,9 +55,12 @@ export default function SalesEmployeeCard({ metrics: m, rank, canRev }: Props) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-bold truncate" style={{ color:"var(--text-primary)" }}>
-                {m.name}
-              </h3>
+              <EmployeeNameChip
+                name={m.name}
+                uid={m.uid}
+                className="text-sm font-bold truncate"
+                style={{ color: "var(--text-primary)" }}
+              />
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                 style={{ background:`${ACC.indigo}15`, color:ACC.indigo }}>
                 #{rank}

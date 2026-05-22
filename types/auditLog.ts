@@ -1,6 +1,6 @@
 import type { Timestamp } from "firebase/firestore";
 
-export type AuditCategory = "subscriber" | "financial" | "user" | "auth" | "system";
+export type AuditCategory = "subscriber" | "financial" | "user" | "auth" | "system" | "whatsapp";
 export type AuditSeverity = "info" | "success" | "warning" | "critical";
 export type AuditSource = "dashboard" | "system" | "api";
 

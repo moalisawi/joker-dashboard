@@ -6,34 +6,37 @@ import type { EmployeeRole } from "@/types";
 
 export const PERMISSIONS: Record<Role, Permissions> = {
   owner: {
-    canViewAll:     true,
-    canViewRevenue: true,
-    canCreate:      true,
-    canEdit:        true,
-    canWithdraw:    true,
-    canDelete:      true,
-    canManageUsers: true,
-    canViewLogs:    true,
+    canViewAll:              true,
+    canViewRevenue:          true,
+    canCreate:               true,
+    canEdit:                 true,
+    canWithdraw:             true,
+    canDelete:               true,
+    canManageUsers:          true,
+    canViewLogs:             true,
+    canManagePaymentMethods: true,
   },
   admin: {
-    canViewAll:     true,
-    canViewRevenue: true,
-    canCreate:      true,
-    canEdit:        true,
-    canWithdraw:    true,
-    canDelete:      false,
-    canManageUsers: false,
-    canViewLogs:    true,
+    canViewAll:              true,
+    canViewRevenue:          true,
+    canCreate:               true,
+    canEdit:                 true,
+    canWithdraw:             true,
+    canDelete:               false,
+    canManageUsers:          false,
+    canViewLogs:             true,
+    canManagePaymentMethods: true,
   },
   employee: {
-    canViewAll:     false,
-    canViewRevenue: false,
-    canCreate:      true,
-    canEdit:        true,
-    canWithdraw:    false,
-    canDelete:      false,
-    canManageUsers: false,
-    canViewLogs:    false,
+    canViewAll:              false,
+    canViewRevenue:          false,
+    canCreate:               true,
+    canEdit:                 true,
+    canWithdraw:             false,
+    canDelete:               false,
+    canManageUsers:          false,
+    canViewLogs:             false,
+    canManagePaymentMethods: false,
   },
 };
 
@@ -102,14 +105,15 @@ export function canDoGranular(
  */
 export function granularToFlat(gp: GranularPermissions): Permissions {
   return {
-    canViewAll:     gp.subscribers.view,
-    canViewRevenue: gp.analytics.view,
-    canCreate:      gp.subscribers.create,
-    canEdit:        gp.subscribers.edit,
-    canWithdraw:    gp.subscriptions.withdraw,
-    canDelete:      gp.subscribers.delete,
-    canManageUsers: gp.users.manage,
-    canViewLogs:    gp.logs.view,
+    canViewAll:              gp.subscribers.view,
+    canViewRevenue:          gp.analytics.view,
+    canCreate:               gp.subscribers.create,
+    canEdit:                 gp.subscribers.edit,
+    canWithdraw:             gp.subscriptions.withdraw,
+    canDelete:               gp.subscribers.delete,
+    canManageUsers:          gp.users.manage,
+    canViewLogs:             gp.logs.view,
+    canManagePaymentMethods: gp.settings.manage,
   };
 }
 
@@ -200,12 +204,8 @@ export const EMPLOYEE_AUTH_ROLE: Record<EmployeeRole, Role> = {
 };
 
 // ─── Static data ───────────────────────────────────────────────────────────────
-
-export const EMPLOYEES = ["حنان", "ميار", "ميدو"] as const;
-export type EmployeeName = (typeof EMPLOYEES)[number];
-
-export const TEAMS = ["فريق الشباب", "فريق البنات", "عبدالله طلبة"] as const;
-export type TeamName = (typeof TEAMS)[number];
+// Employee names and team names are NOT hardcoded here.
+// Use useEmployeeNames() hook and useTeams() hook instead — they read from Firestore.
 
 export const PAYMENT_METHODS = [
   "PayPal",

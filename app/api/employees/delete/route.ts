@@ -3,6 +3,7 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { verifyServerUser, hasServerPermission, getBearerToken } from "@/lib/serverAuth";
 import { hasAdminCredentials, fsGet, fsPatch, fsAdd } from "@/lib/serverFirestore";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import type { Role } from "@/types";
 import { z } from "zod";
 
@@ -15,6 +16,9 @@ function jsonError(msg: string, status: number) {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`emp-delete:${ip}`, 5, 60 * 1000)) return jsonError("Too many requests", 429);
+
   // ── 1. Auth — owner only ─────────────────────────────────────────────────────
   let actor;
   try { actor = await verifyServerUser(request); } catch { return jsonError("Unauthorized", 401); }

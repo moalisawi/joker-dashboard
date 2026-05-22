@@ -11,6 +11,7 @@ export interface Payment {
   exchangeRate: number;
   amountUSD: number;
   paymentMethod: string;
+  paymentMethodId?: string;
   paymentType?: PaymentType;
   receiptUrl?: string | null;
   receiptType?: string | null;
@@ -33,6 +34,7 @@ export interface PaymentTransaction {
   exchangeRate: number;
   amountUSD: number;
   paymentMethod: string;
+  paymentMethodId?: string;
   date: string; // YYYY-MM-DD
   notes?: string;
   receiptUrl?: string | null;

@@ -1,19 +1,21 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import dynamicImport from "next/dynamic";
 import type { Step, EventData } from "react-joyride";
+import type { Controls } from "react-joyride";
 import { useAuthStore } from "@/store/authStore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { usePayments } from "@/hooks/usePayments";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
+import PageHeader from "@/components/layout/PageHeader";
 import StatsCards from "@/components/stats/StatsCards";
 import StatsDateFilter, { type StatsPeriod, getPeriodLabel } from "@/components/stats/StatsDateFilter";
 import CurrencyCounters from "@/components/stats/CurrencyCounters";
 import TeamPerformance from "@/components/stats/TeamPerformance";
 import Alerts from "@/components/stats/Alerts";
+import AlertsPanel from "@/components/stats/AlertsPanel";
 import Expiry15Days from "@/components/stats/Expiry15Days";
 import AdvancedStats from "@/components/stats/AdvancedStats";
 import MonthlyCalendar from "@/components/calendar/MonthlyCalendar";
@@ -38,7 +40,33 @@ import { Button, Skeleton } from "@heroui/react";
 import { useRefunds } from "@/hooks/useRefunds";
 import { toast } from "@/lib/toast";
 
-const Joyride = dynamicImport(() => import("@/components/ui/JoyrideWrapper"), { ssr: false });
+const Joyride = dynamicImport(
+  () => import("react-joyride").then((m) => ({ default: m.Joyride })),
+  { ssr: false }
+);
+
+// Static — defined at module level so the array reference never changes
+// between renders. A new array on every render causes Joyride to treat
+// steps as "changed" and restart the tour on each re-render, creating an
+// infinite render loop when combined with run={true}.
+const TOUR_STEPS: Step[] = [
+  {
+    target: "#tour-header",
+    content: "مرحباً بك في لوحة التحكم! من هنا تضيف مشتركين جدد وتتابع الأسعار.",
+    placement: "bottom",
+    skipBeacon: true,
+  },
+  {
+    target: "#tour-stats",
+    content: "بطاقات الإحصائيات — تعرض الإجمالي، النشطين، المنتهين، والإيرادات حسب الفترة الزمنية التي تختارها.",
+    placement: "bottom",
+  },
+  {
+    target: "#tour-tabs",
+    content: "التبويبات — انتقل بين النظرة العامة وجدول المشتركين والتنبيهات من هنا.",
+    placement: "top",
+  },
+];
 
 function filterByPeriod<T extends object>(
   items: T[],
@@ -93,30 +121,21 @@ export default function HomePage() {
     if (!seen) { setTourRun(true); localStorage.setItem("joker-tour-done", "1"); }
   }, []);
 
-  const tourSteps: Step[] = [
-    {
-      target: "#tour-header",
-      content: "مرحباً بك في لوحة التحكم! من هنا تضيف مشتركين جدد وتتابع الأسعار.",
-      placement: "bottom",
-      skipBeacon: true,
-    },
-    {
-      target: "#tour-stats",
-      content: "بطاقات الإحصائيات — تعرض الإجمالي، النشطين، المنتهين، والإيرادات حسب الفترة الزمنية التي تختارها.",
-      placement: "bottom",
-    },
-    {
-      target: "#tour-tabs",
-      content: "التبويبات — انتقل بين النظرة العامة وجدول المشتركين والتنبيهات من هنا.",
-      placement: "top",
-    },
-  ];
-
-  function handleTourCallback(data: EventData) {
+  function handleTourCallback(data: EventData, _controls: Controls) {
     const { status } = data;
     const finished = ["finished", "skipped"] as string[];
     if (finished.includes(status as string)) setTourRun(false);
   }
+
+  const activeCount = useMemo(
+    () => subscribers.filter(
+      (s) => s.subscriptionState !== "withdrawn" &&
+             s.subscriptionStatus !== "paused" &&
+             s.freezeData?.isFrozen !== true &&
+             s.status === "نشط"
+    ).length,
+    [subscribers],
+  );
 
   const filteredSubscribers = useMemo(
     () => filterByPeriod(subscribers as (Subscriber & { date: string })[], statsPeriod),
@@ -163,68 +182,72 @@ export default function HomePage() {
   return (
     <ProtectedLayout>
       <Joyride
-        steps={tourSteps}
+        steps={TOUR_STEPS}
         run={tourRun}
         continuous
         onEvent={handleTourCallback}
         locale={{ back: "السابق", close: "إغلاق", last: "إنهاء", next: "التالي", skip: "تخطى" }}
         options={{
-          primaryColor: "#6366f1",
+          primaryColor: "#10141A",
           zIndex: 10000,
           arrowColor: "#fff",
           showProgress: true,
-          buttons: ["back", "close", "primary", "skip"],
         }}
         styles={{
-          tooltip: { borderRadius: 14, fontFamily: "inherit", direction: "rtl" },
-          buttonPrimary: { borderRadius: 10, fontWeight: 700 },
-          buttonBack: { borderRadius: 10 },
-          buttonSkip: { borderRadius: 10 },
+          tooltip: { borderRadius: 22, fontFamily: "inherit", direction: "rtl", boxShadow: "0 20px 48px rgba(16,20,26,.25)" },
+          buttonPrimary: { borderRadius: 9999, fontWeight: 700, background: "#10141A" },
+          buttonBack: { borderRadius: 9999 },
+          buttonSkip: { borderRadius: 9999 },
         }}
       />
       <div className="p-5 md:p-8 max-w-screen-2xl mx-auto">
 
         {/* Page header */}
-        <div id="tour-header" className="flex items-center justify-between mb-7">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">المشتركون</h1>
-            <p className="text-slate-500 text-sm mt-1 font-medium">
-              أهلاً، {user?.name} ·{" "}
-              <span className="text-slate-700 font-semibold">{subscribers.length}</span> مشترك
-            </p>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setTourRun(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
-              style={{ background: "var(--surface-2)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-              title="جولة تعريفية"
-            >
-              🎯 جولة
-            </button>
-            {can("canViewRevenue") && (
-              <Button
-                variant="outline"
-                size="sm"
-                onPress={() => setModal({ type: "rates" })}
-                className="gap-1.5"
-              >
-                <DollarSign size={14} />
-                أسعار الصرف
-              </Button>
-            )}
-            {can("canCreate") && (
-              <Button
-                variant="primary"
-                size="sm"
-                onPress={() => setModal({ type: "add" })}
-                className="gap-2"
-              >
-                <Plus size={15} />
-                مشترك جديد
-              </Button>
-            )}
-          </div>
+        <div id="tour-header">
+          <PageHeader
+            title="المشتركون"
+            subtitle={
+              !loading
+                ? `${subscribers.length} مشترك مسجل في النظام · ${activeCount} نشط`
+                : undefined
+            }
+            actions={
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTourRun(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+                  style={{ background: "var(--surface-2)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+                  title="جولة تعريفية"
+                >
+                  🎯 جولة
+                </button>
+                {can("canViewRevenue") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onPress={() => setModal({ type: "rates" })}
+                    className="gap-1.5"
+                  >
+                    <DollarSign size={14} />
+                    أسعار الصرف
+                  </Button>
+                )}
+                {can("canCreate") && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onPress={() => setModal({ type: "add" })}
+                    className="gap-2"
+                  >
+                    <Plus size={15} />
+                    مشترك جديد
+                  </Button>
+                )}
+              </div>
+            }
+          >
+            {!loading && <StatsDateFilter value={statsPeriod} onChange={setStatsPeriod} />}
+          </PageHeader>
         </div>
 
         {error && (
@@ -256,8 +279,6 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            {/* ─── Stats strip ─────────────────────────────────────────── */}
-            <StatsDateFilter value={statsPeriod} onChange={setStatsPeriod} />
             <div id="tour-stats">
               <StatsCards
                 subscribers={filteredSubscribers}
@@ -297,22 +318,8 @@ export default function HomePage() {
                     <MonthlyCalendar subscribers={subscribers} />
                   </div>
                   <div className="space-y-4">
-                    <div className="bg-white rounded-2xl border border-[rgba(0,0,0,0.08)] shadow-[0_1px_2px_rgba(0,0,0,0.05),_0_2px_8px_rgba(0,0,0,0.06)] p-5"
-                         style={{ background: "var(--surface)" }}>
-                      <h3 className="font-bold text-sm mb-4 flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-                        <span className="w-1 h-4 rounded-full bg-blue-500 inline-block" />
-                        أداء الفريق
-                      </h3>
-                      <TeamPerformance subscribers={subscribers} />
-                    </div>
-                    <div className="bg-white rounded-2xl border border-[rgba(0,0,0,0.08)] shadow-[0_1px_2px_rgba(0,0,0,0.05),_0_2px_8px_rgba(0,0,0,0.06)] overflow-hidden"
-                         style={{ background: "var(--surface)" }}>
-                      <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: "var(--border)" }}>
-                        <span className="w-1 h-4 rounded-full bg-amber-500 inline-block" />
-                        <h3 className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>تنبيهات الانتهاء</h3>
-                      </div>
-                      <Alerts subscribers={subscribers} />
-                    </div>
+                    <TeamPerformance subscribers={subscribers} />
+                    <Alerts subscribers={subscribers} />
                   </div>
                 </div>
                 <AdvancedStats subscribers={subscribers} />
@@ -336,18 +343,7 @@ export default function HomePage() {
 
               {/* ── Tab: Alerts ──────────────────────────────────────── */}
               <TabPanel value="alerts">
-                <Expiry15Days subscribers={subscribers} />
-                <PausedSubscribersSection
-                  subscribers={subscribers}
-                  onProfile={(s) => setModal({ type: "profile", subscriber: s })}
-                  onEdit={(s)    => setModal({ type: "edit",    subscriber: s })}
-                />
-                <FrozenSubscribersSection
-                  subscribers={subscribers}
-                  onProfile={(s) => setModal({ type: "profile", subscriber: s })}
-                  onResume={(s)  => setModal({ type: "resume",  subscriber: s })}
-                  onEdit={(s)    => setModal({ type: "edit",    subscriber: s })}
-                />
+                <AlertsPanel subscribers={subscribers} />
               </TabPanel>
             </Tabs>
           </>

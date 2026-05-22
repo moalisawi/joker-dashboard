@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -24,19 +23,20 @@ import {
   ShieldCheck, ShieldOff, UserMinus, CheckCircle2, XCircle,
   Crown, TrendingUp, DollarSign, Search,
 } from "lucide-react";
+import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
-  sales:    { label: "مبيعات",   color: "#10b981" },
-  followup: { label: "متابعة",  color: "#8b5cf6" },
-  admin:    { label: "مدير",    color: "#6366f1" },
-  owner:    { label: "مالك",    color: "#f59e0b" },
+  sales:    { label: "مبيعات",   color: "#83A2DB" },
+  followup: { label: "متابعة",  color: "#9DB4D6" },
+  admin:    { label: "مدير",    color: "#83A2DB" },
+  owner:    { label: "مالك",    color: "#E8B570" },
 };
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
-  sales:     { label: "مبيعات", color: "#10b981" },
-  nutrition: { label: "تغذية",  color: "#8b5cf6" },
+  sales:     { label: "مبيعات", color: "#83A2DB" },
+  nutrition: { label: "تغذية",  color: "#9DB4D6" },
 };
 
 function permSummary(emp: UserProfile): string {
@@ -91,7 +91,12 @@ function MemberRow({
             {(emp.name ?? emp.email ?? "?")[0]?.toUpperCase()}
           </div>
           <div>
-            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{emp.name}</p>
+            <EmployeeNameChip
+              name={emp.name}
+              uid={emp.uid}
+              className="text-sm font-semibold block text-right"
+              style={{ color: "var(--text-primary)" }}
+            />
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>{emp.email}</p>
           </div>
         </div>
@@ -147,7 +152,7 @@ function MemberRow({
               onClick={() => onRemove(emp)}
               title="إزالة من الفريق"
               className="p-1.5 rounded-lg transition-colors"
-              style={{ background: "#f43f5e12", color: "#f43f5e" }}
+              style={{ background: "#CE696912", color: "#CE6969" }}
             >
               <UserMinus size={13}/>
             </button>
@@ -161,11 +166,11 @@ function MemberRow({
 // ─── Subscribers Section ─────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  "نشط":           "#10b981",
-  "ينتهي قريباً":  "#f59e0b",
-  "منتهي":         "#f43f5e",
-  "موقوف":         "#f97316",
-  "متجمد":         "#38bdf8",
+  "نشط":           "#83A2DB",
+  "ينتهي قريباً":  "#E8B570",
+  "منتهي":         "#CE6969",
+  "موقوف":         "#E8B570",
+  "متجمد":         "#9DB4D6",
   "منسحب":         "#94a3b8",
 };
 
@@ -200,7 +205,7 @@ function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: bo
       <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
         <h2 className="font-bold text-base" style={{ color: "var(--text-primary)" }}>مشتركو الفريق</h2>
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-          style={{ background: "#6366f115", color: "#6366f1" }}>
+          style={{ background: "#83A2DB15", color: "#83A2DB" }}>
           {teamSubs.length} مشترك
         </span>
       </div>
@@ -208,10 +213,10 @@ function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: bo
       {/* Mini stats */}
       <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 border-b" style={{ borderColor: "var(--border)" }}>
         {[
-          { label: "الإجمالي",       value: teamSubs.length,            color: "#6366f1" },
-          { label: "نشطون",          value: active,                     color: "#10b981" },
-          { label: "ينتهي قريباً",   value: expiring,                   color: "#f59e0b" },
-          { label: "الإيراد",        value: canRev ? `$${formatNumber(revenue, 0)}` : "—", color: "#10b981" },
+          { label: "الإجمالي",       value: teamSubs.length,            color: "#83A2DB" },
+          { label: "نشطون",          value: active,                     color: "#83A2DB" },
+          { label: "ينتهي قريباً",   value: expiring,                   color: "#E8B570" },
+          { label: "الإيراد",        value: canRev ? `$${formatNumber(revenue, 0)}` : "—", color: "#83A2DB" },
         ].map((s) => (
           <div key={s.label} className="rounded-xl p-3 text-center"
             style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
@@ -279,7 +284,7 @@ function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: bo
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="text-sm tabular-nums font-semibold"
-                      style={{ color: s.daysRemaining <= 7 ? "#f43f5e" : s.daysRemaining <= 30 ? "#f59e0b" : "var(--text-primary)" }}>
+                      style={{ color: s.daysRemaining <= 7 ? "#CE6969" : s.daysRemaining <= 30 ? "#E8B570" : "var(--text-primary)" }}>
                       {s.daysRemaining > 0 ? `${s.daysRemaining} يوم` : "منتهي"}
                     </span>
                   </td>
@@ -375,7 +380,7 @@ export default function TeamDetailPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl shadow-lg font-bold text-sm text-white flex items-center gap-2"
-            style={{ background: toast.ok ? "#10b981" : "#f43f5e" }}
+            style={{ background: toast.ok ? "#83A2DB" : "#CE6969" }}
           >
             {toast.ok ? "✓" : "✕"} {toast.msg}
           </motion.div>
@@ -412,7 +417,6 @@ export default function TeamDetailPage() {
                 className="rounded-2xl overflow-hidden"
                 style={{ background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}
               >
-                <div className="h-1.5" style={{ background: `linear-gradient(90deg,${typeMeta.color}cc,${typeMeta.color}44)` }}/>
                 <div className="p-6 flex flex-col sm:flex-row sm:items-center gap-5">
                   <div className="h-14 w-14 rounded-2xl flex items-center justify-center flex-shrink-0"
                     style={{ background: `${typeMeta.color}18`, border: `1px solid ${typeMeta.color}28` }}>
@@ -426,7 +430,7 @@ export default function TeamDetailPage() {
                         {team.name}
                       </h1>
                       <span className="px-2.5 py-1 rounded-full text-xs font-bold"
-                        style={{ background: team.active ? "#10b98118" : "#94a3b818", color: team.active ? "#10b981" : "#94a3b8" }}>
+                        style={{ background: team.active ? "#83A2DB18" : "#94a3b818", color: team.active ? "#83A2DB" : "#94a3b8" }}>
                         {team.active ? "نشط" : "معطّل"}
                       </span>
                     </div>
@@ -440,7 +444,7 @@ export default function TeamDetailPage() {
                   <div className="flex items-center gap-4 text-center">
                     {[
                       { label: "أعضاء",  value: stats.total,  color: typeMeta.color },
-                      { label: "نشطون",  value: stats.active, color: "#10b981" },
+                      { label: "نشطون",  value: stats.active, color: "#83A2DB" },
                     ].map((s) => (
                       <div key={s.label}>
                         <p className="text-2xl font-black tabular-nums" style={{ color: s.color }}>{s.value}</p>
@@ -455,9 +459,9 @@ export default function TeamDetailPage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   { label: "إجمالي الأعضاء", value: stats.total,  color: typeMeta.color, icon: <User size={14}/> },
-                  { label: "نشطون",           value: stats.active, color: "#10b981",      icon: <CheckCircle2 size={14}/> },
-                  { label: "مبيعات",          value: stats.sales,  color: "#f59e0b",      icon: <TrendingUp size={14}/> },
-                  { label: "متابعة",          value: stats.follow, color: "#8b5cf6",      icon: <ShieldCheck size={14}/> },
+                  { label: "نشطون",           value: stats.active, color: "#83A2DB",      icon: <CheckCircle2 size={14}/> },
+                  { label: "مبيعات",          value: stats.sales,  color: "#E8B570",      icon: <TrendingUp size={14}/> },
+                  { label: "متابعة",          value: stats.follow, color: "#9DB4D6",      icon: <ShieldCheck size={14}/> },
                 ].map((s) => (
                   <div key={s.label} className="rounded-2xl p-4 flex items-center gap-3"
                     style={{ background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}>
@@ -554,7 +558,7 @@ export default function TeamDetailPage() {
                   disabled={assignTeamMut.isPending}
                   onClick={() => handleRemoveMember(removing)}
                   className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-                  style={{ background: "#f43f5e" }}
+                  style={{ background: "#CE6969" }}
                 >
                   {assignTeamMut.isPending ? "جاري..." : "إزالة"}
                 </button>

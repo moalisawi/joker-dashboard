@@ -5,11 +5,12 @@ import type { MonthlyAnalytics } from "@/types";
 import { formatNumber, ARABIC_MONTHS, RESIDENCE_COUNTRIES, PHONE_COUNTRIES } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useMonthlyAnalytics, calculateAnalyticsSummary } from "@/hooks/useMonthlyAnalytics";
-import { EMPLOYEES } from "@/lib/permissions";
+import { useEmployeeNames } from "@/hooks/useEmployeeNames";
 import { SlidersHorizontal } from "lucide-react";
 
 export default function AnalyticsTransactionBased() {
   const { can } = useAuthStore();
+  const employeeNames = useEmployeeNames();
   const canRev = can("canViewRevenue");
 
   const [filterMonth, setFilterMonth] = useState("");
@@ -153,7 +154,7 @@ export default function AnalyticsTransactionBased() {
             className="form-input w-auto"
           >
             <option value="">كل الموظفين</option>
-            {EMPLOYEES.map((e) => (
+            {employeeNames.map((e) => (
               <option key={e} value={e}>
                 {e}
               </option>

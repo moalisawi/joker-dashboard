@@ -27,7 +27,7 @@ export default function ConfirmDialog({
   loading,
   destructive  = false,
 }: Props) {
-  const accent = destructive ? "#f43f5e" : "#6366f1";
+  const accent = destructive ? "#CE6969" : "#10141A";
 
   return (
     <AnimatePresence>
@@ -47,25 +47,25 @@ export default function ConfirmDialog({
           >
             <button
               onClick={onClose}
-              className="absolute top-4 left-4 p-1 rounded-lg opacity-40 hover:opacity-70 transition-opacity"
-              style={{ color: "var(--text-secondary)" }}
+              className="absolute top-4 left-4 flex items-center justify-center transition"
+              style={{ color: "var(--jk-muted)", width: 36, height: 36, borderRadius: "50%", background: "var(--jk-panel)", border: "none" }}
             >
               <X size={15} />
             </button>
 
             <div className="flex items-start gap-4 mb-4">
               <div
-                className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: `${accent}15` }}
+                className="h-10 w-10 flex items-center justify-center shrink-0"
+                style={{ background: `${accent}14`, borderRadius: "50%", border: `1px solid ${accent}28` }}
               >
                 <AlertTriangle size={18} style={{ color: accent }} />
               </div>
               <div>
-                <p className="font-bold text-base leading-snug" style={{ color: "var(--text-primary)" }}>
+                <p style={{ color: "var(--jk-text)", fontSize: 17, fontWeight: 800, letterSpacing: "-0.01em", lineHeight: 1.3 }}>
                   {title}
                 </p>
                 {description && (
-                  <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                  <p style={{ color: "var(--jk-muted)", fontSize: 12.5, marginTop: 6, lineHeight: 1.6 }}>
                     {description}
                   </p>
                 )}
@@ -76,16 +76,16 @@ export default function ConfirmDialog({
               <button
                 onClick={onConfirm}
                 disabled={loading}
-                className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm transition disabled:opacity-60"
-                style={{ background: accent }}
+                className={destructive ? "btn-danger" : "btn-primary"}
+                style={{ flex: 1, padding: "11px 20px" }}
               >
                 {loading ? <Spinner size="sm" color="current" /> : confirmLabel}
               </button>
               <button
                 onClick={onClose}
                 disabled={loading}
-                className="flex-1 py-2.5 rounded-xl border font-semibold text-sm transition"
-                style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                className="btn-secondary"
+                style={{ flex: 1, padding: "11px 20px" }}
               >
                 {cancelLabel}
               </button>

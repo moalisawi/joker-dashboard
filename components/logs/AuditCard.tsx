@@ -11,7 +11,8 @@ import {
   AlertTriangle, CheckCircle2, Info, XCircle,
 } from "lucide-react";
 import type { NormalizedAuditLog, AuditSeverity } from "@/types";
-import DiffView from "./DiffView";
+import DiffView         from "./DiffView";
+import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
 // ─── label / icon maps ───────────────────────────────────────────────────────
 
@@ -79,11 +80,11 @@ const ACTION_ICON: Record<string, React.ReactNode> = {
 
 // ─── severity styling ────────────────────────────────────────────────────────
 
-const SEVERITY_BADGE: Record<AuditSeverity, string> = {
-  success:  "bg-emerald-100 text-emerald-700 border-emerald-200",
-  info:     "bg-blue-100    text-blue-700    border-blue-200",
-  warning:  "bg-amber-100   text-amber-700   border-amber-200",
-  critical: "bg-red-100     text-red-700     border-red-200",
+const SEVERITY_STYLE: Record<AuditSeverity, { bg: string; color: string; border: string; dot: string }> = {
+  success:  { bg: "rgba(131,162,219,.14)", color: "#83A2DB", border: "rgba(131,162,219,.32)", dot: "#83A2DB" },
+  info:     { bg: "rgba(157,180,214,.14)", color: "#9DB4D6", border: "rgba(157,180,214,.30)", dot: "#9DB4D6" },
+  warning:  { bg: "rgba(232,181,112,.14)", color: "#E8B570", border: "rgba(232,181,112,.32)", dot: "#E8B570" },
+  critical: { bg: "rgba(206,105,105,.12)", color: "#CE6969", border: "rgba(206,105,105,.30)", dot: "#CE6969" },
 };
 
 const SEVERITY_ICON: Record<AuditSeverity, React.ReactNode> = {
@@ -91,13 +92,6 @@ const SEVERITY_ICON: Record<AuditSeverity, React.ReactNode> = {
   info:     <Info         size={13} />,
   warning:  <AlertTriangle size={13} />,
   critical: <XCircle      size={13} />,
-};
-
-const SEVERITY_DOT: Record<AuditSeverity, string> = {
-  success:  "bg-emerald-500",
-  info:     "bg-blue-500",
-  warning:  "bg-amber-500",
-  critical: "bg-red-500",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -164,24 +158,26 @@ export default function AuditCard({ log }: AuditCardProps) {
   const hasMetadata  = log.metadata && Object.keys(log.metadata).length > 0;
   const hasDetails   = hasDiff || hasMetadata;
 
+  const sev = SEVERITY_STYLE[severity];
+
   return (
     <div
-      className={`group relative bg-white rounded-xl border transition-all duration-200
-        hover:shadow-md hover:-translate-y-px
-        ${severity === "critical" ? "border-red-200 hover:border-red-300" :
-          severity === "warning"  ? "border-amber-200 hover:border-amber-300" :
-          severity === "success"  ? "border-emerald-200 hover:border-emerald-300" :
-          "border-slate-100 hover:border-slate-200"}`}
+      className="group relative transition-all duration-200"
+      style={{
+        background: "var(--jk-surface)",
+        border: `1px solid var(--jk-border)`,
+        borderRadius: 22,
+        boxShadow: "var(--jk-shadow-card)",
+      }}
     >
-      {/* left accent bar */}
-      <div className={`absolute top-0 right-0 w-1 h-full rounded-r-xl ${SEVERITY_DOT[severity]}`} />
-
       <div className="px-4 py-3 pr-5">
         {/* top row */}
         <div className="flex items-start gap-3">
           {/* icon */}
-          <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center mt-0.5
-            ${SEVERITY_BADGE[severity].split(" ").slice(0,2).join(" ")}`}>
+          <div
+            className="shrink-0 flex items-center justify-center mt-0.5"
+            style={{ width: 36, height: 36, borderRadius: "50%", background: sev.bg, color: sev.color, border: `1px solid ${sev.border}` }}
+          >
             {ACTION_ICON[action] ?? <Activity size={15} />}
           </div>
 
@@ -189,23 +185,23 @@ export default function AuditCard({ log }: AuditCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               {/* action badge */}
-              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold border ${SEVERITY_BADGE[severity]}`}>
+              <span className="inline-flex items-center gap-1" style={{ background: sev.bg, color: sev.color, border: `1px solid ${sev.border}`, padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
                 {SEVERITY_ICON[severity]}
                 {ACTION_LABELS[action] ?? action}
               </span>
 
               {/* category badge */}
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+              <span style={{ background: "var(--jk-panel)", color: "var(--jk-muted)", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 500 }}>
                 {CATEGORY_LABELS[category] ?? category}
               </span>
 
               {/* financial badge */}
               {hasFinancial && (
-                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                  log.financialData!.impactType === "negative"
-                    ? "bg-red-50 text-red-600"
-                    : "bg-emerald-50 text-emerald-700"
-                }`}>
+                <span style={{
+                  padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600,
+                  background: log.financialData!.impactType === "negative" ? "rgba(206,105,105,.12)" : "rgba(131,162,219,.14)",
+                  color:      log.financialData!.impactType === "negative" ? "#CE6969"               : "#83A2DB",
+                }}>
                   {log.financialData!.impactType === "negative" ? "−" : "+"}
                   ${log.financialData!.amountUSD!.toFixed(2)}
                   {log.financialData!.currency && log.financialData!.currency !== "USD"
@@ -217,25 +213,27 @@ export default function AuditCard({ log }: AuditCardProps) {
 
             {/* description */}
             {log._description && (
-              <p className="text-sm text-slate-700 font-medium truncate">
+              <p className="truncate" style={{ fontSize: 13, color: "var(--jk-text)", fontWeight: 500 }}>
                 {log._description}
               </p>
             )}
 
             {/* meta row */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-400">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1" style={{ fontSize: 11.5, color: "var(--jk-subtle)" }}>
               {log._performedByName && (
-                <span className="font-semibold text-slate-600">
-                  {log._performedByName}
-                </span>
+                <EmployeeNameChip
+                  name={log._performedByName}
+                  uid={log.performedBy?.uid}
+                  className="font-semibold"
+                />
               )}
               {log._performedByRole && (
                 <span>{ROLE_LABELS[log._performedByRole] ?? log._performedByRole}</span>
               )}
               {log._entityName && log._entityName !== log._description && (
                 <>
-                  <span className="text-slate-300">·</span>
-                  <span className="text-slate-500">{log._entityName}</span>
+                  <span style={{ color: "var(--jk-subtle)" }}>·</span>
+                  <span style={{ color: "var(--jk-muted)" }}>{log._entityName}</span>
                 </>
               )}
             </div>
@@ -245,14 +243,16 @@ export default function AuditCard({ log }: AuditCardProps) {
           <div className="shrink-0 flex flex-col items-end gap-1">
             <span
               title={fullDateTime(ms)}
-              className="text-xs text-slate-400 whitespace-nowrap cursor-default"
+              className="whitespace-nowrap cursor-default"
+              style={{ fontSize: 11.5, color: "var(--jk-subtle)" }}
             >
               {relativeTime(ms)}
             </span>
             {hasDetails && (
               <button
                 onClick={() => setExpanded((v) => !v)}
-                className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-0.5 transition-colors"
+                className="flex items-center gap-0.5 transition-colors"
+                style={{ fontSize: 11.5, color: "var(--jk-muted)", background: "transparent", border: "none", cursor: "pointer", padding: 0 }}
               >
                 {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 {expanded ? "إخفاء" : "التفاصيل"}
@@ -263,11 +263,11 @@ export default function AuditCard({ log }: AuditCardProps) {
 
         {/* expanded details */}
         {expanded && hasDetails && (
-          <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+          <div className="mt-3 pt-3 space-y-3" style={{ borderTop: "1px solid var(--jk-divider)" }}>
             {/* diff */}
             {hasDiff && (
               <div>
-                <p className="text-xs font-semibold text-slate-500 mb-1">التغييرات</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--jk-muted)", marginBottom: 6 }}>التغييرات</p>
                 <DiffView
                   previousData={log.previousData}
                   newData={log.newData}
@@ -279,14 +279,14 @@ export default function AuditCard({ log }: AuditCardProps) {
             {/* metadata */}
             {hasMetadata && (
               <div>
-                <p className="text-xs font-semibold text-slate-500 mb-1">البيانات الإضافية</p>
-                <div className="bg-slate-50 rounded-lg p-3 grid grid-cols-2 gap-x-4 gap-y-1">
+                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--jk-muted)", marginBottom: 6 }}>البيانات الإضافية</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1" style={{ background: "var(--jk-panel)", borderRadius: 14, padding: 12 }}>
                   {Object.entries(log.metadata!).map(([k, v]) => {
                     if (v === null || v === undefined) return null;
                     return (
-                      <div key={k} className="text-xs">
-                        <span className="text-slate-400">{k}: </span>
-                        <span className="text-slate-700 font-medium">
+                      <div key={k} style={{ fontSize: 12 }}>
+                        <span style={{ color: "var(--jk-subtle)" }}>{k}: </span>
+                        <span style={{ color: "var(--jk-text)", fontWeight: 500 }}>
                           {typeof v === "object" ? JSON.stringify(v) : String(v)}
                         </span>
                       </div>
@@ -297,7 +297,7 @@ export default function AuditCard({ log }: AuditCardProps) {
             )}
 
             {/* full timestamp */}
-            <p className="text-xs text-slate-400">
+            <p style={{ fontSize: 11.5, color: "var(--jk-subtle)" }}>
               {fullDateTime(ms)}
             </p>
           </div>

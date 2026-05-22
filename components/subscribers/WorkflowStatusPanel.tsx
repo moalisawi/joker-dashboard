@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -55,13 +55,13 @@ export default function WorkflowStatusPanel({ subscriber, onSuccess }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center gap-2.5">
-          <Activity size={15} style={{ color: "#8b5cf6" }}/>
+          <Activity size={15} style={{ color: "#9DB4D6" }}/>
           <span className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>حالة المسار</span>
         </div>
         {canChange && (
           <button onClick={() => setOpen((v) => !v)}
             className="text-xs font-bold px-3 py-1.5 rounded-xl text-white"
-            style={{ background: "linear-gradient(135deg,#8b5cf6,#6366f1)" }}>
+            style={{ background: "linear-gradient(135deg,#9DB4D6,#83A2DB)" }}>
             {open ? "إغلاق" : "تغيير"}
           </button>
         )}

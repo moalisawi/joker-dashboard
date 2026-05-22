@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { PERMISSION_LABELS } from "@/types";
 import { EMPLOYEE_ROLE_PERMISSIONS, DEFAULT_GRANULAR_PERMISSIONS } from "@/lib/permissions";
@@ -60,7 +60,7 @@ export default function PermissionsEditor({ value, onChange, readOnly }: Props) 
               type="button"
               onClick={() => applyPreset(p.value)}
               className="px-3 py-1 rounded-lg text-xs font-bold border transition-all hover:opacity-80"
-              style={{ borderColor: "#6366f140", color: "#6366f1", background: "#6366f110" }}
+              style={{ borderColor: "#83A2DB40", color: "#83A2DB", background: "#83A2DB10" }}
             >
               {p.label}
             </button>
@@ -104,8 +104,8 @@ export default function PermissionsEditor({ value, onChange, readOnly }: Props) 
                   onClick={() => toggleAll(cat)}
                   className="text-xs font-semibold px-2 py-0.5 rounded-md transition-colors"
                   style={{
-                    background: allOn ? "#6366f118" : someOn ? "#f59e0b18" : "transparent",
-                    color:      allOn ? "#6366f1"   : someOn ? "#f59e0b"   : "var(--text-muted)",
+                    background: allOn ? "#83A2DB18" : someOn ? "#E8B57018" : "transparent",
+                    color:      allOn ? "#83A2DB"   : someOn ? "#E8B570"   : "var(--text-muted)",
                   }}
                 >
                   {allOn ? "إلغاء الكل" : "تحديد الكل"}
@@ -122,8 +122,8 @@ export default function PermissionsEditor({ value, onChange, readOnly }: Props) 
                     key={action}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${readOnly ? "cursor-default" : "hover:bg-slate-50"}`}
                     style={{
-                      background: checked ? "#6366f110" : "transparent",
-                      border: `1px solid ${checked ? "#6366f130" : "var(--border)"}`,
+                      background: checked ? "#83A2DB10" : "transparent",
+                      border: `1px solid ${checked ? "#83A2DB30" : "var(--border)"}`,
                     }}
                   >
                     <input
@@ -135,7 +135,7 @@ export default function PermissionsEditor({ value, onChange, readOnly }: Props) 
                     />
                     <span
                       className="text-xs font-medium"
-                      style={{ color: checked ? "#6366f1" : "var(--text-secondary)" }}
+                      style={{ color: checked ? "#83A2DB" : "var(--text-secondary)" }}
                     >
                       {meta.actions[action] ?? action}
                     </span>

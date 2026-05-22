@@ -276,6 +276,24 @@
     },
 
     // ─── subscribers ──────────────────────────────────────────────────────
+    // getAll(): where(deleted != true) — inequality filter requires index
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted",   "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    // where(deleted != true) + orderBy(date)
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deleted", "order": "ASCENDING" },
+        { "fieldPath": "date",    "order": "DESCENDING" }
+      ]
+    },
     // Status dashboard (filter by subscriptionState, sort by date)
     {
       "collectionGroup": "subscribers",
@@ -536,6 +554,24 @@
       "fields": [
         { "fieldPath": "deleted",   "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+
+    // ─── renewalHistory (sub-collection of subscribers) ───────────────────
+    // RenewalsTab: orderBy("createdAt", "desc") on the sub-collection
+    {
+      "collectionGroup": "renewalHistory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    // Optional: lookup by renewalNumber
+    {
+      "collectionGroup": "renewalHistory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "renewalNumber", "order": "ASCENDING" }
       ]
     }
 

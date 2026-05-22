@@ -1,8 +1,10 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
+import { collection, query, orderBy, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firestore";
 import { useAuthStore }       from "@/store/authStore";
 import { auth }               from "@/lib/auth";
 import { canManageRenewals, canRenewSubscriptions } from "@/lib/permissionGuards";
@@ -26,7 +28,7 @@ import {
   XCircle, CheckCircle2, ChevronDown, ChevronUp, User,
 } from "lucide-react";
 
-const ACC = { indigo:"#6366f1", emerald:"#10b981", amber:"#f59e0b", rose:"#f43f5e", sky:"#38bdf8" };
+const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
 const fadeUp = { hidden:{opacity:0,y:10}, show:{opacity:1,y:0} };
 const tran   = { duration:0.28, ease:"easeOut" } as const;
 const stagger = { show:{transition:{staggerChildren:0.05}} };
@@ -96,6 +98,54 @@ function DaysIndicator({ days }: { days: number }) {
   );
 }
 
+// ── Renewal history hook (sub-collection + legacy array fallback) ──────────────
+
+type RenewalRecord = {
+  renewalNumber?: number;
+  package?: string;
+  startDate?: string;
+  endDate?: string;
+  duration?: number;
+  totalPriceUSD?: number;
+  paidAmountUSD?: number;
+  remainingAmountUSD?: number;
+  currency?: string;
+  payment?: string;
+  convincedBy?: string;
+  renewedByName?: string;
+  createdAt?: unknown;
+};
+
+function useRenewalHistory(subscriberId: string, legacyArray: RenewalRecord[] | undefined) {
+  const [history, setHistory] = useState<RenewalRecord[]>([]);
+
+  useEffect(() => {
+    if (!subscriberId) return;
+    getDocs(
+      query(
+        collection(db, "subscribers", subscriberId, "renewalHistory"),
+        orderBy("createdAt", "desc")
+      )
+    ).then((snap) => {
+      const docs = snap.docs.map((d) => ({ ...d.data() } as RenewalRecord));
+      // Merge: sub-collection records take precedence; legacy array fills gaps
+      // Identify legacy entries not yet in sub-collection (by renewalNumber)
+      const subCollectionNumbers = new Set(docs.map((d) => d.renewalNumber));
+      const legacyOnly = (legacyArray ?? [])
+        .filter((_, i) => !subCollectionNumbers.has(i + 1))
+        .map((r, i) => ({ ...r, renewalNumber: i + 1 }));
+      setHistory([...docs, ...legacyOnly].sort((a, b) => (b.renewalNumber ?? 0) - (a.renewalNumber ?? 0)));
+    }).catch(() => {
+      // Fallback to legacy array on error
+      setHistory([...(legacyArray ?? [])].reverse());
+    });
+  }, [subscriberId, legacyArray]);
+
+  return history;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface Props {
   subscriber: Subscriber;
   onRenew: () => void;
@@ -105,6 +155,7 @@ interface Props {
 export default function RenewalsTab({ subscriber: s, onRenew, canRev }: Props) {
   const { user }     = useAuthStore();
   const updateStatus = useUpdateRenewalStatus();
+  const renewalHistory = useRenewalHistory(s.id, s.renewals as RenewalRecord[] | undefined);
 
   const canManage  = canManageRenewals(user)        || user?.role === "owner" || user?.role === "admin";
   const canRenewSub= canRenewSubscriptions(user)    || user?.role === "owner" || user?.role === "admin";
@@ -203,7 +254,7 @@ export default function RenewalsTab({ subscriber: s, onRenew, canRev }: Props) {
           </div>
           <div className="p-5 space-y-4">
             {err && (
-              <div className="p-3 rounded-xl text-xs" style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#b91c1c" }}>
+              <div className="p-3 rounded-xl text-xs" style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#CE6969" }}>
                 {err}
               </div>
             )}
@@ -271,7 +322,7 @@ export default function RenewalsTab({ subscriber: s, onRenew, canRev }: Props) {
                 <button onClick={onRenew}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl
                     text-white font-bold text-sm transition-all"
-                  style={{ background:`linear-gradient(135deg,${ACC.emerald},#059669)` }}>
+                  style={{ background:`linear-gradient(135deg,${ACC.emerald},#83A2DB)` }}>
                   <RefreshCw size={15}/>تجديد الاشتراك
                 </button>
               </div>
@@ -293,10 +344,10 @@ export default function RenewalsTab({ subscriber: s, onRenew, canRev }: Props) {
             <span className="font-bold text-sm" style={{ color:"var(--text-primary)" }}>
               سجل التجديدات
             </span>
-            {s.renewals?.length > 0 && (
+            {renewalHistory.length > 0 && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                 style={{ background:`${ACC.indigo}18`, color:ACC.indigo }}>
-                {s.renewals.length}
+                {renewalHistory.length}
               </span>
             )}
           </div>
@@ -310,19 +361,19 @@ export default function RenewalsTab({ subscriber: s, onRenew, canRev }: Props) {
               exit={{ height:0, opacity:0 }} transition={{ duration:0.2 }}
               className="overflow-hidden">
               <div className="p-5">
-                {!s.renewals || s.renewals.length === 0 ? (
+                {renewalHistory.length === 0 ? (
                   <p className="text-xs text-center py-4" style={{ color:"var(--text-muted)" }}>
                     لا يوجد تجديدات سابقة
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {[...s.renewals].reverse().map((r, i) => (
-                      <div key={i}
+                    {renewalHistory.map((r, i) => (
+                      <div key={r.renewalNumber ?? i}
                         className="rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3"
                         style={{ background:"var(--surface-2)", border:"1px solid var(--divider)" }}>
                         <div className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-xs font-black"
                           style={{ background:`${ACC.indigo}15`, color:ACC.indigo }}>
-                          {s.renewals.length - i}
+                          {r.renewalNumber ?? (renewalHistory.length - i)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -335,10 +386,10 @@ export default function RenewalsTab({ subscriber: s, onRenew, canRev }: Props) {
                           </div>
                           {canRev && (
                             <p className="text-xs font-semibold" style={{ color:ACC.emerald }}>
-                              ${formatNumber(r.paidAmountUSD, 2)}
-                              {r.remainingAmountUSD > 0.01 && (
+                              ${formatNumber(r.paidAmountUSD ?? 0, 2)}
+                              {(r.remainingAmountUSD ?? 0) > 0.01 && (
                                 <span style={{ color:ACC.amber }}>
-                                  {" "}/ متبقي ${formatNumber(r.remainingAmountUSD, 2)}
+                                  {" "}/ متبقي ${formatNumber(r.remainingAmountUSD ?? 0, 2)}
                                 </span>
                               )}
                             </p>

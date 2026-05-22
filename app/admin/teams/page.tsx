@@ -1,5 +1,4 @@
-"use client";
-export const dynamic = "force-dynamic";
+﻿"use client";
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -8,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
 
 import ProtectedLayout  from "@/components/layout/ProtectedLayout";
+import PageHeader       from "@/components/layout/PageHeader";
 import ConfirmDialog    from "@/components/ui/ConfirmDialog";
 import EmptyState       from "@/components/ui/EmptyState";
 import TableSkeleton    from "@/components/ui/TableSkeleton";
@@ -49,8 +49,20 @@ import { CSS } from "@dnd-kit/utilities";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TYPE_META = {
-  sales:     { label: "مبيعات", color: "#10b981", icon: <Briefcase size={14}/> },
-  nutrition: { label: "تغذية",  color: "#8b5cf6", icon: <Users2 size={14}/> },
+  sales: {
+    label:    "مبيعات",
+    color:    "#83A2DB",
+    gradient: "linear-gradient(135deg, rgba(131,162,219,.12) 0%, rgba(131,162,219,.04) 60%, transparent 100%)",
+    badge:    { bg: "rgba(131,162,219,.14)", border: "rgba(131,162,219,.32)" },
+    icon:     <Briefcase size={15}/>,
+  },
+  nutrition: {
+    label:    "تغذية",
+    color:    "#E8B570",
+    gradient: "linear-gradient(135deg, rgba(232,181,112,.12) 0%, rgba(232,181,112,.04) 60%, transparent 100%)",
+    badge:    { bg: "rgba(232,181,112,.14)", border: "rgba(232,181,112,.32)" },
+    icon:     <Users2 size={15}/>,
+  },
 };
 
 // ─── Create Team Modal ────────────────────────────────────────────────────────
@@ -108,7 +120,7 @@ function CreateTeamModal({ onClose, onSuccess }: { onClose: () => void; onSucces
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={createMut.isPending}
               className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-              style={{ background:"linear-gradient(135deg,#8b5cf6,#6366f1)" }}>
+              style={{ background:"linear-gradient(135deg,#9DB4D6,#83A2DB)" }}>
               {createMut.isPending ? "جاري..." : "إنشاء الفريق"}
             </button>
             <button type="button" onClick={onClose}
@@ -164,7 +176,7 @@ function RenameTeamModal({ team, onClose, onSuccess }: {
           <div className="flex gap-3">
             <button type="submit" disabled={updateMut.isPending}
               className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-              style={{ background:"#6366f1" }}>
+              style={{ background:"#83A2DB" }}>
               {updateMut.isPending ? "جاري..." : "حفظ"}
             </button>
             <button type="button" onClick={onClose}
@@ -189,48 +201,60 @@ function TeamCard({ team, memberCount, subscriberCount, canEdit, isOwner, onRena
     <motion.div
       initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.3 }}
       className="rounded-2xl overflow-hidden"
-      style={{ background:"var(--surface)", border:"1px solid var(--border)", boxShadow:"var(--shadow-card)", opacity: team.active ? 1 : 0.55 }}
+      style={{
+        background: `var(--surface)`,
+        backgroundImage: team.active ? meta.gradient : "none",
+        border: `1px solid ${meta.color}30`,
+        boxShadow: `var(--shadow-card), 0 0 0 0 ${meta.color}`,
+        opacity: team.active ? 1 : 0.55,
+        transition: "box-shadow .25s ease, transform .25s ease",
+      }}
+      whileHover={{ y: -2, boxShadow: `0 1px 2px rgba(16,20,26,.04), 0 14px 32px -10px ${meta.color}30` } as never}
     >
-      <div className="h-1" style={{ background:`linear-gradient(90deg,${meta.color}cc,${meta.color}44)` }}/>
       <div className="p-5">
         {/* Top row */}
         <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {dragHandle}
-            <div className="h-12 w-12 rounded-xl flex items-center justify-center"
-              style={{ background:`${meta.color}18`, border:`1px solid ${meta.color}28` }}>
-              <span style={{ color:meta.color, transform:"scale(1.5)" }}>{meta.icon}</span>
+            <div className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{
+                background: `${meta.color}20`,
+                border: `1.5px solid ${meta.color}40`,
+                boxShadow: `0 4px 12px ${meta.color}25`,
+                color: meta.color,
+              }}>
+              <span style={{ transform:"scale(1.4)" }}>{meta.icon}</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="px-2.5 py-1 rounded-full text-xs font-bold"
-              style={{ background: team.active ? "#10b98118" : "#94a3b818", color: team.active ? "#10b981" : "#94a3b8" }}>
+              style={{ background: team.active ? "#83A2DB18" : "#94a3b818", color: team.active ? "#83A2DB" : "#94a3b8" }}>
               {team.active ? "نشط" : "معطّل"}
             </span>
             {canEdit && (
               <>
                 <button onClick={onRename} title="تغيير الاسم"
                   className="p-1.5 rounded-lg transition-colors"
-                  style={{ background:"#6366f112", color:"#6366f1" }}>
+                  style={{ background:"#83A2DB12", color:"#83A2DB" }}>
                   <Edit2 size={12}/>
                 </button>
                 {team.active ? (
                   <button onClick={onDeactivate} title="تعطيل الفريق"
                     className="p-1.5 rounded-lg transition-colors"
-                    style={{ background:"#f59e0b12", color:"#f59e0b" }}>
+                    style={{ background:"#E8B57012", color:"#E8B570" }}>
                     <ShieldOff size={12}/>
                   </button>
                 ) : (
                   <button onClick={onActivate} title="إعادة تفعيل الفريق"
                     className="p-1.5 rounded-lg transition-colors"
-                    style={{ background:"#10b98112", color:"#10b981" }}>
+                    style={{ background:"#83A2DB12", color:"#83A2DB" }}>
                     <ShieldCheck size={12}/>
                   </button>
                 )}
                 {isOwner && (
                   <button onClick={onDelete} title="حذف الفريق"
                     className="p-1.5 rounded-lg transition-colors"
-                    style={{ background:"#f43f5e12", color:"#f43f5e" }}>
+                    style={{ background:"#CE696912", color:"#CE6969" }}>
                     <Trash2 size={12}/>
                   </button>
                 )}
@@ -239,9 +263,13 @@ function TeamCard({ team, memberCount, subscriberCount, canEdit, isOwner, onRena
           </div>
         </div>
 
-        <h3 className="font-black text-lg mb-1" style={{ color:"var(--text-primary)" }}>{team.name}</h3>
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold mb-4"
-          style={{ background:`${meta.color}15`, color:meta.color }}>
+        <h3 className="font-black text-lg mb-1.5" style={{ color:"var(--text-primary)", letterSpacing:"-0.02em" }}>{team.name}</h3>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold mb-4"
+          style={{
+            background: meta.badge.bg,
+            color: meta.color,
+            border: `1px solid ${meta.badge.border}`,
+          }}>
           {meta.icon}{meta.label}
         </span>
 
@@ -406,37 +434,27 @@ export default function AdminTeamsPage() {
         <div className="mx-auto max-w-screen-xl p-5 md:p-7 space-y-6">
 
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2.5 mb-1">
-                <div className="h-9 w-9 flex items-center justify-center rounded-xl"
-                  style={{ background:"#8b5cf618", border:"1px solid #8b5cf628" }}>
-                  <Users2 size={16} style={{ color:"#8b5cf6" }}/>
-                </div>
-                <h1 className="text-xl font-black tracking-tight" style={{ color:"var(--text-primary)" }}>
-                  إدارة الفرق
-                </h1>
-              </div>
-              <p className="text-sm" style={{ color:"var(--text-secondary)" }}>
-                {stats.total} فريق · {stats.active} نشط
-              </p>
-            </div>
-            <RequirePermission permission={PERM.MANAGE_USERS}>
-              <button onClick={() => setShowCreate(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-bold text-sm shadow transition-all hover:opacity-90"
-                style={{ background:"linear-gradient(135deg,#8b5cf6,#6366f1)" }}>
-                <Plus size={16}/> إنشاء فريق
-              </button>
-            </RequirePermission>
-          </div>
+          <PageHeader
+            title="الفرق"
+            subtitle={`${stats.total} فريق · ${stats.active} نشط`}
+            actions={
+              <RequirePermission permission={PERM.MANAGE_USERS}>
+                <button onClick={() => setShowCreate(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-bold text-sm shadow transition-all hover:opacity-90"
+                  style={{ background:"linear-gradient(135deg,#9DB4D6,#83A2DB)" }}>
+                  <Plus size={16}/> إنشاء فريق
+                </button>
+              </RequirePermission>
+            }
+          />
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label:"إجمالي الفرق",  value:stats.total,     color:"#8b5cf6" },
-              { label:"الفرق النشطة",  value:stats.active,    color:"#10b981" },
-              { label:"فرق المبيعات",  value:stats.sales,     color:"#f59e0b" },
-              { label:"فرق التغذية",   value:stats.nutrition, color:"#8b5cf6" },
+              { label:"إجمالي الفرق",  value:stats.total,     color:"#64748B" },
+              { label:"الفرق النشطة",  value:stats.active,    color:"#83A2DB" },
+              { label:"فرق المبيعات",  value:stats.sales,     color: TYPE_META.sales.color     },
+              { label:"فرق التغذية",   value:stats.nutrition, color: TYPE_META.nutrition.color },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl p-4"
                 style={{ background:"var(--surface)", border:"1px solid var(--border)", boxShadow:"var(--shadow-card)" }}>
@@ -460,7 +478,7 @@ export default function AdminTeamsPage() {
               action={canEdit
                 ? <button onClick={() => setShowCreate(true)}
                     className="px-4 py-2 rounded-xl text-white text-sm font-bold"
-                    style={{ background:"#8b5cf6" }}>إنشاء فريق</button>
+                    style={{ background:"#9DB4D6" }}>إنشاء فريق</button>
                 : undefined}
             />
           ) : (

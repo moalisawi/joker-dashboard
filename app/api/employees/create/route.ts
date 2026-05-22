@@ -3,6 +3,7 @@ import { getAuth as getAdminAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { verifyServerUser, hasServerPermission, getBearerToken } from "@/lib/serverAuth";
 import { hasAdminCredentials, fsSet, fsAdd } from "@/lib/serverFirestore";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import {
   EMPLOYEE_AUTH_ROLE,
   EMPLOYEE_ROLE_PERMISSIONS,
@@ -58,11 +59,24 @@ async function deleteAuthUser(uid: string): Promise<void> {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // Rate limit: 10 employee creations per IP per minute
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`emp-create:${ip}`, 10, 60 * 1000)) {
+    return jsonError("Too many requests", 429);
+  }
+
   // ── 1. Authenticate caller ───────────────────────────────────────────────────
   let actor;
   try { actor = await verifyServerUser(request); } catch { return jsonError("Unauthorized", 401); }
   if (!actor) return jsonError("Unauthorized", 401);
   if (!hasServerPermission(actor, "users", "manage")) return jsonError("Forbidden", 403);
+
+  // In production, Admin SDK credentials are required for employee creation.
+  // The REST API fallback uses the public API key which bypasses Admin audit logging
+  // and creates auth users without the Firestore document atomically.
+  if (process.env.NODE_ENV === "production" && !hasAdminCredentials()) {
+    return jsonError("Server configuration error: Admin credentials required", 503);
+  }
 
   const token = getBearerToken(request)!;
 

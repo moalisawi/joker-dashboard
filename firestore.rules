@@ -54,32 +54,46 @@ service cloud.firestore {
     match /subscribers/{id} {
       allow read:          if isAnyActive();
       allow create, update, delete: if false;
+
+      // renewalHistory sub-collection — server-only writes, any active user can read
+      match /renewalHistory/{rid} {
+        allow read:  if isAnyActive();
+        allow write: if false;
+      }
     }
 
     // ─── payments ─────────────────────────────────────────────────────────
     match /payments/{id} {
-      allow read:          if isStaff() || hasPerm('analytics', 'view');
+      allow read:          if isStaff()
+                           || hasPerm('analytics', 'view')
+                           || hasPerm('payments', 'view');
       allow create, update, delete: if false;
     }
 
     // ─── refunds ──────────────────────────────────────────────────────────
     match /refunds/{id} {
-      allow read:          if isStaff() || hasPerm('analytics', 'view');
+      allow read:          if isStaff()
+                           || hasPerm('analytics', 'view')
+                           || hasPerm('payments', 'view');
       allow create, update, delete: if false;
     }
 
-    // ─── auditLogs — immutable after creation ─────────────────────────────
+    // ─── auditLogs — server-only writes (Admin SDK) ───────────────────────────
+    // Client writes are blocked to prevent forged audit entries.
     match /auditLogs/{id} {
-      allow read:          if isStaff() || hasPerm('logs', 'view');
-      allow create:        if isAnyActive();
-      allow update, delete: if false;
+      allow read:  if isStaff() || hasPerm('logs', 'view');
+      allow write: if false;
     }
 
     // ─── notifications ────────────────────────────────────────────────────
     match /notifications/{id} {
       allow read:          if isAnyActive();
       allow create:        if isStaff();
-      allow update:        if isStaff();
+      // Staff can update any field; any active user can only update readBy/archived
+      allow update:        if isStaff()
+                           || (isAnyActive()
+                               && request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasOnly(['readBy', 'archived']));
       allow delete:        if isOwner();
     }
 
@@ -91,17 +105,25 @@ service cloud.firestore {
 
     // ─── exchangeRates ────────────────────────────────────────────────────
     match /exchangeRates/{id} {
-      allow read:          if isAnyActive();
-      allow write:         if isStaff();
+      allow read:            if isAnyActive();
+      allow create, update:  if isStaff();
+      allow delete:          if isOwner();
     }
 
     // ─── subscriberNotes ─────────────────────────────────────────────────
     match /subscriberNotes/{id} {
       allow read:   if isAnyActive();
       allow create: if isAnyActive();
-      // Author can edit/soft-delete their own notes
-      allow update: if isAuth() && request.auth.uid == resource.data.authorId;
+      // Author can edit/soft-delete their own notes (must still be active)
+      allow update: if isAnyActive() && request.auth.uid == resource.data.authorId;
       allow delete: if false;
+    }
+
+    // ─── paymentMethods ───────────────────────────────────────────────────
+    match /paymentMethods/{id} {
+      allow read:          if isAnyActive();
+      allow create, update: if isStaff() || hasPerm('settings', 'manage');
+      allow delete:         if false;
     }
 
     // ─── loginSessions — staff-read only; Admin SDK writes only ─────────
@@ -114,6 +136,40 @@ service cloud.firestore {
     match /failedLogins/{id} {
       allow read:          if isStaff();
       allow write:         if false;
+    }
+
+    // ─── activityLogs — server-only writes (Admin SDK) ────────────────────
+    match /activityLogs/{id} {
+      allow read:  if isStaff() || hasPerm('logs', 'view');
+      allow write: if false;
+    }
+
+    // ─── subscriberAssignments — server-only writes (Admin SDK) ───────────
+    // Written by the API route after updating the subscriber document.
+    match /subscriberAssignments/{id} {
+      allow read:  if isAnyActive();
+      allow write: if false;
+    }
+
+    // ─── whatsappLeads — reads by any active user; writes via Admin SDK only ──
+    match /whatsappLeads/{id} {
+      allow read:               if isAnyActive();
+      allow create, update:     if false;  // Admin SDK only (API route)
+      allow delete:             if false;
+    }
+
+    // ─── whatsappMessages — reads by any active user; writes via Admin SDK ────
+    match /whatsappMessages/{id} {
+      allow read:               if isAnyActive();
+      allow create, update:     if false;  // Admin SDK only (API route)
+      allow delete:             if false;
+    }
+
+    // ─── cannedResponses — read by any active user; write by staff only ───────
+    match /cannedResponses/{id} {
+      allow read:               if isAnyActive();
+      allow create, update:     if isStaff();
+      allow delete:             if false;
     }
 
     // ─── deny everything else ─────────────────────────────────────────────

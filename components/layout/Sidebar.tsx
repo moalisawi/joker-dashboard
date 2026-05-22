@@ -8,49 +8,49 @@ import { auth } from "@/lib/auth";
 import { logSessionLogout } from "@/lib/sessionLogger";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
-import { ROLE_LABELS } from "@/lib/permissions";
 import {
   Home, Users, ScrollText, LogOut, Menu, X,
-  ChevronLeft, BarChart3, Bell, Briefcase, Users2, FileText, Search, BookOpen, Shield,
+  BarChart3, Bell, Briefcase, Users2, FileText, BookOpen, Shield, CreditCard,
+  MessageSquare, MessageCircle,
 } from "lucide-react";
-import NotificationBell from "@/components/notifications/NotificationBell";
-import ThemeToggle from "@/components/ui/ThemeToggle";
-import { useSearchStore } from "@/store/searchStore";
 
 interface NavItem {
-  href:       string;
-  label:      string;
-  icon:       React.ReactNode;
-  permission?: "canManageUsers" | "canViewLogs";
-  badge?:     () => number;
-  roles?:     string[];
+  href:        string;
+  label:       string;
+  icon:        React.ReactNode;
+  permission?: "canManageUsers" | "canViewLogs" | "canManagePaymentMethods";
+  badge?:      () => number;
+  roles?:      string[];
 }
 
 export default function Sidebar() {
-  const pathname = usePathname();
-  const router   = useRouter();
-  const { user, can }          = useAuthStore();
-  const { unreadCount }        = useNotificationStore();
-  const [open, setOpen]        = useState(false);
+  const pathname  = usePathname();
+  const router    = useRouter();
+  const { user, can }     = useAuthStore();
+  const { unreadCount }   = useNotificationStore();
+  const [open, setOpen]   = useState(false);
 
   const uid = user?.uid ?? "";
-  const { openSearch } = useSearchStore();
 
   const NAV: NavItem[] = [
-    { href: "/",               label: "المشتركون",    icon: <Home       size={18} /> },
-    { href: "/analytics",      label: "التحليلات",    icon: <BarChart3  size={18} /> },
-    { href: "/reports",        label: "التقارير",     icon: <FileText   size={18} />, roles: ["owner", "admin"] },
-    { href: "/notifications",  label: "الإشعارات",    icon: <Bell       size={18} />, badge: () => unreadCount(uid) },
-    { href: "/admin/employees", label: "الموظفون",     icon: <Briefcase  size={18} />, permission: "canManageUsers" },
-    { href: "/admin/teams",    label: "الفرق",        icon: <Users2     size={18} />, permission: "canManageUsers" },
-    { href: "/users",          label: "المستخدمون",   icon: <Users      size={18} />, permission: "canManageUsers" },
-    { href: "/logs",           label: "سجل العمليات", icon: <ScrollText size={18} />, permission: "canViewLogs" },
-    { href: "/sessions",      label: "سجل الجلسات",  icon: <Shield     size={18} />, roles: ["owner", "admin"] },
-    { href: "/guide",          label: "دليل الاستخدام", icon: <BookOpen   size={18} /> },
+    { href: "/",                 label: "لوحة التحكم",    icon: <Home           size={18} /> },
+    { href: "/subscribers",      label: "المشتركون",      icon: <Users          size={18} /> },
+    { href: "/whatsapp-leads",               label: "واتساب ليدز",  icon: <MessageSquare  size={18} /> },
+    { href: "/whatsapp-leads/conversations", label: "المحادثات",    icon: <MessageCircle  size={18} /> },
+    { href: "/payment-methods",  label: "طرق الدفع",      icon: <CreditCard     size={18} />, permission: "canManagePaymentMethods" },
+    { href: "/analytics",        label: "التحليلات",      icon: <BarChart3  size={18} /> },
+    { href: "/reports",          label: "التقارير",       icon: <FileText   size={18} />, roles: ["owner", "admin"] },
+    { href: "/notifications",    label: "الإشعارات",      icon: <Bell       size={18} />, badge: () => unreadCount(uid) },
+    { href: "/admin/employees",  label: "الموظفون",       icon: <Briefcase  size={18} />, permission: "canManageUsers" },
+    { href: "/admin/teams",      label: "الفرق",          icon: <Users2     size={18} />, permission: "canManageUsers" },
+    { href: "/users",            label: "المستخدمون",     icon: <Users      size={18} />, permission: "canManageUsers" },
+    { href: "/logs",             label: "سجل العمليات",   icon: <ScrollText size={18} />, permission: "canViewLogs" },
+    { href: "/sessions",         label: "سجل الجلسات",   icon: <Shield     size={18} />, roles: ["owner", "admin"] },
+    { href: "/guide",            label: "دليل الاستخدام", icon: <BookOpen   size={18} /> },
   ];
 
   async function handleLogout() {
-    await logSessionLogout(); // mark session as logged_out before token is gone
+    await logSessionLogout();
     await signOut(auth);
     router.push("/login");
   }
@@ -64,120 +64,101 @@ export default function Sidebar() {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
-  const sidebarContent = (
-    <aside className="sidebar-bg h-full w-64 flex flex-col text-white select-none">
+  const railContent = (
+    <aside style={{
+      width: 80,
+      padding: "20px 0",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 14,
+      flexShrink: 0,
+      height: "100%",
+      background: "var(--bg-sidebar)",
+    }}>
 
-      {/* Logo + bell */}
-      <div className="px-5 py-5 border-b border-white/[0.06]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-               style={{ background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)", boxShadow: "0 4px 12px rgba(37,99,235,0.4)" }}>
-            <span className="font-black text-lg text-white">ج</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-black text-sm leading-tight text-white">نظام الجوكر</p>
-            <p className="text-white/40 text-xs mt-0.5 font-medium">نظام إدارة المبيعات</p>
-          </div>
-          {/* Quick-access notification bell */}
-          <NotificationBell />
-        </div>
-      </div>
+      {/* Logo */}
+      <div style={{
+        width: 48, height: 48, borderRadius: 14,
+        background: "#10141A",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "#fff", fontSize: 22, fontWeight: 800,
+        fontFamily: "inherit",
+        boxShadow: "var(--jk-shadow-logo)",
+        marginBottom: 4, flexShrink: 0,
+        userSelect: "none",
+      }}>ج</div>
 
-      {/* Global search trigger */}
-      <div className="px-3 pt-4 pb-1">
-        <button
-          onClick={openSearch}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors text-white/40 hover:text-white/75 hover:bg-white/[0.07]"
-          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
-        >
-          <Search size={14} className="shrink-0" />
-          <span className="flex-1 text-right">بحث سريع</span>
-          <span className="flex items-center gap-0.5 opacity-60">
-            <kbd className="text-[9px] font-bold bg-white/10 rounded px-1 py-0.5">Ctrl</kbd>
-            <kbd className="text-[9px] font-bold bg-white/10 rounded px-1 py-0.5">K</kbd>
-          </span>
-        </button>
-      </div>
-
-      {/* Section label */}
-      <div className="px-5 pt-3 pb-1">
-        <p className="section-label opacity-40 text-white">التنقل</p>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 px-3 pb-4 space-y-0.5">
+      {/* Nav pill */}
+      <div style={{
+        flex: 1,
+        display: "flex", flexDirection: "column", gap: 8,
+        padding: "14px 0", alignItems: "center",
+        background: "rgba(255,255,255,.60)",
+        backdropFilter: "blur(12px) saturate(1.4)",
+        WebkitBackdropFilter: "blur(12px) saturate(1.4)",
+        border: "1px solid rgba(255,255,255,.75)",
+        borderRadius: 999,
+        boxShadow: "0 2px 8px rgba(16,20,26,.06), 0 1px 2px rgba(16,20,26,.04)",
+        width: 56,
+        overflowY: "auto",
+        scrollbarWidth: "none",
+      }}>
         {visibleItems.map((item) => {
-          const active      = isActive(item.href);
-          const badgeCount  = item.badge?.() ?? 0;
+          const active     = isActive(item.href);
+          const badgeCount = item.badge?.() ?? 0;
 
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              className={`
-                relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold
-                transition-all duration-200 group
-                ${active
-                  ? "text-white"
-                  : "text-white/55 hover:bg-white/[0.07] hover:text-white/90"
-                }
-              `}
-              style={active ? {
-                background: "linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.07) 100%)",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), 0 0 16px rgba(96,165,250,0.08)",
-              } : {}}
+              title={item.label}
+              style={{
+                width: 42, height: 42, borderRadius: "50%",
+                background: active ? "#10141A" : "transparent",
+                color: active ? "#fff" : "#10141A",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                position: "relative", flexShrink: 0,
+                boxShadow: active ? "var(--jk-shadow-nav)" : "none",
+                transition: "all .15s ease",
+              }}
+              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(16,20,26,.06)"; }}
+              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
             >
-              {/* Active right accent bar */}
-              {active && (
-                <span
-                  className="absolute right-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-l-full bg-blue-400"
-                  style={{ boxShadow: "0 0 10px rgba(96,165,250,0.7), 0 0 4px rgba(96,165,250,0.5)" }}
-                />
-              )}
+              {item.icon}
 
-              <span className={`flex-shrink-0 transition-colors ${active ? "text-blue-300" : "text-white/50 group-hover:text-white/75"}`}>
-                {item.icon}
-              </span>
-              <span className="flex-1">{item.label}</span>
-
-              {/* Unread badge on nav item */}
               {badgeCount > 0 && (
-                <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">
-                  {badgeCount > 99 ? "99+" : badgeCount}
-                </span>
-              )}
-
-              {active && badgeCount === 0 && (
-                <ChevronLeft size={13} className="opacity-50 flex-shrink-0" />
+                <span style={{
+                  position: "absolute", top: 5, insetInlineEnd: 5,
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "#CE6969",
+                  boxShadow: "0 0 0 2px rgba(232,234,238,.9)",
+                }} />
               )}
             </Link>
           );
         })}
-      </nav>
+      </div>
 
-      {/* User info & logout */}
-      <div className="border-t border-white/[0.06] p-4 space-y-3">
-        {user && (
-          <div className="flex items-center gap-3 px-1">
-            <div className="w-8 h-8 rounded-full bg-blue-600/30 flex items-center justify-center flex-shrink-0 text-blue-300 text-sm font-black">
-              {user.name.charAt(0)}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-white truncate leading-tight">{user.name}</p>
-              <p className="text-xs text-white/40 font-medium">{ROLE_LABELS[user.role]}</p>
-            </div>
-          </div>
-        )}
-
-        <ThemeToggle />
-
+      {/* Bottom: logout */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-white/40 hover:bg-red-500/15 hover:text-red-300 text-sm font-semibold transition-all duration-150"
+          title="تسجيل الخروج"
+          style={{
+            width: 42, height: 42, borderRadius: "50%",
+            background: "rgba(255,255,255,.55)",
+            border: "1px solid rgba(255,255,255,.75)",
+            color: "#CE6969", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all .15s ease",
+            boxShadow: "0 1px 3px rgba(16,20,26,.08)",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(206,105,105,.10)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.55)"; }}
         >
-          <LogOut size={15} />
-          <span>تسجيل الخروج</span>
+          <LogOut size={16} />
         </button>
       </div>
     </aside>
@@ -188,8 +169,8 @@ export default function Sidebar() {
       {/* Mobile toggle */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed top-4 right-4 z-50 md:hidden p-2 rounded-xl text-white shadow-lg"
-        style={{ background: "linear-gradient(135deg, #1e3a8a, #1e40af)" }}
+        className="fixed top-4 right-4 z-50 md:hidden p-2 text-white shadow-lg"
+        style={{ background: "#10141A", borderRadius: 999, boxShadow: "var(--jk-shadow-nav)" }}
       >
         <Menu size={20} />
       </button>
@@ -197,7 +178,7 @@ export default function Sidebar() {
       {/* Mobile overlay */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-sm"
           onClick={() => setOpen(false)}
         />
       )}
@@ -211,17 +192,18 @@ export default function Sidebar() {
         <div className="relative h-full">
           <button
             onClick={() => setOpen(false)}
-            className="absolute top-4 left-4 text-white/60 hover:text-white z-10 p-1"
+            className="absolute top-4 left-4 z-10 p-1"
+            style={{ color: "#10141A" }}
           >
             <X size={20} />
           </button>
-          {sidebarContent}
+          {railContent}
         </div>
       </div>
 
       {/* Desktop sidebar */}
       <div className="hidden md:block h-screen sticky top-0 flex-shrink-0">
-        {sidebarContent}
+        {railContent}
       </div>
     </>
   );

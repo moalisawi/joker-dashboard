@@ -2,6 +2,8 @@ import { NextResponse }           from "next/server";
 import { Timestamp, getFirestore } from "firebase-admin/firestore";
 import { requireRole }             from "@/lib/requireRole";
 import { initializeAdminApp }      from "@/lib/serverAuth";
+import { hasAdminCredentials }     from "@/lib/serverFirestore";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -24,9 +26,21 @@ function todayStartMs(): number {
 export async function GET(request: Request): Promise<NextResponse> {
   initializeAdminApp();
 
+  // Rate limit: 30 session list requests per IP per minute
+  const ip = getClientIp(request);
+  if (!checkRateLimit(`sessions-list:${ip}`, 30, 60 * 1000)) {
+    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
+  }
+
   const result = await requireRole(request, "admin");
-  console.log("[sessions] GET — auth result:", result instanceof NextResponse ? "BLOCKED" : result.user.uid);
   if (result instanceof NextResponse) return result;
+
+  if (!hasAdminCredentials()) {
+    return NextResponse.json(
+      { success: true, sessions: [], summary: { totalActive: 0, onlineNow: 0, todayLogins: 0, failedToday: 0 }, skipped: true, reason: "admin-credentials-unavailable" },
+      { status: 200 }
+    );
+  }
 
   try {
     const fiveMinAgoMs = Date.now() - 5 * 60 * 1000;

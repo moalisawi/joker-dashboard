@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
@@ -16,6 +15,7 @@ import {
 import { PERMISSION_LABELS } from "@/types";
 import { formatDateTime } from "@/lib/utils";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
+import PageHeader from "@/components/layout/PageHeader";
 import type { UserProfile, Role, AccountStatus, GranularPermissions } from "@/types";
 import {
   Users, Search, Shield, ChevronDown, ChevronUp,
@@ -32,39 +32,29 @@ function UserAvatar({ name, role }: { name: string; role: Role }) {
     .join("")
     .toUpperCase();
   const bg =
-    role === "owner"
-      ? "bg-amber-400 text-amber-900"
-      : role === "admin"
-      ? "bg-blue-500 text-white"
-      : "bg-slate-400 text-white";
+    role === "owner" ? "#10141A"
+    : role === "admin" ? "#83A2DB"
+    : "#94A3B8";
   return (
-    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${bg}`}>
+    <div
+      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white"
+      style={{ background: bg, boxShadow: "0 1px 2px rgba(16,20,26,.08), inset 0 1px 0 rgba(255,255,255,.18)" }}
+    >
       {initials}
     </div>
   );
 }
 
 function RoleBadge({ role }: { role: Role }) {
-  const cls = `role-${role}`;
-  const icon = role === "owner" ? "👑" : role === "admin" ? "🛡️" : "👤";
   return (
-    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cls}`}>
-      {icon} {ROLE_LABELS[role]}
-    </span>
+    <span className={`role-${role}`}>{ROLE_LABELS[role]}</span>
   );
 }
 
 function StatusBadge({ status }: { status: AccountStatus | undefined }) {
   const s = status ?? "active";
-  const cls = `status-user-${s}`;
-  const icon =
-    s === "active"    ? "●" :
-    s === "suspended" ? "⏸" :
-    s === "disabled"  ? "✕" : "○";
   return (
-    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cls}`}>
-      {icon} {ACCOUNT_STATUS_LABELS[s] ?? s}
-    </span>
+    <span className={`status-user-${s}`}>{ACCOUNT_STATUS_LABELS[s] ?? s}</span>
   );
 }
 
@@ -387,45 +377,44 @@ export default function UsersPage() {
       <div className="p-5 md:p-7 max-w-6xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Users size={20} className="text-blue-600" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-slate-800">إدارة المستخدمين</h1>
-              <p className="text-slate-500 text-sm">{stats.total} مستخدم · {stats.active} نشط</p>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          title="المستخدمون"
+          subtitle={`${stats.total} مستخدم · ${stats.active} نشط`}
+        />
 
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
           {[
-            { label: "الكل",     value: stats.total,     icon: <Users size={16} />,      cls: "text-slate-700" },
-            { label: "مالكون",   value: stats.owners,    icon: <Crown size={16} />,      cls: "text-amber-600" },
-            { label: "مديرون",   value: stats.admins,    icon: <Shield size={16} />,     cls: "text-blue-600"  },
-            { label: "موظفون",   value: stats.employees, icon: <UserCheck size={16} />,  cls: "text-slate-500" },
-            { label: "نشطون",    value: stats.active,    icon: <UserCheck size={16} />,  cls: "text-emerald-600" },
+            { label: "الكل",     value: stats.total,     color: "var(--text-primary)" },
+            { label: "مالكون",   value: stats.owners,    color: "#10141A" },
+            { label: "مديرون",   value: stats.admins,    color: "var(--jk-blue)" },
+            { label: "موظفون",   value: stats.employees, color: "var(--text-secondary)" },
+            { label: "نشطون",    value: stats.active,    color: "#83A2DB" },
           ].map((s) => (
-            <div key={s.label} className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm text-center">
-              <div className={`flex items-center justify-center gap-1 ${s.cls} mb-1`}>{s.icon}</div>
-              <p className={`text-xl font-black ${s.cls}`}>{s.value}</p>
-              <p className="text-xs text-slate-400">{s.label}</p>
+            <div key={s.label} style={{
+              background: "var(--surface)", border: "1px solid var(--border-soft)",
+              borderRadius: 12, padding: "12px", boxShadow: "var(--shadow-card)", textAlign: "center",
+            }}>
+              <p style={{ fontSize: 20, fontWeight: 900, color: s.color }}>{s.value}</p>
+              <p style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm mb-4 p-4 flex flex-wrap gap-3 items-center">
+        <div className="mb-4 p-4 flex flex-wrap gap-3 items-center" style={{
+          background: "var(--surface)", border: "1px solid var(--border-soft)",
+          borderRadius: 16, boxShadow: "var(--shadow-card)",
+        }}>
           <div className="relative flex-1 min-w-48">
-            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
             <input
               type="text"
               placeholder="بحث بالاسم أو الإيميل..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl pr-8 pl-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full rounded-xl pr-8 pl-3 py-2 text-sm focus:outline-none"
+              style={{ border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text-primary)", fontFamily: "inherit" }}
             />
           </div>
 

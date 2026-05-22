@@ -55,7 +55,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   const { searchParams } = new URL(request.url);
-  const to   = searchParams.get("to")   ?? "zoromedo2000@gmail.com";
+  const to = searchParams.get("to");
+  if (!to) {
+    return NextResponse.json(
+      { success: false, error: "Missing required query param: to" },
+      { status: 400 }
+    );
+  }
   const type = searchParams.get("type") ?? "security_alert";
 
   const now = new Date().toLocaleString("ar-SA", { timeZone: "Asia/Riyadh" });

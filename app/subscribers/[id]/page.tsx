@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -13,12 +12,17 @@ import {
 import { usePayments } from "@/hooks/usePayments";
 import { useRefunds }  from "@/hooks/useRefunds";
 import { useAuthStore }  from "@/store/authStore";
-import { useThemeStore } from "@/store/themeStore";
 import ProtectedLayout    from "@/components/layout/ProtectedLayout";
 import SubscriberModal    from "@/components/subscribers/SubscriberModal";
 import RenewalModal       from "@/components/subscribers/RenewalModal";
 import PaymentModal       from "@/components/subscribers/PaymentModal";
+import FreezeModal        from "@/components/subscribers/FreezeModal";
+import PauseModal         from "@/components/subscribers/PauseModal";
+import ResumeModal        from "@/components/subscribers/ResumeModal";
+import WithdrawModal      from "@/components/subscribers/WithdrawModal";
 import WorkflowStatusBadge from "@/components/subscribers/WorkflowStatusBadge";
+import { callSubscriberOperation } from "@/lib/clientOperations";
+import { toast } from "@/lib/toast";
 import OverviewTab    from "@/components/subscribers/workspace/OverviewTab";
 import AssignmentsTab from "@/components/subscribers/workspace/AssignmentsTab";
 import NotesPanel     from "@/components/subscribers/NotesPanel";
@@ -32,27 +36,20 @@ import {
   AlertCircle, CheckCircle2, XCircle, PauseCircle,
   Snowflake, MessageCircle, LayoutDashboard, UserCheck,
   StickyNote, CreditCard, RotateCcw, Activity, GitBranch,
+  Play, UserMinus,
 } from "lucide-react";
 
 // ── Theme tokens ──────────────────────────────────────────────────────────────
 const LT = {
   bg:      "var(--page-bg)",
   card:    "var(--surface)",
-  border:  "rgba(15,23,42,0.08)",
-  t1:      "var(--text-primary)",
-  t2:      "#64748b",
-  shadow:  "0 1px 3px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.05)",
-};
-const DT = {
-  bg:      "#070c18",
-  card:    "rgba(255,255,255,0.04)",
-  border:  "rgba(255,255,255,0.08)",
-  t1:      "#f1f5f9",
-  t2:      "#64748b",
-  shadow:  "none",
+  border:  "var(--jk-border)",
+  t1:      "var(--jk-text)",
+  t2:      "var(--jk-muted)",
+  shadow:  "var(--jk-shadow-card)",
 };
 
-const ACC = { indigo:"#6366f1", emerald:"#10b981", amber:"#f59e0b", rose:"#f43f5e", sky:"#38bdf8" };
+const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
 const tran = { duration:0.36, ease:"easeOut" } as const;
 
 function initials(name: string) {
@@ -72,7 +69,7 @@ function statusColor(status: string) {
   if (status === "نشط")          return ACC.emerald;
   if (status === "ينتهي قريباً") return ACC.amber;
   if (status === "منتهي")        return ACC.rose;
-  if (status === "موقوف")        return "#f97316";
+  if (status === "موقوف")        return "#E8B570";
   if (status === "متجمد")        return ACC.sky;
   return "#64748b";
 }
@@ -95,16 +92,16 @@ export default function SubscriberWorkspacePage() {
   const params            = useParams();
   const router            = useRouter();
   const id                = typeof params.id === "string" ? params.id : "";
-  const { dark }          = useThemeStore();
-  const t                 = dark ? DT : LT;
+  const t                 = LT;
   const { can, user, exchangeRates } = useAuthStore();
   const canRev            = can("canViewRevenue");
 
   const [subscriber, setSubscriber] = useState<Subscriber | null>(null);
   const [notFound, setNotFound]     = useState(false);
   const [loading, setLoading]       = useState(true);
-  const [modal, setModal]           = useState<"edit"|"renew"|"pay"|null>(null);
+  const [modal, setModal]           = useState<"edit"|"renew"|"pay"|"freeze"|"pause"|"resume"|"withdraw"|null>(null);
   const [tab, setTab]               = useState<TabKey>("overview");
+  const [resumingPause, setResumingPause] = useState(false);
 
   // Payments + refunds needed by overview + payments + activity tabs
   const { payments } = usePayments({ subscriberId: id });
@@ -117,7 +114,10 @@ export default function SubscriberWorkspacePage() {
       doc(db, "subscribers", id),
       (snap) => {
         if (!snap.exists()) { setNotFound(true); setLoading(false); return; }
-        setSubscriber(normalizeSubscriber({ id: snap.id, ...snap.data() } as Record<string,unknown>&{id:string}));
+        const data = snap.data() ?? {};
+        // Treat soft-deleted documents as not found
+        if (data.deleted === true) { setNotFound(true); setLoading(false); return; }
+        setSubscriber(normalizeSubscriber({ id: snap.id, ...data } as Record<string,unknown>&{id:string}));
         setLoading(false);
       },
       () => { setNotFound(true); setLoading(false); }
@@ -126,6 +126,20 @@ export default function SubscriberWorkspacePage() {
   }, [id]);
 
   const onSaved = useCallback(() => setModal(null), []);
+
+  const handleResumePause = useCallback(async () => {
+    if (!subscriber) return;
+    if (!confirm(`استئناف اشتراك "${subscriber.name}"؟`)) return;
+    setResumingPause(true);
+    try {
+      await callSubscriberOperation("resumePausedSubscription", { subscriberId: subscriber.id });
+      toast.success("تم استئناف الاشتراك");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setResumingPause(false);
+    }
+  }, [subscriber]);
 
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
@@ -162,6 +176,10 @@ export default function SubscriberWorkspacePage() {
 
   const s  = subscriber;
   const sc = statusColor(s.status);
+  const isFrozen    = s.freezeData?.isFrozen === true;
+  const isPaused    = s.subscriptionStatus === "paused";
+  const isWithdrawn = s.subscriptionState === "withdrawn";
+  const isActive    = !isFrozen && !isPaused && !isWithdrawn;
 
   return (
     <ProtectedLayout>
@@ -185,9 +203,6 @@ export default function SubscriberWorkspacePage() {
             initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={tran}
             className="rounded-2xl overflow-hidden mb-5"
             style={{ background:t.card, border:`1px solid ${t.border}`, boxShadow:t.shadow }}>
-
-            {/* Accent bar */}
-            <div className="h-1.5" style={{ background:`linear-gradient(90deg,${ACC.indigo},${ACC.sky})` }}/>
 
             <div className="p-5">
               <div className="flex flex-col sm:flex-row sm:items-start gap-4">
@@ -277,6 +292,47 @@ export default function SubscriberWorkspacePage() {
                       <MessageCircle size={13}/>واتساب
                     </a>
                   )}
+                  {/* تجميد / استئناف تجميد */}
+                  {can("canEdit") && (isFrozen
+                    ? <button onClick={() => setModal("resume")}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                        style={{ background:`${ACC.sky}15`, color:ACC.sky, border:`1px solid ${ACC.sky}25` }}>
+                        <Play size={13}/>استئناف التجميد
+                      </button>
+                    : isActive && (
+                      <button onClick={() => setModal("freeze")}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                        style={{ background:`${ACC.sky}15`, color:ACC.sky, border:`1px solid ${ACC.sky}25` }}>
+                        <Snowflake size={13}/>تجميد
+                      </button>
+                    )
+                  )}
+                  {/* إيقاف / استئناف إيقاف */}
+                  {can("canEdit") && (isPaused
+                    ? <button onClick={handleResumePause} disabled={resumingPause}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-60"
+                        style={{ background:`${ACC.amber}15`, color:ACC.amber, border:`1px solid ${ACC.amber}25` }}>
+                        {resumingPause
+                          ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"/>
+                          : <Play size={13}/>}
+                        {resumingPause ? "جاري..." : "استئناف الإيقاف"}
+                      </button>
+                    : isActive && (
+                      <button onClick={() => setModal("pause")}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                        style={{ background:`${ACC.amber}15`, color:ACC.amber, border:`1px solid ${ACC.amber}25` }}>
+                        <PauseCircle size={13}/>إيقاف
+                      </button>
+                    )
+                  )}
+                  {/* انسحاب */}
+                  {can("canWithdraw") && !isWithdrawn && (
+                    <button onClick={() => setModal("withdraw")}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+                      style={{ background:`${ACC.rose}15`, color:ACC.rose, border:`1px solid ${ACC.rose}25` }}>
+                      <UserMinus size={13}/>انسحاب
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -351,6 +407,21 @@ export default function SubscriberWorkspacePage() {
         {modal === "pay" && (
           <PaymentModal subscriber={s} exchangeRates={exchangeRates}
             onClose={() => setModal(null)} onSaved={onSaved}/>
+        )}
+        {modal === "freeze" && (
+          <FreezeModal subscriber={s} isOpen onClose={onSaved} onFrozen={onSaved}
+            currentUser={{ uid: user?.uid ?? "", displayName: user?.name ?? "" }}/>
+        )}
+        {modal === "pause" && (
+          <PauseModal subscriber={s} onClose={onSaved} onSaved={onSaved}/>
+        )}
+        {modal === "resume" && (
+          <ResumeModal subscriber={s} isOpen onClose={onSaved} onResumed={onSaved}
+            currentUser={{ uid: user?.uid ?? "", displayName: user?.name ?? "" }}/>
+        )}
+        {modal === "withdraw" && (
+          <WithdrawModal subscriber={s} exchangeRates={exchangeRates}
+            onClose={onSaved} onSaved={onSaved}/>
         )}
       </div>
     </ProtectedLayout>

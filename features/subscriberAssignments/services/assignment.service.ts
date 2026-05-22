@@ -3,10 +3,9 @@
 /**
  * Subscriber Assignment Feature Service
  *
- * Wraps the existing HTTP assignment endpoint AND manages the immutable
- * `subscriberAssignments` collection for chronological history.
- *
  * Mutations → /api/subscribers/assign  (server-side auth + Firestore write)
+ *   The API route writes both the subscriber document update AND the
+ *   immutable subscriberAssignments history record via Admin SDK.
  * History reads → Firestore client SDK  (subscriberAssignments collection)
  */
 
@@ -16,8 +15,6 @@ import {
   where,
   orderBy,
   getDocs,
-  addDoc,
-  serverTimestamp,
 } from "firebase/firestore";
 import { db }          from "@/lib/firestore";
 import { auth }        from "@/lib/auth";
@@ -59,33 +56,10 @@ export const assignmentService = {
     actor: { uid: string; name: string },
     before?: Subscriber
   ): Promise<void> {
-    // 1. Apply assignment via API route (handles Firestore subscriber update + audit)
+    // API route handles both the subscriber update AND the subscriberAssignments
+    // history record via Admin SDK (Firestore rules deny client writes).
+    void actor; void before; // passed for future use / type-checking only
     await post("/api/subscribers/assign", input as unknown as Record<string, unknown>);
-
-    // 2. Write immutable history record to dedicated collection
-    const record: Omit<SubscriberAssignmentRecord, "id"> = {
-      subscriberId:    input.subscriberId,
-      subscriberName:  input.subscriberName,
-
-      fromTeamId:        before?.assignedTeamId        ?? null,
-      fromTeamName:      before?.assignedTeamName       ?? null,
-      fromEmployeeId:    before?.assignedSalesId        ?? before?.assignedNutritionistId ?? null,
-      fromEmployeeName:  before?.assignedSalesName      ?? before?.assignedNutritionistName ?? null,
-      fromAssignmentType:before?.assignmentType,
-
-      toTeamId:          input.assignedTeamId           ?? null,
-      toTeamName:        input.assignedTeamName         ?? null,
-      toEmployeeId:      input.assignedSalesId          ?? input.assignedNutritionistId ?? null,
-      toEmployeeName:    input.assignedSalesName        ?? input.assignedNutritionistName ?? null,
-      toAssignmentType:  input.assignmentType as typeof ASSIGNMENT_TYPE[keyof typeof ASSIGNMENT_TYPE],
-
-      reason:            input.reason,
-      transferredBy:     actor.uid,
-      transferredByName: actor.name,
-      createdAt:         serverTimestamp() as unknown as string,
-    };
-
-    await addDoc(collection(db, COLLECTIONS.SUBSCRIBER_ASSIGNMENTS), record);
   },
 
   /** Unassign all assignment from a subscriber. */

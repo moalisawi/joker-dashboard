@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Subscriber, Currency } from "@/types";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/storage";
@@ -8,6 +8,8 @@ import { useAuthStore } from "@/store/authStore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { formatNumber, todayString } from "@/lib/utils";
 import { PAYMENT_METHODS } from "@/lib/permissions";
+import { useActiveMethodsForResidenceQuery } from "@/features/paymentMethods/hooks/useActiveMethodsForResidenceQuery";
+import { getAllowedCurrencies, CURRENCY_LABELS } from "@/features/paymentMethods/utils/countryMapping";
 import { X } from "lucide-react";
 
 interface Props {
@@ -21,16 +23,51 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
   const { user } = useAuthStore();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState<Currency>(subscriber.currencyOriginal || "USD");
-  const [method, setMethod] = useState(subscriber.payment || "");
-  const [date, setDate] = useState(todayString());
-  const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [amount,        setAmount]        = useState("");
+  const [currency,      setCurrency]      = useState<Currency>(subscriber.currencyOriginal || "USD");
+  const [method,        setMethod]        = useState(subscriber.payment || "");
+  const [methodId,      setMethodId]      = useState("");
+  const [date,          setDate]          = useState(todayString());
+  const [notes,         setNotes]         = useState("");
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState("");
 
-  const rate = exchangeRates[currency] || 1;
+  const { methods: firestoreMethods, isLoading: methodsLoading } =
+    useActiveMethodsForResidenceQuery(subscriber.residence);
+
+  // Allowed currencies based on selected Firestore method
+  const selectedFirestoreMethod = firestoreMethods.find((m) => m.id === methodId);
+  const allowedCurrencies = selectedFirestoreMethod
+    ? getAllowedCurrencies(selectedFirestoreMethod.supportedCurrencies)
+    : ["USD", "EGP", "JOD", "ILS"] as Currency[];
+
+  // If current currency not allowed, reset to first allowed
+  useEffect(() => {
+    if (selectedFirestoreMethod && !allowedCurrencies.includes(currency as typeof allowedCurrencies[number])) {
+      setCurrency(allowedCurrencies[0] as Currency);
+    }
+  }, [methodId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rate      = exchangeRates[currency] || 1;
   const amountUSD = parseFloat(amount || "0") / rate;
+
+  function handleMethodChange(value: string) {
+    if (!value) {
+      setMethod("");
+      setMethodId("");
+      return;
+    }
+    // Check if it's a Firestore method id
+    const fm = firestoreMethods.find((m) => m.id === value);
+    if (fm) {
+      setMethod(fm.name);
+      setMethodId(fm.id);
+    } else {
+      // Static fallback
+      setMethod(value);
+      setMethodId("");
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,21 +78,26 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
     try {
       const amt = parseFloat(amount);
 
-      // Upload receipt
       let receiptUrl: string | null = null;
       const file = fileRef.current?.files?.[0];
       if (file) {
+        if (file.size > 5 * 1024 * 1024)
+          throw new Error("حجم الملف يتجاوز الحد المسموح (5MB)");
+        const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+        if (!allowed.includes(file.type))
+          throw new Error("نوع الملف غير مقبول — JPG أو PNG أو PDF فقط");
         const storageRef = ref(storage, `receipts/${subscriber.id}/${Date.now()}_${file.name}`);
         await uploadBytes(storageRef, file);
         receiptUrl = await getDownloadURL(storageRef);
       }
 
       await callSubscriberOperation("addPayment", {
-        subscriberId: subscriber.id,
-        amountOriginal: amt,
+        subscriberId:    subscriber.id,
+        amountOriginal:  amt,
         currencyOriginal: currency,
-        exchangeRate: rate,
-        paymentMethod: method,
+        exchangeRate:    rate,
+        paymentMethod:   method,
+        paymentMethodId: methodId || undefined,
         receiptUrl,
         date,
         notes,
@@ -69,6 +111,9 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
       setLoading(false);
     }
   }
+
+  // Determine select value: if Firestore method selected use id, else use method string
+  const selectValue = methodId || method;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -95,6 +140,34 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
             <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
           )}
 
+          {/* Payment method */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">طريقة الدفع</label>
+            <select
+              value={selectValue}
+              onChange={(e) => handleMethodChange(e.target.value)}
+              className="form-input w-full"
+            >
+              <option value="">اختر...</option>
+              {!methodsLoading && firestoreMethods.length > 0 ? (
+                <>
+                  <optgroup label="طرق الدفع المتاحة">
+                    {firestoreMethods.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              ) : (
+                PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)
+              )}
+            </select>
+            {methodsLoading && (
+              <p className="text-xs text-slate-400 mt-1">جاري تحميل طرق الدفع...</p>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">المبلغ</label>
@@ -106,10 +179,9 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">العملة</label>
               <select value={currency} onChange={(e) => setCurrency(e.target.value as Currency)}
                 className="form-input w-full">
-                <option value="USD">دولار USD</option>
-                <option value="EGP">جنيه EGP</option>
-                <option value="JOD">دينار JOD</option>
-                <option value="ILS">شيكل ILS</option>
+                {allowedCurrencies.map((c) => (
+                  <option key={c} value={c}>{CURRENCY_LABELS[c] ?? c}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -117,14 +189,6 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
           {parseFloat(amount) > 0 && currency !== "USD" && (
             <p className="text-xs text-slate-400">≈ ${formatNumber(amountUSD, 2)}</p>
           )}
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">طريقة الدفع</label>
-            <select value={method} onChange={(e) => setMethod(e.target.value)} className="form-input w-full">
-              <option value="">اختر...</option>
-              {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">تاريخ الدفع</label>

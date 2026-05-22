@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
@@ -129,8 +129,6 @@ export default function SubscribersTable({
     return "badge-medo";
   }, []);
 
-  const filterSelect = "form-input py-2 text-sm cursor-pointer";
-
   const sortableHeader = (id: string, label: string, extraClass = "") => {
     const col = table.getColumn(id);
     if (!col) return <th className={`px-4 py-3 text-right font-semibold ${extraClass}`}>{label}</th>;
@@ -150,30 +148,64 @@ export default function SubscribersTable({
   return (
     <div className="panel overflow-hidden">
       {/* ── Filters ──────────────────────────────────────────────────────── */}
-      <div className="p-4 flex flex-wrap gap-2 sm:gap-3 items-center" style={{ borderBottom: "1px solid var(--border)" }}>
-        <div className="relative flex-1 min-w-36">
-          <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      <div
+        style={{
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          background: "var(--jk-panel)",
+          borderBottom: "1px solid var(--jk-divider)",
+        }}
+      >
+        {/* Search */}
+        <div style={{ position: "relative", flex: "1 1 180px", minWidth: 160 }}>
+          <Search
+            size={14}
+            style={{
+              position: "absolute", top: "50%", transform: "translateY(-50%)",
+              insetInlineEnd: 14, color: "var(--jk-subtle)", pointerEvents: "none",
+            }}
+          />
           <input
             type="text"
             placeholder="بحث بالاسم أو الهاتف..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPageSize(10); }}
-            className="form-input pr-8 py-2 text-sm"
+            style={{ height: 38, fontSize: 13, paddingInlineEnd: 38 }}
+            className="form-input"
           />
         </div>
 
-        <select value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)} className={filterSelect}>
+        {/* Selects — width:auto يكسر الـ 100% من form-input */}
+        <select
+          value={filterEmp}
+          onChange={(e) => setFilterEmp(e.target.value)}
+          style={{ width: "auto", flex: "none", height: 38, fontSize: 13, paddingTop: 0, paddingBottom: 0 }}
+          className="form-input cursor-pointer"
+        >
           <option value="">كل الموظفين</option>
           {["حنان","ميار","ميدو"].map((e) => <option key={e} value={e}>{e}</option>)}
         </select>
 
-        <select value={filterPkg} onChange={(e) => setFilterPkg(e.target.value)} className={filterSelect}>
+        <select
+          value={filterPkg}
+          onChange={(e) => setFilterPkg(e.target.value)}
+          style={{ width: "auto", flex: "none", height: 38, fontSize: 13, paddingTop: 0, paddingBottom: 0 }}
+          className="form-input cursor-pointer"
+        >
           <option value="">كل الباقات</option>
           <option value="فضية">فضية</option>
           <option value="ذهبية">ذهبية</option>
         </select>
 
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={filterSelect}>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          style={{ width: "auto", flex: "none", height: 38, fontSize: 13, paddingTop: 0, paddingBottom: 0 }}
+          className="form-input cursor-pointer"
+        >
           <option value="">كل الحالات</option>
           <option value="نشط">نشط</option>
           <option value="ينتهي قريباً">ينتهي قريباً</option>
@@ -183,22 +215,29 @@ export default function SubscribersTable({
         </select>
 
         {teamOptions.length > 0 && (
-          <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className={filterSelect}>
+          <select
+            value={filterTeam}
+            onChange={(e) => setFilterTeam(e.target.value)}
+            style={{ width: "auto", flex: "none", height: 38, fontSize: 13, paddingTop: 0, paddingBottom: 0 }}
+            className="form-input cursor-pointer"
+          >
             <option value="">كل الفرق</option>
             {teamOptions.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
 
-        <div className="flex items-center gap-2 mr-auto">
+        {/* العداد + مسح */}
+        <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
           {(search || filterEmp || filterPkg || filterStatus || filterTeam) && (
             <button
               onClick={() => { setSearch(""); setFilterEmp(""); setFilterPkg(""); setFilterStatus(""); setFilterTeam(""); }}
-              className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100"
+              className="btn-ghost"
+              style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, padding: "5px 12px" }}
             >
               <X size={12} /> مسح
             </button>
           )}
-          <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--jk-muted)" }}>
             {filtered.length} / {activeSubs.length}
           </span>
         </div>
@@ -209,7 +248,7 @@ export default function SubscribersTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs font-semibold sticky top-0 z-10"
-                style={{ background: "var(--surface-2)", color: "var(--text-muted)", borderBottom: "1px solid var(--border)" }}>
+                style={{ background: "#F3F5F8", color: "var(--jk-muted)", borderBottom: "2px solid var(--jk-border-strong)", letterSpacing: "0.03em" }}>
               <th className="hidden sm:table-cell px-4 py-3 text-right font-semibold">#</th>
               {sortableHeader("date",         "التاريخ",  "hidden sm:table-cell")}
               {sortableHeader("name",         "الاسم")}
@@ -247,7 +286,7 @@ export default function SubscribersTable({
                     borderBottom: "1px solid var(--border-soft)",
                     background: is15Day ? "rgba(245,158,11,0.04)" : undefined,
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--surface-2)"; }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(243,245,248,.85)"; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = is15Day ? "rgba(245,158,11,0.04)" : ""; }}
                 >
                   <td className="hidden sm:table-cell px-4 py-3.5 text-xs" style={{ color: "var(--text-muted)" }}>{i + 1}</td>
@@ -255,7 +294,7 @@ export default function SubscribersTable({
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     <Link href={`/subscribers/${s.id}`} className="flex items-center gap-2.5 group">
                       <span className="h-8 w-8 shrink-0 flex items-center justify-center rounded-xl text-[10px] font-black text-white"
-                        style={{ background: "linear-gradient(135deg,#6366f1,#38bdf8)" }}>
+                        style={{ background: "linear-gradient(135deg,#1E2332,#10141A)", boxShadow: "0 2px 6px rgba(16,20,26,.18)", letterSpacing: "0.04em" }}>
                         {(s.name || "؟").split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
                       </span>
                       <span className="text-sm font-semibold group-hover:text-blue-500 transition-colors" style={{ color: "var(--text-primary)" }}>
@@ -394,7 +433,7 @@ export default function SubscribersTable({
             <div key={s.id} className="p-4 space-y-3">
               <div className="flex items-start gap-3">
                 <span className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl text-[11px] font-black text-white mt-0.5"
-                  style={{ background: "linear-gradient(135deg,#6366f1,#38bdf8)" }}>
+                  style={{ background: "linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
                   {(s.name || "؟").split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
                 </span>
                 <div className="flex-1 min-w-0">

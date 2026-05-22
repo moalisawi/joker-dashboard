@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,8 +22,9 @@ import {
   UserCheck, Users2, Clock, ArrowLeft, ArrowRight,
   User, RotateCcw, AlertTriangle, Check,
 } from "lucide-react";
+import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
-const ACC = { indigo:"#6366f1", emerald:"#10b981", amber:"#f59e0b", rose:"#f43f5e" };
+const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969" };
 const fadeUp = { hidden:{opacity:0,y:10}, show:{opacity:1,y:0} };
 const tran   = { duration:0.28, ease:"easeOut" } as const;
 const stagger = { show:{transition:{staggerChildren:0.04}} };
@@ -115,7 +116,8 @@ interface Props {
 export default function AssignmentsTab({ subscriber }: Props) {
   const { user }                           = useAuthStore();
   const { data: employees = [], isLoading} = useActiveEmployees();
-  const { data: teams = [] }               = useTeams(true);
+  const { data: _allTeams = [] }           = useTeams(false);
+  const teams                              = _allTeams.filter(t => t.active !== false);
   const assignMut                          = useAssignSubscriber();
   const unassignMut                        = useUnassignSubscriber();
   const { data: history = [], isLoading: histLoading } = useAssignmentHistory(subscriber.id);
@@ -217,7 +219,7 @@ export default function AssignmentsTab({ subscriber }: Props) {
               )}
               <button onClick={() => { setEditOpen((v)=>!v); setConfirm(false); }}
                 className="text-xs font-bold px-3 py-1.5 rounded-xl text-white transition-all"
-                style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+                style={{ background:"linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
                 {editOpen ? "إغلاق" : "تعديل"}
               </button>
             </div>
@@ -232,7 +234,7 @@ export default function AssignmentsTab({ subscriber }: Props) {
             </div>
           )}
           {err && (
-            <div className="mb-3 p-2.5 rounded-xl text-xs" style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#b91c1c" }}>
+            <div className="mb-3 p-2.5 rounded-xl text-xs" style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#CE6969" }}>
               {err}
             </div>
           )}
@@ -242,13 +244,23 @@ export default function AssignmentsTab({ subscriber }: Props) {
             {subscriber.assignedSalesName ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
                 style={{ background:`${ACC.emerald}12`, color:ACC.emerald, border:`1px solid ${ACC.emerald}28` }}>
-                <UserCheck size={11}/>مبيعات: {subscriber.assignedSalesName}
+                <UserCheck size={11}/>مبيعات:{" "}
+                <EmployeeNameChip
+                  name={subscriber.assignedSalesName}
+                  uid={subscriber.assignedSalesId}
+                  style={{ color: ACC.emerald, fontWeight: 700 }}
+                />
               </span>
             ) : null}
             {subscriber.assignedNutritionistName ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
                 style={{ background:`${ACC.indigo}12`, color:ACC.indigo, border:`1px solid ${ACC.indigo}28` }}>
-                <User size={11}/>متابعة: {subscriber.assignedNutritionistName}
+                <User size={11}/>متابعة:{" "}
+                <EmployeeNameChip
+                  name={subscriber.assignedNutritionistName}
+                  uid={subscriber.assignedNutritionistId}
+                  style={{ color: ACC.indigo, fontWeight: 700 }}
+                />
               </span>
             ) : null}
             {subscriber.assignedTeamName ? (
@@ -349,7 +361,7 @@ export default function AssignmentsTab({ subscriber }: Props) {
                   <div className="flex gap-2 pt-1">
                     <button onClick={handleSave} disabled={assignMut.isPending}
                       className="flex-1 py-2 rounded-xl text-white font-bold text-xs disabled:opacity-60"
-                      style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+                      style={{ background:"linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
                       {assignMut.isPending ? "جاري..." : "حفظ التعيين"}
                     </button>
                     <button onClick={() => setEditOpen(false)}

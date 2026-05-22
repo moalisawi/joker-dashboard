@@ -54,26 +54,28 @@ export function useNotificationsListener() {
         // Filter: show if role qualifies OR explicitly targeted by uid
         const userRank = roleRank(user.role);
         const visible  = all.filter((n) => {
-          const roleOk = userRank >= minRoleRank(n.targetMinRole ?? "employee");
-          const targeted = Array.isArray(n.targetUserIds) && n.targetUserIds.includes(user.uid);
-          // targeted notifications: show only if explicitly targeted (bypass role check for employees)
           if (Array.isArray(n.targetUserIds) && n.targetUserIds.length > 0) {
+            const targeted = n.targetUserIds.includes(user.uid);
             return targeted || userRank >= minRoleRank("admin");
           }
-          return roleOk;
+          return userRank >= minRoleRank(n.targetMinRole ?? "employee");
         });
 
         setNotifications(visible);
       },
       (err) => {
-        console.error("[useNotificationsListener]", err);
+        console.error("[FIRESTORE] notifications listener error:", err);
         setLoading(false);
       }
     );
 
-    // Run smart alert checks after the listener is set up
+    // Run smart alert checks after the listener is set up.
+    // runAll() has a 10-minute localStorage cooldown so it won't
+    // hammer Firestore on every re-mount.
     alertEngineService.runAll().catch(console.warn);
 
-    return () => unsub();
-  }, [user?.uid, user?.role]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { unsub(); };
+  // user.uid and user.role are primitive strings — stable across object re-creates.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, user?.role]);
 }

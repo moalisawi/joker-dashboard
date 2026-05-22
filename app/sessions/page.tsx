@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -11,6 +10,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore }    from "@/store/authStore";
 import ProtectedLayout     from "@/components/layout/ProtectedLayout";
+import PageHeader          from "@/components/layout/PageHeader";
 import ConfirmDialog       from "@/components/ui/ConfirmDialog";
 import { useSessions }     from "@/hooks/useSessions";
 import { canViewSessions } from "@/lib/permissionGuards";
@@ -68,19 +68,19 @@ function getStatus(s: LoginSession): StatusInfo {
   const diffMin  = (Date.now() - toMs(s.lastSeenAt)) / 60_000;
 
   if (raw === "logged_out") return { label: "خرج",        textColor: "#64748b", bgColor: "#f1f5f9",         dotColor: "#94a3b8", online: false };
-  if (raw === "suspicious") return { label: "مشبوه",      textColor: "#ea580c", bgColor: "#fff7ed",         dotColor: "#f97316", online: false };
+  if (raw === "suspicious") return { label: "مشبوه",      textColor: "#E8B570", bgColor: "#fff7ed",         dotColor: "#E8B570", online: false };
   if (raw === "active" || s.isActive) {
-    if (diffMin < 5)  return { label: "متصل الآن",       textColor: "#059669", bgColor: "#ecfdf5",         dotColor: "#10b981", online: true  };
-    if (diffMin < 30) return { label: "نشطة",             textColor: "#2563eb", bgColor: "#eff6ff",         dotColor: "#3b82f6", online: false };
-    return                   { label: "منتهية",           textColor: "#6b7280", bgColor: "#f9fafb",         dotColor: "#9ca3af", online: false };
+    if (diffMin < 5)  return { label: "متصل الآن",       textColor: "#83A2DB", bgColor: "#ecfdf5",         dotColor: "#83A2DB", online: true  };
+    if (diffMin < 30) return { label: "نشطة",             textColor: "#83A2DB", bgColor: "#eff6ff",         dotColor: "#83A2DB", online: false };
+    return                   { label: "منتهية",           textColor: "#64748B", bgColor: "#f9fafb",         dotColor: "#94A3B8", online: false };
   }
-  return { label: "منتهية", textColor: "#6b7280", bgColor: "#f9fafb", dotColor: "#9ca3af", online: false };
+  return { label: "منتهية", textColor: "#64748B", bgColor: "#f9fafb", dotColor: "#94A3B8", online: false };
 }
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
-  owner:    { label: "مالك",   color: "#d97706" },
-  admin:    { label: "مدير",   color: "#7c3aed" },
-  employee: { label: "موظف",   color: "#475569" },
+  owner:    { label: "مالك",   color: "#E8B570" },
+  admin:    { label: "مدير",   color: "#83A2DB" },
+  employee: { label: "موظف",   color: "#64748B" },
 };
 
 function DeviceIcon({ device }: { device: DeviceType }) {
@@ -95,7 +95,11 @@ function StatCard({ label, value, icon, iconBg, pulse = false }: {
   label: string; value: number; icon: React.ReactNode; iconBg: string; pulse?: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-center gap-3">
+    <div style={{
+      background: "var(--surface)", border: "1px solid var(--border-soft)",
+      borderRadius: 16, boxShadow: "var(--shadow-card)", padding: "14px 16px",
+      display: "flex", alignItems: "center", gap: 12,
+    }}>
       <div className="relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg }}>
         {pulse && value > 0 && (
           <span className="absolute inset-0 rounded-xl animate-ping opacity-25" style={{ background: iconBg }} />
@@ -103,8 +107,8 @@ function StatCard({ label, value, icon, iconBg, pulse = false }: {
         {icon}
       </div>
       <div>
-        <p className="text-2xl font-black text-slate-800">{value}</p>
-        <p className="text-xs text-slate-500 font-medium">{label}</p>
+        <p style={{ fontSize: 22, fontWeight: 900, color: "var(--text-primary)" }}>{value}</p>
+        <p style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 500 }}>{label}</p>
       </div>
     </div>
   );
@@ -130,7 +134,7 @@ function DetailModal({ session, currentUid, onClose, onRevoke }: {
   session: LoginSession; currentUid: string; onClose: () => void; onRevoke: () => void;
 }) {
   const si      = getStatus(session);
-  const role    = ROLE_META[session.role] ?? { label: session.role, color: "#475569" };
+  const role    = ROLE_META[session.role] ?? { label: session.role, color: "#64748B" };
   const canKick = si.online && session.uid !== currentUid;
 
   return (
@@ -206,7 +210,7 @@ function DetailModal({ session, currentUid, onClose, onRevoke }: {
 
           {session.userAgent && (
             <div>
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">User Agent</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">معرّف المتصفح</p>
               <p className="text-[10px] font-mono text-slate-400 break-all leading-relaxed bg-slate-50 rounded-lg p-2">
                 {session.userAgent}
               </p>
@@ -257,7 +261,7 @@ function SessionRow({ session, currentUid, onClick }: {
   session: LoginSession; currentUid: string; onClick: () => void;
 }) {
   const si   = getStatus(session);
-  const role = ROLE_META[session.role] ?? { label: session.role, color: "#475569" };
+  const role = ROLE_META[session.role] ?? { label: session.role, color: "#64748B" };
   const self = session.uid === currentUid;
 
   return (
@@ -449,34 +453,34 @@ export default function SessionsPage() {
       <div className="p-6 space-y-5 max-w-[1400px] mx-auto" dir="rtl">
 
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                 style={{ background: "linear-gradient(135deg,#1e40af,#2563eb)", boxShadow: "0 4px 12px rgba(37,99,235,0.3)" }}>
-              <Shield size={19} className="text-white" />
+        <PageHeader
+          title="سجل الجلسات"
+          subtitle={`${sessions.length} جلسة · ${summary.onlineNow} متصل الآن`}
+          actions={
+            <div className="flex items-center gap-2">
+              {loading && (
+                <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <Activity size={11} className="animate-pulse text-blue-500" />
+                  يتحدث تلقائياً
+                </span>
+              )}
+              <button
+                onClick={() => fetchRef.current()}
+                disabled={loading}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6, padding: "7px 14px",
+                  borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  background: "var(--surface)", border: "1px solid var(--border)",
+                  color: "var(--text-secondary)", fontFamily: "inherit",
+                  opacity: loading ? 0.5 : 1, transition: "all .25s",
+                }}
+              >
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+                تحديث
+              </button>
             </div>
-            <div>
-              <h1 className="text-xl font-black text-slate-900">سجل الجلسات والوصول</h1>
-              <p className="text-sm text-slate-500 mt-0.5">مراقبة جلسات الموظفين وأمان الدخول</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {loading && (
-              <span className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Activity size={11} className="animate-pulse text-blue-500" />
-                يتحدث تلقائياً
-              </span>
-            )}
-            <button
-              onClick={() => fetchRef.current()}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition shadow-sm disabled:opacity-50"
-            >
-              <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-              تحديث
-            </button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -508,7 +512,7 @@ export default function SessionsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 border-b border-slate-200">
+        <div style={{ display: "flex", gap: 4, borderBottom: "1px solid var(--border-soft)" }}>
           {([
             { key: "sessions", label: `الجلسات (${sessions.length})` },
             { key: "failed",   label: `المحاولات الفاشلة (${summary.failedToday})` },
@@ -516,11 +520,13 @@ export default function SessionsPage() {
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`px-4 py-2.5 text-sm font-semibold transition-all border-b-2 -mb-px ${
-                tab === key
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
-              }`}
+              style={{
+                padding: "10px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                background: "none", border: "none", fontFamily: "inherit",
+                borderBottom: tab === key ? `2px solid var(--jk-blue)` : "2px solid transparent",
+                color: tab === key ? "var(--jk-blue)" : "var(--text-muted)",
+                marginBottom: -1, transition: "all .15s",
+              }}
             >
               {label}
             </button>
@@ -533,15 +539,23 @@ export default function SessionsPage() {
             {/* Filters */}
             <div className="flex flex-wrap gap-2.5">
               <div className="relative flex-1 min-w-[200px]">
-                <Search size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={13} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="بحث بالاسم أو IP أو المتصفح أو الدولة..."
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-9 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400 transition shadow-sm"
+                  style={{
+                    width: "100%", background: "var(--surface)", border: "1px solid var(--border)",
+                    borderRadius: 10, padding: "8px 12px 8px 36px", fontSize: 13,
+                    color: "var(--text-primary)", outline: "none", fontFamily: "inherit",
+                    boxSizing: "border-box",
+                  }}
                 />
               </div>
-              <div className="flex bg-white border border-slate-200 rounded-xl p-1 gap-0.5 shadow-sm">
+              <div style={{
+                display: "flex", background: "var(--surface-2)", border: "1px solid var(--border)",
+                borderRadius: 10, padding: 4, gap: 2,
+              }}>
                 {([
                   { key: "all",        label: "الكل" },
                   { key: "online",     label: "متصل" },
@@ -551,11 +565,12 @@ export default function SessionsPage() {
                   <button
                     key={key}
                     onClick={() => setStatusFilter(key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      statusFilter === key
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                    }`}
+                    style={{
+                      padding: "5px 10px", borderRadius: 7, fontSize: 11.5, fontWeight: 600,
+                      cursor: "pointer", fontFamily: "inherit", border: "none", transition: "all .15s",
+                      background: statusFilter === key ? "var(--jk-blue)" : "transparent",
+                      color: statusFilter === key ? "#fff" : "var(--text-muted)",
+                    }}
                   >
                     {label}
                   </button>

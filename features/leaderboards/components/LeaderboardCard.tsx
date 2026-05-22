@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -8,12 +8,12 @@ import type { LeaderboardEntry } from "@/features/leaderboards/lib/leaderboardMe
 import { Trophy, ChevronDown, ChevronUp } from "lucide-react";
 
 const MEDAL: Record<number, { emoji: string; color: string }> = {
-  1: { emoji:"🥇", color:"#f59e0b" },
+  1: { emoji:"🥇", color:"#E8B570" },
   2: { emoji:"🥈", color:"#94a3b8" },
   3: { emoji:"🥉", color:"#b45309" },
 };
 
-const ACC_INDIGO = "#6366f1";
+const ACC_INDIGO = "#83A2DB";
 const PREVIEW = 3;
 
 interface Props {

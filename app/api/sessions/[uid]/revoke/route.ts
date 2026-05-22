@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { requireRole } from "@/lib/requireRole";
 import { initializeAdminApp } from "@/lib/serverAuth";
+import { hasAdminCredentials } from "@/lib/serverFirestore";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,13 @@ export async function POST(
     return NextResponse.json(
       { success: false, error: "لا يمكنك إلغاء جلستك الحالية" },
       { status: 400 }
+    );
+  }
+
+  if (!hasAdminCredentials()) {
+    return NextResponse.json(
+      { success: false, error: "Admin credentials غير مفعّلة على السيرفر" },
+      { status: 503 }
     );
   }
 

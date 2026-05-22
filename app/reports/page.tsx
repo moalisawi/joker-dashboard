@@ -1,10 +1,10 @@
-"use client";
-export const dynamic = "force-dynamic";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
+import PageHeader from "@/components/layout/PageHeader";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { usePayments }    from "@/hooks/usePayments";
 import { useRefunds }     from "@/hooks/useRefunds";
@@ -47,7 +47,7 @@ export default function ReportsPage() {
       icon: <Users size={20}/>,
       label: "تقرير المشتركين",
       description: "قائمة كاملة بالمشتركين مع بياناتهم المالية",
-      color: "#6366f1",
+      color: "#83A2DB",
       onExport: () => exportSubscribersCSV(subscribers, { dateFrom: dateFrom||undefined, dateTo: dateTo||undefined }),
     },
     {
@@ -55,7 +55,7 @@ export default function ReportsPage() {
       icon: <CreditCard size={20}/>,
       label: "تقرير المدفوعات",
       description: "جميع الدفعات مع العملات وأساليب الدفع",
-      color: "#10b981",
+      color: "#83A2DB",
       restricted: !canViewFin,
       onExport: () => exportPaymentsCSV(payments, refunds, dateFrom||undefined, dateTo||undefined),
     },
@@ -64,7 +64,7 @@ export default function ReportsPage() {
       icon: <Briefcase size={20}/>,
       label: "أداء الموظفين",
       description: "مقارنة أداء الموظفين بالإيراد والمشتركين",
-      color: "#f59e0b",
+      color: "#E8B570",
       onExport: () => exportEmployeePerformanceCSV(subscribers),
     },
   ];
@@ -74,21 +74,7 @@ export default function ReportsPage() {
       <div className="min-h-full" style={{ background: "var(--page-bg)" }}>
         <div className="mx-auto max-w-screen-xl p-5 md:p-7 space-y-6">
 
-          {/* Header */}
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 flex items-center justify-center rounded-xl"
-              style={{ background: "#6366f118", border: "1px solid #6366f128" }}>
-              <FileText size={16} style={{ color: "#6366f1" }}/>
-            </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
-                التقارير والتصدير
-              </h1>
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                تصدير البيانات بصيغة CSV
-              </p>
-            </div>
-          </div>
+          <PageHeader title="التقارير" subtitle="تصدير البيانات والتقارير التفصيلية" />
 
           {/* Date filters */}
           <div className="flex flex-wrap gap-3 p-4 rounded-2xl"
@@ -104,7 +90,7 @@ export default function ReportsPage() {
             {(dateFrom || dateTo) && (
               <button onClick={() => { setDateFrom(""); setDateTo(""); }}
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                style={{ background: "#f43f5e18", color: "#f43f5e" }}>
+                style={{ background: "#CE696918", color: "#CE6969" }}>
                 مسح
               </button>
             )}
@@ -126,7 +112,7 @@ export default function ReportsPage() {
                   <h3 className="font-bold text-base mb-1" style={{ color: "var(--text-primary)" }}>{r.label}</h3>
                   <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{r.description}</p>
                   {r.restricted && (
-                    <p className="text-xs mt-1.5 font-semibold" style={{ color: "#f43f5e" }}>
+                    <p className="text-xs mt-1.5 font-semibold" style={{ color: "#CE6969" }}>
                       يتطلب صلاحية عرض البيانات المالية
                     </p>
                   )}

@@ -68,6 +68,7 @@ export function getComputedStatus(s: {
   daysRemaining: number;
 }): SubscriberStatus {
   if (s.subscriptionState === "withdrawn") return "منسحب";
+  if (s.subscriptionStatus === "frozen")   return "متجمد";
   if (s.subscriptionStatus === "paused")   return "موقوف";
   if (s.daysRemaining < 0)  return "منتهي";
   if (s.daysRemaining <= 7) return "ينتهي قريباً";
@@ -171,6 +172,10 @@ export function normalizeSubscriber(raw: Record<string, unknown> & { id: string 
     pauseReason:           raw.pauseReason as string | null ?? null,
     remainingDaysAtPause:  raw.remainingDaysAtPause != null ? Number(raw.remainingDaysAtPause) : null,
     totalPausedDays:       Number(raw.totalPausedDays || 0),
+    // Freeze system
+    freezeData: raw.freezeData as import("../types").FreezeData | undefined,
+    // Withdrawal system
+    withdrawalData: raw.withdrawalData as import("../types/withdrawal").WithdrawalData | undefined,
     // Renewal lifecycle (new system)
     renewals: (raw.renewals as import("../types").RenewalSnapshot[]) || [],
     renewalCount: Number(raw.renewalCount || 0),

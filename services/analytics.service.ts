@@ -28,17 +28,12 @@ export const analyticsService = {
   },
 
   /**
-   * Get analytics for a specific month (YYYY-MM)
+   * Get analytics for a specific month (YYYY-MM).
+   * Document ID IS the month string, so use getDoc instead of a field query.
    */
   async getByMonth(month: string): Promise<MonthlyAnalytics | null> {
-    const q = query(
-      collection(db, "monthlyAnalytics"),
-      where("month", "==", month)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.empty
-      ? null
-      : (snapshot.docs[0].data() as MonthlyAnalytics);
+    const snap = await getDoc(doc(db, "monthlyAnalytics", month));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as MonthlyAnalytics) : null;
   },
 
   /**
