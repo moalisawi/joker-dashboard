@@ -7,7 +7,6 @@ import {
   PauseCircle, Snowflake, UserMinus,
   Plus, RotateCcw, AlertCircle, PlayCircle,
 } from "lucide-react";
-import { useThemeStore } from "@/store/themeStore";
 import { useSubscriberNotes } from "@/features/subscriberNotes/hooks/useSubscriberNotes";
 import { formatNumber } from "@/lib/utils";
 import type { Subscriber }        from "@/types";
@@ -74,10 +73,7 @@ interface Props {
 }
 
 export default function TimelineTab({ subscriber: s, payments, refunds, canRev }: Props) {
-  const { dark } = useThemeStore();
-  const t = dark
-    ? { card: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.08)", t1: "#f1f5f9", t2: "#6b7280", line: "rgba(255,255,255,0.08)" }
-    : { card: "var(--surface)", border: "rgba(15,23,42,0.08)", t1: "var(--text-primary)", t2: "#6b7280", line: "rgba(15,23,42,0.08)" };
+  const t = { card: "var(--surface)", border: "rgba(15,23,42,0.08)", t1: "var(--text-primary)", t2: "#6b7280", line: "rgba(15,23,42,0.08)" };
 
   const { data: notes = [] } = useSubscriberNotes(s.id);
 

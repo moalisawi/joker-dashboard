@@ -10,7 +10,6 @@ import TableSkeleton    from "@/components/ui/TableSkeleton";
 import EmptyState       from "@/components/ui/EmptyState";
 
 import { useAuthStore }    from "@/store/authStore";
-import { useThemeStore }   from "@/store/themeStore";
 import { useTeamDetail, useTeamMembers } from "@/features/teams";
 import { useUpdateEmployee, useAssignTeam } from "@/features/users/hooks";
 import { useSubscribers }  from "@/hooks/useSubscribers";
@@ -314,7 +313,6 @@ export default function TeamDetailPage() {
   const { id }    = useParams<{ id: string }>();
   const router    = useRouter();
   const { user }  = useAuthStore();
-  const { dark }  = useThemeStore();
   const { loading } = useAuthStore();
 
   // Redirect non-managers

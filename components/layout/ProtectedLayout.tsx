@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { pageVariants } from "@/lib/animations";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationsListener } from "@/hooks/useNotificationsListener";
-import { useSessionHeartbeat }   from "@/hooks/useSessionHeartbeat";
+import { usePresence }  from "@/hooks/usePresence";
+import { useHeartbeat } from "@/hooks/useHeartbeat";
 import Sidebar           from "./Sidebar";
 import TopNav            from "./TopNav";
 import GlobalSearch      from "@/components/search/GlobalSearch";
@@ -12,9 +15,11 @@ import EmployeeQuickCard from "@/components/employees/EmployeeQuickCard";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   useNotificationsListener();
-  useSessionHeartbeat();
+  usePresence();   // RTDB presence + force-logout listener
+  useHeartbeat();  // 30s RTDB + 60s REST heartbeats
 
-  const router = useRouter();
+  const router   = useRouter();
+  const pathname = usePathname();
   const { user, loading } = useAuthStore();
 
   // Use primitive deps (uid string + loading boolean) instead of the user
@@ -32,7 +37,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--page-bg)" }}>
         <div className="flex flex-col items-center gap-4">
-          <div className="w-11 h-11 rounded-full border-[3px] animate-spin" style={{ borderColor: "#10141A", borderTopColor: "transparent" }} />
+          <div className="w-11 h-11 rounded-full border-[3px] animate-spin" style={{ borderColor: "#5B5FEF", borderTopColor: "transparent" }} />
           <p className="text-sm font-medium" style={{ color: "#6B7280" }}>جاري التحميل...</p>
         </div>
       </div>
@@ -53,9 +58,18 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         }}>
           <TopNav />
         </div>
-        <div className="flex-1">
-          {children}
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={pathname}
+            className="flex-1"
+            variants={pageVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
       </main>
       <GlobalSearch />
       <EmployeeQuickCard />

@@ -26,7 +26,6 @@ import {
 import type { Timestamp } from "firebase/firestore";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import PageHeader from "@/components/layout/PageHeader";
-import { useThemeStore } from "@/store/themeStore";
 import {
   useUpdateLeadStatusMutation,
   useWhatsappLeadsAnalytics,
@@ -41,7 +40,7 @@ const LIGHT = {
   card:       "#FFFFFF",
   cardBorder: "rgba(16,20,26,0.06)",
   cardShadow: "0 1px 2px rgba(16,20,26,.04), 0 8px 20px -8px rgba(16,20,26,.08)",
-  textPri:    "#10141A",
+  textPri:    "#5B5FEF",
   textSec:    "#6B7280",
   textMut:    "#9CA3AF",
   row:        "rgba(16,20,26,0.02)",
@@ -85,7 +84,7 @@ const COUNTRY_LABELS: Record<string, string> = {
 const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; chart: string }> = {
   [LeadStatus.INTERESTED]:          { bg: "#5B5FEF", text: "#fff",     chart: "#5B5FEF" },
   [LeadStatus.READY_TO_PAY]:        { bg: "#5B5FEF", text: "#fff",     chart: "#5B5FEF" },
-  [LeadStatus.IMPORTANT_FOLLOW_UP]: { bg: "#F59E0B", text: "#10141A", chart: "#F59E0B" },
+  [LeadStatus.IMPORTANT_FOLLOW_UP]: { bg: "#F59E0B", text: "#5B5FEF", chart: "#F59E0B" },
   [LeadStatus.NEW]:                 { bg: "#9CA3AF", text: "#fff",     chart: "#9CA3AF" },
   [LeadStatus.RETARGETING]:         { bg: "#A78BFA", text: "#fff",     chart: "#A78BFA" },
 };
@@ -276,7 +275,7 @@ function MonthlyChart({ referenceDate, t }: { referenceDate: Date; t: typeof LIG
             />
             <Tooltip
               contentStyle={{
-                background: t.card === "#FFFFFF" ? "#fff" : "#10141A",
+                background: t.card,
                 border: `1px solid ${t.cardBorder}`,
                 borderRadius: 12,
                 fontSize: 12,
@@ -359,7 +358,7 @@ function LeadDrawer({
           position: "fixed",
           insetInlineStart: 0, top: 0, bottom: 0,
           width: 340, zIndex: 50,
-          background: t.card === "#FFFFFF" ? "#fff" : "#10141A",
+          background: t.card,
           borderInlineEnd: `1px solid ${t.cardBorder}`,
           display: "flex", flexDirection: "column",
           padding: 24, gap: 18, overflowY: "auto",
@@ -465,8 +464,7 @@ function LeadDrawer({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function WhatsappLeadsPage() {
-  const { dark } = useThemeStore();
-  const t = dark ? DARK : LIGHT;
+  const t = LIGHT;
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [statusFilter, setStatusFilter]   = useState<LeadStatus | "all">("all");

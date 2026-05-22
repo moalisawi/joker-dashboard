@@ -134,7 +134,7 @@ export default function MonthlyCalendar({ subscribers }: Props) {
                   ? "rgba(99,102,241,.11)"
                   : "rgba(255,255,255,.38)",
                 border: isToday
-                  ? "2px solid #10141A"
+                  ? "2px solid #5B5FEF"
                   : hasData
                     ? "1px solid rgba(99,102,241,.20)"
                     : "1px solid transparent",
@@ -155,7 +155,7 @@ export default function MonthlyCalendar({ subscribers }: Props) {
                 color: isToday ? "var(--text-primary)" : "var(--text-muted)",
                 display: "block", textAlign: "right", lineHeight: 1,
                 ...(isToday ? {
-                  background: "#10141A", color: "#fff",
+                  background: "#5B5FEF", color: "#fff",
                   width: 20, height: 20, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   marginRight: "auto",

@@ -188,14 +188,14 @@ export default function HomePage() {
         onEvent={handleTourCallback}
         locale={{ back: "السابق", close: "إغلاق", last: "إنهاء", next: "التالي", skip: "تخطى" }}
         options={{
-          primaryColor: "#10141A",
+          primaryColor: "#5B5FEF",
           zIndex: 10000,
           arrowColor: "#fff",
           showProgress: true,
         }}
         styles={{
           tooltip: { borderRadius: 22, fontFamily: "inherit", direction: "rtl", boxShadow: "0 20px 48px rgba(16,20,26,.25)" },
-          buttonPrimary: { borderRadius: 9999, fontWeight: 700, background: "#10141A" },
+          buttonPrimary: { borderRadius: 9999, fontWeight: 700, background: "#5B5FEF" },
           buttonBack: { borderRadius: 9999 },
           buttonSkip: { borderRadius: 9999 },
         }}

@@ -121,7 +121,7 @@ export default function InfoSidebarPane({
       <div style={{ padding: "20px 16px 14px", borderBottom: `1px solid ${t.divider}`, textAlign: "center" }}>
         <div style={{
           width: 56, height: 56, borderRadius: "50%",
-          background: "#10141A", color: "#fff",
+          background: "#5B5FEF", color: "#fff",
           fontSize: 22, fontWeight: 700,
           display: "flex", alignItems: "center", justifyContent: "center",
           margin: "0 auto 10px",
@@ -281,7 +281,7 @@ export default function InfoSidebarPane({
                       }}
                       style={{
                         padding: "5px 10px", borderRadius: 6, border: "none",
-                        background: "#10141A", color: "#fff", cursor: "pointer",
+                        background: "#5B5FEF", color: "#fff", cursor: "pointer",
                         fontSize: 12, fontFamily: "inherit",
                       }}
                     >
@@ -368,7 +368,7 @@ export default function InfoSidebarPane({
                 type="submit"
                 style={{
                   fontSize: 12, padding: "5px 12px", borderRadius: 6, border: "none",
-                  background: "#10141A", color: "#fff", cursor: "pointer", fontFamily: "inherit",
+                  background: "#5B5FEF", color: "#fff", cursor: "pointer", fontFamily: "inherit",
                 }}
               >
                 حفظ

@@ -79,7 +79,7 @@ export function Tab({
         fontFamily: "inherit",
         fontSize: 13,
         fontWeight: 600,
-        background: isActive ? "#10141A" : "transparent",
+        background: isActive ? "#5B5FEF" : "transparent",
         color: isActive ? "#fff" : "var(--jk-muted)",
         boxShadow: isActive ? "var(--jk-shadow-nav)" : "none",
       }}

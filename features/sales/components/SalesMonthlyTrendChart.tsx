@@ -6,7 +6,6 @@ import {
 } from "recharts";
 import type { MonthlyAcquisition } from "@/lib/analytics/calculations";
 import { formatNumber } from "@/lib/utils";
-import { useThemeStore } from "@/store/themeStore";
 
 const MONTH_LABELS: Record<string, string> = {
   "01":"يناير","02":"فبراير","03":"مارس","04":"أبريل",
@@ -54,9 +53,8 @@ interface Props {
 }
 
 export default function SalesMonthlyTrendChart({ data, canRev, height = 200 }: Props) {
-  const { dark } = useThemeStore();
-  const axisColor = dark ? "#6B7280" : "#9CA3AF";
-  const gridColor = dark ? "#10141A" : "#f1f5f9";
+  const axisColor = "#9CA3AF";
+  const gridColor = "#f1f5f9";
 
   const chartData = data.map((d) => ({
     ...d,
@@ -69,13 +67,13 @@ export default function SalesMonthlyTrendChart({ data, canRev, height = 200 }: P
         <CartesianGrid vertical={false} stroke={gridColor}/>
         <XAxis
           dataKey="label"
-          tick={{ fontSize:11, fill: dark ? "#6b7280" : "#9ca3af" }}
+          tick={{ fontSize:11, fill: "#9ca3af" }}
           axisLine={{ stroke:axisColor }}
           tickLine={false}
         />
         <YAxis
           yAxisId="subs"
-          tick={{ fontSize:11, fill: dark ? "#6b7280" : "#9ca3af" }}
+          tick={{ fontSize:11, fill: "#9ca3af" }}
           axisLine={false}
           tickLine={false}
           width={24}

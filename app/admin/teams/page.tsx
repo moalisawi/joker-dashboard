@@ -14,7 +14,6 @@ import TableSkeleton    from "@/components/ui/TableSkeleton";
 import RequirePermission from "@/components/auth/RequirePermission";
 
 import { useAuthStore }    from "@/store/authStore";
-import { useThemeStore }   from "@/store/themeStore";
 import { useTeams, useCreateTeam, useDeactivateTeam, useActivateTeam, useDeleteTeam, useUpdateTeam } from "@/hooks/useTeams";
 import { useEmployeeList } from "@/features/users/hooks";
 import { useSubscribers }  from "@/hooks/useSubscribers";
@@ -328,8 +327,6 @@ function SortableTeamCard(props: {
 export default function AdminTeamsPage() {
   const router   = useRouter();
   const { user } = useAuthStore();
-  const { dark } = useThemeStore();
-
   const { loading } = useAuthStore();
   useEffect(() => {
     if (!loading && user && !canManageUsers(user)) router.replace("/");

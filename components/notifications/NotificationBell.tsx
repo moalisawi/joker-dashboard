@@ -33,7 +33,7 @@ export default function NotificationBell() {
             className="absolute -top-1 -left-1 min-w-[16px] h-4 px-0.5
               rounded-full bg-red-500 text-white text-[10px] font-black
               flex items-center justify-center leading-none
-              ring-2 ring-[#10141A]"
+              ring-2 ring-[#5B5FEF]"
           >
             {count > 99 ? "99+" : count}
           </span>

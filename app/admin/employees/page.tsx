@@ -16,7 +16,6 @@ import PermissionsEditor   from "@/components/employees/PermissionsEditor";
 import RequirePermission   from "@/components/auth/RequirePermission";
 
 import { useAuthStore }  from "@/store/authStore";
-import { useThemeStore } from "@/store/themeStore";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { useTeams }       from "@/hooks/useTeams";
 import {
@@ -465,8 +464,6 @@ type ModalState =
 export default function AdminEmployeesPage() {
   const router     = useRouter();
   const { user }   = useAuthStore();
-  const { dark }   = useThemeStore();
-
   // ── Route guard ───────────────────────────────────────────────────────────────
   const { loading } = useAuthStore();
   useEffect(() => {

@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
+import { motion } from "framer-motion";
 import type { Subscriber }        from "@/types";
 import type { Payment }           from "@/types";
 import type { RefundTransaction } from "@/types";
 import { formatNumber } from "@/lib/utils";
+import { fadeUpVariants, staggerContainer, useCountUp } from "@/lib/animations";
 import { useAuthStore } from "@/store/authStore";
 import { Users, TrendingUp, Clock, Star, Award, PauseCircle, Snowflake, UserMinus, DollarSign, TrendingDown } from "lucide-react";
 import { calculateChurnRate } from "@/lib/analytics/calculations";
@@ -25,7 +27,7 @@ interface CardConfig {
 }
 
 const CARD_STYLES = {
-  total:     { iconColor: "#10141A",  tagColor: "#6B7280" },
+  total:     { iconColor: "#5B5FEF",  tagColor: "#6B7280" },
   active:    { iconColor: "#5B5FEF",  tagColor: "#5B5FEF" },
   expiring:  { iconColor: "#F59E0B",  tagColor: "#F59E0B" },
   paused:    { iconColor: "#F59E0B",  tagColor: "#F59E0B" },
@@ -57,6 +59,10 @@ function StatCard({
   value,
   label,
   sub,
+  rawValue,
+  valuePrefix = "",
+  valueSuffix = "",
+  valueDecimals = 0,
 }: {
   style: CardConfig;
   icon: React.ReactNode;
@@ -65,9 +71,22 @@ function StatCard({
   value: string;
   label: string;
   sub?: React.ReactNode;
+  rawValue?: number;
+  valuePrefix?: string;
+  valueSuffix?: string;
+  valueDecimals?: number;
 }) {
+  const animated    = useCountUp(rawValue ?? 0);
+  const displayValue = rawValue !== undefined
+    ? `${valuePrefix}${formatNumber(animated, valueDecimals)}${valueSuffix}`
+    : value;
+
   return (
-    <div
+    <motion.div
+      variants={fadeUpVariants}
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
       className="group relative cursor-default"
       style={{
         background: style.cardBg ?? "var(--jk-surface)",
@@ -75,18 +94,14 @@ function StatCard({
         borderRadius: 22,
         padding: 22,
         boxShadow: "var(--jk-shadow-stat)",
-        transition: "box-shadow .25s ease, transform .25s ease",
+        transition: "box-shadow .25s ease",
       }}
       onMouseEnter={e => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.transform = "translateY(-2px)";
-        el.style.boxShadow = `0 2px 4px rgba(16,20,26,.04), 0 14px 32px -8px ${style.iconColor}38`;
+        (e.currentTarget as HTMLElement).style.boxShadow =
+          `0 2px 4px rgba(16,20,26,.04), 0 14px 32px -8px ${style.iconColor}38`;
       }}
       onMouseLeave={e => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.transform = "translateY(0)";
-        el.style.boxShadow = "var(--jk-shadow-stat)";
-        el.style.background = style.cardBg ?? "var(--jk-surface)";
+        (e.currentTarget as HTMLElement).style.boxShadow = "var(--jk-shadow-stat)";
       }}
     >
       <div className="flex items-start justify-between" style={{ marginBottom: 14 }}>
@@ -120,10 +135,10 @@ function StatCard({
         ))}
       </div>
 
-      <p style={{ color: style.labelColor ? "#10141A" : "var(--jk-text)", fontSize: 30, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums", margin: 0 }}>{value}</p>
+      <p style={{ color: style.labelColor ? "#5B5FEF" : "var(--jk-text)", fontSize: 30, fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums", margin: 0 }}>{displayValue}</p>
       <p style={{ color: style.labelColor ?? "var(--jk-muted)", fontSize: 13, fontWeight: 500, marginTop: 6 }}>{label}</p>
       {sub && <div style={{ marginTop: 8, fontSize: 12, color: "var(--jk-subtle)" }}>{sub}</div>}
-    </div>
+    </motion.div>
   );
 }
 
@@ -167,12 +182,18 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
   }, [subscribers, payments, refunds]);
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6">
+    <motion.div
+      className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-6"
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
       <StatCard
         style={CARD_STYLES.total}
         icon={<Users size={18} />}
         tagContent="الكل"
         value={formatNumber(stats.total)}
+        rawValue={stats.total}
         label="إجمالي المشتركين"
         sub={canRev && (
           <p style={{ color: "#5B5FEF", fontSize: 12, fontWeight: 700 }}>${formatNumber(stats.netUSD, 2)}</p>
@@ -184,6 +205,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         icon={<TrendingUp size={18} />}
         tagContent="نشط"
         value={formatNumber(stats.active)}
+        rawValue={stats.active}
         label="اشتراك نشط"
       />
 
@@ -192,6 +214,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         icon={<Clock size={18} />}
         tagContent="قريباً"
         value={formatNumber(stats.expiring)}
+        rawValue={stats.expiring}
         label="ينتهي قريباً"
         sub={canRev && stats.remaining > 0 && (
           <p style={{ color: "#F59E0B", fontSize: 12, fontWeight: 700 }}>متبقي ${formatNumber(stats.remaining, 2)}</p>
@@ -204,6 +227,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           icon={<PauseCircle size={18} />}
           tagContent="موقوف"
           value={formatNumber(stats.paused)}
+          rawValue={stats.paused}
           label="اشتراك موقوف"
         />
       )}
@@ -214,6 +238,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           icon={<Snowflake size={18} />}
           tagContent="متجمد"
           value={formatNumber(stats.frozen)}
+          rawValue={stats.frozen}
           label="اشتراك متجمد"
         />
       )}
@@ -224,6 +249,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           icon={<UserMinus size={18} />}
           tagContent="منسحب"
           value={formatNumber(stats.withdrawn)}
+          rawValue={stats.withdrawn}
           label="اشتراك منسحب"
         />
       )}
@@ -233,6 +259,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         icon={<Star size={18} />}
         tag={<span className="pkg-silver text-xs px-2.5 py-1 rounded-lg">فضية</span>}
         value={formatNumber(stats.silver)}
+        rawValue={stats.silver}
         label="باقة فضية"
       />
 
@@ -241,6 +268,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         icon={<Award size={18} />}
         tag={<span className="pkg-gold text-xs px-2.5 py-1 rounded-lg">ذهبية</span>}
         value={formatNumber(stats.gold)}
+        rawValue={stats.gold}
         label="باقة ذهبية"
       />
 
@@ -250,6 +278,8 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           icon={<DollarSign size={18} />}
           tagContent={periodTag}
           value={`$${formatNumber(stats.mrr, 0)}`}
+          rawValue={stats.mrr}
+          valuePrefix="$"
           label="الإيراد — صافي الفترة"
           sub={
             <p style={{ color: "#5B5FEF", fontSize: 12, fontWeight: 600 }}>صافي بعد الاسترداد</p>
@@ -263,6 +293,9 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           icon={<TrendingDown size={18} />}
           tagContent={periodTag}
           value={`${(stats.churnRate * 100).toFixed(1)}%`}
+          rawValue={stats.churnRate * 100}
+          valueSuffix="%"
+          valueDecimals={1}
           label="نسبة الانسحاب"
           sub={
             stats.churnRate === 0
@@ -273,6 +306,6 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           }
         />
       )}
-    </div>
+    </motion.div>
   );
 }

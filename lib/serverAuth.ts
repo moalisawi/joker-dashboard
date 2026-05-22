@@ -33,10 +33,15 @@ function _initFirebaseAdmin() {
     ? Buffer.from(keyB64, "base64").toString("utf8")
     : process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
+  const databaseURL =
+    process.env.FIREBASE_DATABASE_URL ??
+    process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ??
+    (projectId ? `https://${projectId}-default-rtdb.firebaseio.com` : undefined);
+
   if (clientEmail && privateKey) {
-    initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId });
+    initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId, databaseURL });
   } else {
-    initializeApp({ projectId });
+    initializeApp({ projectId, databaseURL });
   }
 }
 

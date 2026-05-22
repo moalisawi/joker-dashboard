@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -11,73 +11,124 @@ import type {
   CalloutVariant, StatusItem, WorkflowStep, GridItem,
 } from "@/lib/guide/types";
 
-// ─── Color maps ───────────────────────────────────────────────────────────────
+// ─── Design tokens ─────────────────────────────────────────────────────────────
 
-const STATUS_COLOR: Record<string, string> = {
-  green:  "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/40",
-  blue:   "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40",
-  yellow: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40",
-  red:    "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-700/40",
-  purple: "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-700/40",
-  gray:   "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/40 dark:text-slate-300 dark:border-slate-600/40",
-  orange: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700/40",
-  cyan:   "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-700/40",
+const P = {
+  primary:    "#5B5FEF",
+  primaryBg:  "rgba(91,95,239,0.08)",
+  primaryBdr: "rgba(91,95,239,0.20)",
+  success:    "#22C55E",
+  successBg:  "#ECFDF3",
+  successBdr: "rgba(34,197,94,0.25)",
+  warning:    "#F59E0B",
+  warningBg:  "#FFFBEB",
+  warningBdr: "rgba(245,158,11,0.25)",
+  danger:     "#EF4444",
+  dangerBg:   "#FEF2F2",
+  dangerBdr:  "rgba(239,68,68,0.25)",
+  info:       "#3B82F6",
+  infoBg:     "#EFF6FF",
+  infoBdr:    "rgba(59,130,246,0.25)",
+  purple:     "#8B5CF6",
+  purpleBg:   "rgba(139,92,246,0.08)",
+  purpleBdr:  "rgba(139,92,246,0.20)",
+  cyan:       "#06B6D4",
+  cyanBg:     "rgba(6,182,212,0.08)",
+  cyanBdr:    "rgba(6,182,212,0.20)",
+  orange:     "#F97316",
+  orangeBg:   "rgba(249,115,22,0.08)",
+  orangeBdr:  "rgba(249,115,22,0.20)",
+  text:       "var(--jk-text)",
+  muted:      "var(--jk-muted)",
+  subtle:     "var(--jk-subtle)",
+  surface:    "var(--jk-surface)",
+  border:     "var(--jk-border)",
+  divider:    "var(--jk-divider)",
+  shadow:     "var(--jk-shadow-card)",
 };
 
-const STATUS_DOT: Record<string, string> = {
-  green:  "bg-emerald-500",
-  blue:   "bg-blue-500",
-  yellow: "bg-amber-500",
-  red:    "bg-rose-500",
-  purple: "bg-violet-500",
-  gray:   "bg-slate-400",
-  orange: "bg-orange-500",
-  cyan:   "bg-cyan-500",
+// ─── Color maps ────────────────────────────────────────────────────────────────
+
+const STATUS_STYLE: Record<string, { bg: string; border: string; color: string; dot: string }> = {
+  green:  { bg: P.successBg,  border: P.successBdr,  color: P.success,  dot: P.success  },
+  blue:   { bg: P.infoBg,     border: P.infoBdr,     color: P.info,     dot: P.info     },
+  yellow: { bg: P.warningBg,  border: P.warningBdr,  color: P.warning,  dot: P.warning  },
+  red:    { bg: P.dangerBg,   border: P.dangerBdr,   color: P.danger,   dot: P.danger   },
+  purple: { bg: P.purpleBg,   border: P.purpleBdr,   color: P.purple,   dot: P.purple   },
+  gray:   { bg: "#F1F5F9",    border: "rgba(148,163,184,0.25)", color: "#6B7280", dot: "#9CA3AF" },
+  orange: { bg: P.orangeBg,   border: P.orangeBdr,   color: P.orange,   dot: P.orange   },
+  cyan:   { bg: P.cyanBg,     border: P.cyanBdr,     color: P.cyan,     dot: P.cyan     },
 };
 
 const WORKFLOW_COLOR: Record<string, string> = {
-  blue:   "bg-blue-600",
-  green:  "bg-emerald-600",
-  yellow: "bg-amber-500",
-  red:    "bg-rose-600",
-  purple: "bg-violet-600",
-  gray:   "bg-slate-500",
-  cyan:   "bg-cyan-600",
-  orange: "bg-orange-500",
+  blue:   P.primary,
+  green:  P.success,
+  yellow: P.warning,
+  red:    P.danger,
+  purple: P.purple,
+  gray:   "#6B7280",
+  cyan:   P.cyan,
+  orange: P.orange,
 };
 
-const CALLOUT_CONFIG: Record<CalloutVariant, { bg: string; border: string; icon: React.ReactNode; title?: string }> = {
-  tip:     { bg: "bg-blue-50 dark:bg-blue-900/20",    border: "border-blue-300 dark:border-blue-700",   icon: <Lightbulb   size={16} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" /> },
-  info:    { bg: "bg-sky-50 dark:bg-sky-900/20",      border: "border-sky-300 dark:border-sky-700",     icon: <Info        size={16} className="text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" /> },
-  warning: { bg: "bg-amber-50 dark:bg-amber-900/20",  border: "border-amber-300 dark:border-amber-700", icon: <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" /> },
-  danger:  { bg: "bg-rose-50 dark:bg-rose-900/20",    border: "border-rose-300 dark:border-rose-700",   icon: <XCircle     size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" /> },
-  success: { bg: "bg-emerald-50 dark:bg-emerald-900/20", border: "border-emerald-300 dark:border-emerald-700", icon: <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" /> },
+const CALLOUT_STYLE: Record<CalloutVariant, { bg: string; border: string; icon: React.ReactNode }> = {
+  tip:     { bg: P.infoBg,    border: P.infoBdr,    icon: <Lightbulb    size={16} style={{ color: P.info,    flexShrink: 0, marginTop: 2 }} /> },
+  info:    { bg: P.infoBg,    border: P.infoBdr,    icon: <Info         size={16} style={{ color: P.info,    flexShrink: 0, marginTop: 2 }} /> },
+  warning: { bg: P.warningBg, border: P.warningBdr, icon: <AlertTriangle size={16} style={{ color: P.warning, flexShrink: 0, marginTop: 2 }} /> },
+  danger:  { bg: P.dangerBg,  border: P.dangerBdr,  icon: <XCircle      size={16} style={{ color: P.danger,  flexShrink: 0, marginTop: 2 }} /> },
+  success: { bg: P.successBg, border: P.successBdr, icon: <CheckCircle2 size={16} style={{ color: P.success, flexShrink: 0, marginTop: 2 }} /> },
+};
+
+const GRID_STYLE: Record<string, { bg: string; border: string }> = {
+  blue:   { bg: P.infoBg,    border: P.infoBdr    },
+  purple: { bg: P.purpleBg,  border: P.purpleBdr  },
+  green:  { bg: P.successBg, border: P.successBdr },
+  orange: { bg: P.orangeBg,  border: P.orangeBdr  },
+  red:    { bg: P.dangerBg,  border: P.dangerBdr  },
+  cyan:   { bg: P.cyanBg,    border: P.cyanBdr    },
 };
 
 // ─── Block renderers ──────────────────────────────────────────────────────────
 
 function BlockText({ content }: { content: string }) {
   return (
-    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{content}</p>
+    <p style={{ fontSize: 14, color: P.muted, lineHeight: 1.75, margin: 0 }}>{content}</p>
   );
 }
 
 function BlockHeading({ level, content }: { level: 2 | 3; content: string }) {
   if (level === 2) {
-    return <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-2 mb-1">{content}</h2>;
+    return (
+      <h2 style={{ fontSize: 17, fontWeight: 800, color: P.text, marginTop: 8, marginBottom: 4, lineHeight: 1.3 }}>
+        {content}
+      </h2>
+    );
   }
-  return <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mt-1">{content}</h3>;
+  return (
+    <h3 style={{ fontSize: 15, fontWeight: 700, color: P.text, marginTop: 4, marginBottom: 2, lineHeight: 1.3 }}>
+      {content}
+    </h3>
+  );
 }
 
 function BlockCallout({ variant, title, content }: { variant: CalloutVariant; title?: string; content: string }) {
-  const cfg = CALLOUT_CONFIG[variant];
+  const cfg = CALLOUT_STYLE[variant];
   return (
-    <div className={`rounded-xl border p-4 ${cfg.bg} ${cfg.border}`}>
-      <div className="flex gap-2.5">
+    <div style={{
+      borderRadius: 14,
+      border: `1px solid ${cfg.border}`,
+      padding: "14px 16px",
+      background: cfg.bg,
+    }}>
+      <div style={{ display: "flex", gap: 10 }}>
         {cfg.icon}
         <div>
-          {title && <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-0.5">{title}</p>}
-          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{content}</p>
+          {title && (
+            <p style={{ fontSize: 14, fontWeight: 700, color: P.text, marginBottom: 4, margin: "0 0 4px" }}>
+              {title}
+            </p>
+          )}
+          <p style={{ fontSize: 14, color: P.muted, lineHeight: 1.7, margin: 0 }}>{content}</p>
         </div>
       </div>
     </div>
@@ -86,15 +137,21 @@ function BlockCallout({ variant, title, content }: { variant: CalloutVariant; ti
 
 function BlockSteps({ items }: { items: { title: string; description: string }[] }) {
   return (
-    <ol className="space-y-3">
+    <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
       {items.map((item, i) => (
-        <li key={i} className="flex gap-3">
-          <span className="shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+        <li key={i} style={{ display: "flex", gap: 12 }}>
+          <span style={{
+            flexShrink: 0, width: 28, height: 28, borderRadius: "50%",
+            background: P.primary, color: "#fff",
+            fontSize: 12, fontWeight: 800,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            marginTop: 2,
+          }}>
             {i + 1}
           </span>
           <div>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">{item.title}</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: P.text, margin: "0 0 3px", lineHeight: 1.4 }}>{item.title}</p>
+            <p style={{ fontSize: 13, color: P.muted, margin: 0, lineHeight: 1.65 }}>{item.description}</p>
           </div>
         </li>
       ))}
@@ -104,12 +161,20 @@ function BlockSteps({ items }: { items: { title: string; description: string }[]
 
 function BlockTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
-      <table className="w-full text-sm">
+    <div style={{ overflowX: "auto", borderRadius: 14, border: `1px solid ${P.border}` }}>
+      <table style={{ width: "100%", fontSize: 14, borderCollapse: "collapse" }}>
         <thead>
-          <tr className="bg-slate-50 dark:bg-slate-800/60">
+          <tr style={{ background: "#F8FAFC" }}>
             {headers.map((h, i) => (
-              <th key={i} className="px-4 py-2.5 text-right font-semibold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 whitespace-nowrap">
+              <th key={i} style={{
+                padding: "10px 16px",
+                textAlign: "right",
+                fontWeight: 700,
+                color: P.text,
+                borderBottom: `1px solid ${P.border}`,
+                whiteSpace: "nowrap",
+                fontSize: 13,
+              }}>
                 {h}
               </th>
             ))}
@@ -117,9 +182,15 @@ function BlockTable({ headers, rows }: { headers: string[]; rows: string[][] }) 
         </thead>
         <tbody>
           {rows.map((row, ri) => (
-            <tr key={ri} className={ri % 2 === 0 ? "bg-white dark:bg-slate-900/40" : "bg-slate-50/60 dark:bg-slate-800/20"}>
+            <tr key={ri} style={{ background: ri % 2 === 0 ? "#fff" : "#F9FAFB" }}>
               {row.map((cell, ci) => (
-                <td key={ci} className="px-4 py-2.5 text-slate-600 dark:text-slate-300 border-b border-slate-100 dark:border-slate-800/60 leading-relaxed">
+                <td key={ci} style={{
+                  padding: "10px 16px",
+                  color: P.muted,
+                  borderBottom: `1px solid ${P.divider}`,
+                  lineHeight: 1.6,
+                  fontSize: 13,
+                }}>
                   {cell}
                 </td>
               ))}
@@ -133,23 +204,41 @@ function BlockTable({ headers, rows }: { headers: string[]; rows: string[][] }) 
 
 function BlockStatuses({ items }: { items: StatusItem[] }) {
   return (
-    <div className="space-y-2.5">
-      {items.map((item, i) => (
-        <div key={i} className={`flex items-start gap-3 p-3.5 rounded-xl border ${STATUS_COLOR[item.color]}`}>
-          <span className={`shrink-0 w-2.5 h-2.5 rounded-full mt-1.5 ${STATUS_DOT[item.color]}`} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm">{item.label}</span>
-              {item.badge && (
-                <code className="text-[11px] font-mono px-1.5 py-0.5 rounded-md bg-black/10 dark:bg-white/10">
-                  {item.badge}
-                </code>
-              )}
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {items.map((item, i) => {
+        const s = STATUS_STYLE[item.color] ?? STATUS_STYLE.gray;
+        return (
+          <div key={i} style={{
+            display: "flex", alignItems: "flex-start", gap: 12,
+            padding: "12px 14px", borderRadius: 12,
+            border: `1px solid ${s.border}`,
+            background: s.bg,
+          }}>
+            <span style={{
+              flexShrink: 0, width: 9, height: 9, borderRadius: "50%",
+              background: s.dot, marginTop: 5,
+            }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 700, fontSize: 13, color: s.color }}>{item.label}</span>
+                {item.badge && (
+                  <code style={{
+                    fontSize: 11, fontFamily: "monospace",
+                    padding: "1px 7px", borderRadius: 6,
+                    background: "rgba(0,0,0,0.06)",
+                    color: P.muted,
+                  }}>
+                    {item.badge}
+                  </code>
+                )}
+              </div>
+              <p style={{ fontSize: 12, margin: "3px 0 0", opacity: 0.8, lineHeight: 1.6, color: P.muted }}>
+                {item.description}
+              </p>
             </div>
-            <p className="text-xs mt-0.5 opacity-80 leading-relaxed">{item.description}</p>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -157,20 +246,35 @@ function BlockStatuses({ items }: { items: StatusItem[] }) {
 function BlockAccordion({ items }: { items: { title: string; content: string }[] }) {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   return (
-    <div className="space-y-2">
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {items.map((item, i) => {
         const isOpen = openIdx === i;
         return (
-          <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div key={i} style={{ borderRadius: 12, border: `1px solid ${P.border}`, overflow: "hidden" }}>
             <button
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 text-right text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+              style={{
+                width: "100%", display: "flex", alignItems: "center",
+                justifyContent: "space-between", gap: 12,
+                padding: "12px 16px", textAlign: "right", fontSize: 14,
+                fontWeight: 600, color: P.text,
+                background: isOpen ? P.primaryBg : P.surface,
+                border: "none", cursor: "pointer", fontFamily: "inherit",
+                transition: "background .15s",
+              }}
               onClick={() => setOpenIdx(isOpen ? null : i)}
             >
-              <span className="flex-1">{item.title}</span>
-              {isOpen ? <ChevronUp size={16} className="shrink-0 text-slate-400" /> : <ChevronDown size={16} className="shrink-0 text-slate-400" />}
+              <span style={{ flex: 1 }}>{item.title}</span>
+              {isOpen
+                ? <ChevronUp size={15} style={{ flexShrink: 0, color: P.primary }} />
+                : <ChevronDown size={15} style={{ flexShrink: 0, color: P.subtle }} />}
             </button>
             {isOpen && (
-              <div className="px-4 pb-4 pt-1 text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-100 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/20">
+              <div style={{
+                padding: "12px 16px 16px",
+                fontSize: 14, color: P.muted, lineHeight: 1.7,
+                borderTop: `1px solid ${P.divider}`,
+                background: "#F9FAFB",
+              }}>
                 {item.content}
               </div>
             )}
@@ -183,19 +287,26 @@ function BlockAccordion({ items }: { items: { title: string; content: string }[]
 
 function BlockWorkflow({ steps }: { steps: WorkflowStep[] }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
       {steps.map((step, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <div className="text-center">
-            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-bold ${WORKFLOW_COLOR[step.color ?? "blue"]}`}>
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 14px", borderRadius: 999,
+              background: WORKFLOW_COLOR[step.color ?? "blue"] ?? P.primary,
+              color: "#fff", fontSize: 12, fontWeight: 700,
+            }}>
               {step.label}
             </div>
             {step.description && (
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 max-w-[100px] leading-tight">{step.description}</p>
+              <p style={{ fontSize: 11, color: P.subtle, marginTop: 4, maxWidth: 100, lineHeight: 1.4 }}>
+                {step.description}
+              </p>
             )}
           </div>
           {i < steps.length - 1 && (
-            <ChevronLeft size={16} className="text-slate-300 dark:text-slate-600 shrink-0 -mt-4" />
+            <ChevronLeft size={15} style={{ color: P.border, flexShrink: 0, marginBottom: 14 }} />
           )}
         </div>
       ))}
@@ -204,27 +315,24 @@ function BlockWorkflow({ steps }: { steps: WorkflowStep[] }) {
 }
 
 function BlockGrid({ items }: { items: GridItem[] }) {
-  const GRID_BG: Record<string, string> = {
-    blue:   "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/40",
-    purple: "bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-800/40",
-    green:  "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/40",
-    orange: "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/40",
-    red:    "bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/40",
-    cyan:   "bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-800/40",
-  };
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {items.map((item, i) => (
-        <div key={i} className={`rounded-xl border p-4 ${GRID_BG[item.color ?? "blue"]}`}>
-          <div className="flex items-start gap-3">
-            <span className="text-2xl shrink-0">{item.icon}</span>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+      {items.map((item, i) => {
+        const gs = GRID_STYLE[item.color ?? "blue"] ?? GRID_STYLE.blue;
+        return (
+          <div key={i} style={{
+            borderRadius: 14, border: `1px solid ${gs.border}`,
+            padding: "14px 16px", background: gs.bg,
+            display: "flex", alignItems: "flex-start", gap: 12,
+          }}>
+            <span style={{ fontSize: 24, flexShrink: 0 }}>{item.icon}</span>
             <div>
-              <p className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-0.5">{item.title}</p>
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{item.description}</p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: P.text, margin: "0 0 4px" }}>{item.title}</p>
+              <p style={{ fontSize: 12, color: P.muted, margin: 0, lineHeight: 1.6 }}>{item.description}</p>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -258,18 +366,29 @@ function SubSectionBlock({ sub, sectionId }: { sub: GuideSubSection; sectionId: 
   }
 
   return (
-    <div id={id} className="scroll-mt-24">
-      <div className="flex items-start justify-between gap-2 mb-4 group">
-        <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 leading-snug">{sub.title}</h3>
+    <div id={id} style={{ scrollMarginTop: 96 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 16 }}
+           className="group">
+        <h3 style={{ fontSize: 15, fontWeight: 800, color: P.text, lineHeight: 1.4, margin: 0 }}>
+          {sub.title}
+        </h3>
         <button
           onClick={copyLink}
           title="نسخ الرابط"
-          className="shrink-0 mt-0.5 p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors opacity-0 group-hover:opacity-100"
+          style={{
+            flexShrink: 0, marginTop: 2, padding: "6px 7px", borderRadius: 8,
+            border: "none", cursor: "pointer", fontFamily: "inherit",
+            background: "transparent",
+            color: copied ? P.success : P.subtle,
+            transition: "color .15s, background .15s",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = P.primaryBg; (e.currentTarget as HTMLElement).style.color = P.primary; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = copied ? P.success : P.subtle; }}
         >
-          {copied ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Link2 size={14} />}
+          {copied ? <CheckCircle2 size={14} /> : <Link2 size={14} />}
         </button>
       </div>
-      <div className="space-y-4">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {sub.blocks.map((block, i) => renderBlock(block, i))}
       </div>
     </div>
@@ -290,30 +409,53 @@ function SectionBlock({ section, searchQuery }: { section: GuideSection; searchQ
   if (searchQuery && filteredSubs.length === 0) return null;
 
   return (
-    <section id={section.id} className="scroll-mt-20">
+    <section id={section.id} style={{ scrollMarginTop: 80 }}>
       {/* Section header */}
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200 dark:border-slate-700/60">
-        <span className="text-3xl">{section.icon}</span>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 14,
+        marginBottom: 24, paddingBottom: 18,
+        borderBottom: `1px solid ${P.border}`,
+      }}>
+        <div style={{
+          width: 48, height: 48, borderRadius: 16, flexShrink: 0,
+          background: P.primaryBg, border: `1px solid ${P.primaryBdr}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 22,
+        }}>
+          {section.icon}
+        </div>
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black text-slate-900 dark:text-slate-50">{section.title}</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: P.text, margin: 0, lineHeight: 1.2 }}>
+              {section.title}
+            </h2>
             {section.badge && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-600 text-white">
+              <span style={{
+                padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                background: P.primary, color: "#fff",
+              }}>
                 {section.badge}
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{section.description}</p>
+          <p style={{ fontSize: 13, color: P.muted, margin: "4px 0 0", lineHeight: 1.5 }}>
+            {section.description}
+          </p>
         </div>
       </div>
 
       {/* SubSections */}
-      <div className="space-y-8">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {filteredSubs.map((sub) => (
           <div
             key={sub.id}
-            className="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 p-5 shadow-sm"
-            style={{ boxShadow: "var(--shadow-card)" }}
+            style={{
+              background: P.surface,
+              border: `1px solid ${P.border}`,
+              borderRadius: 20,
+              padding: "20px 22px",
+              boxShadow: P.shadow,
+            }}
           >
             <SubSectionBlock sub={sub} sectionId={section.id} />
           </div>
@@ -323,7 +465,7 @@ function SectionBlock({ section, searchQuery }: { section: GuideSection; searchQ
   );
 }
 
-// ─── TOC (Sticky sidebar) ─────────────────────────────────────────────────────
+// ─── TOC sidebar ─────────────────────────────────────────────────────────────
 
 function TOC({
   sections,
@@ -335,25 +477,45 @@ function TOC({
   onNavigate: (id: string) => void;
 }) {
   return (
-    <nav className="space-y-0.5">
+    <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {sections.map((sec) => {
         const isActive = activeId === sec.id || activeId.startsWith(sec.id + "-");
         return (
           <button
             key={sec.id}
             onClick={() => onNavigate(sec.id)}
-            className={`
-              w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-right text-sm transition-all
-              ${isActive
-                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold"
-                : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-800 dark:hover:text-slate-200 font-medium"
+            style={{
+              width: "100%", display: "flex", alignItems: "center", gap: 10,
+              padding: "8px 10px", borderRadius: 10, textAlign: "right",
+              fontSize: 13, fontWeight: isActive ? 700 : 500,
+              background: isActive ? P.primaryBg : "transparent",
+              color: isActive ? P.primary : P.muted,
+              border: `1px solid ${isActive ? P.primaryBdr : "transparent"}`,
+              cursor: "pointer", fontFamily: "inherit",
+              transition: "all .15s",
+            }}
+            onMouseEnter={e => {
+              if (!isActive) {
+                (e.currentTarget as HTMLElement).style.background = "#F8FAFC";
+                (e.currentTarget as HTMLElement).style.color = P.text;
               }
-            `}
+            }}
+            onMouseLeave={e => {
+              if (!isActive) {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+                (e.currentTarget as HTMLElement).style.color = P.muted;
+              }
+            }}
           >
-            <span className="text-base shrink-0">{sec.icon}</span>
-            <span className="flex-1 text-right leading-tight">{sec.title}</span>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>{sec.icon}</span>
+            <span style={{ flex: 1, textAlign: "right", lineHeight: 1.4 }}>{sec.title}</span>
             {sec.badge && (
-              <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${isActive ? "bg-blue-600 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400"}`}>
+              <span style={{
+                flexShrink: 0, fontSize: 9, fontWeight: 700,
+                padding: "2px 6px", borderRadius: 999,
+                background: isActive ? P.primary : "#E5E7EB",
+                color: isActive ? "#fff" : "#6B7280",
+              }}>
                 {sec.badge === "ابدأ هنا" ? "●" : "جديد"}
               </span>
             )}
@@ -364,7 +526,7 @@ function TOC({
   );
 }
 
-// ─── Progress bar ─────────────────────────────────────────────────────────────
+// ─── Reading progress bar ─────────────────────────────────────────────────────
 
 function ReadingProgress() {
   const [progress, setProgress] = useState(0);
@@ -381,16 +543,23 @@ function ReadingProgress() {
   }, []);
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-[3px] bg-slate-200/50 dark:bg-slate-700/50 z-50 print:hidden">
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0,
+      height: 3, background: "rgba(229,231,235,0.5)", zIndex: 50,
+    }} className="print:hidden">
       <div
-        className="h-full bg-gradient-to-r from-blue-600 to-violet-600 transition-all duration-75"
-        style={{ width: `${progress}%` }}
+        style={{
+          height: "100%",
+          background: `linear-gradient(to left, #8B5CF6, ${P.primary})`,
+          width: `${progress}%`,
+          transition: "width 75ms linear",
+        }}
       />
     </div>
   );
 }
 
-// ─── Main GuideContent ────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function GuideContent({ data }: { data: GuideData }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -400,16 +569,13 @@ export default function GuideContent({ data }: { data: GuideData }) {
   const mainRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // Intersection observer for active section tracking
   useEffect(() => {
     const ids = data.sections.map((s) => s.id);
     observerRef.current?.disconnect();
     observerRef.current = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
+          if (entry.isIntersecting) setActiveId(entry.target.id);
         }
       },
       { rootMargin: "-20% 0px -70% 0px", threshold: 0 }
@@ -421,27 +587,16 @@ export default function GuideContent({ data }: { data: GuideData }) {
     return () => observerRef.current?.disconnect();
   }, [data.sections]);
 
-  // Back to top
   useEffect(() => {
-    function onScroll() {
-      setShowBackTop(window.scrollY > 400);
-    }
+    function onScroll() { setShowBackTop(window.scrollY > 400); }
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const scrollToSection = useCallback((id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  function handleCopyPageLink() {
-    navigator.clipboard.writeText(window.location.href).catch(() => {});
-  }
-
-  // Filter sections based on search
   const filteredSections = searchQuery
     ? data.sections.filter(
         (sec) =>
@@ -459,36 +614,36 @@ export default function GuideContent({ data }: { data: GuideData }) {
     <>
       <ReadingProgress />
 
-      <div className="min-h-screen" style={{ background: "var(--page-bg)" }}>
+      <div style={{ minHeight: "100vh", background: "var(--background)" }}>
 
-        {/* ── Hero header ─────────────────────────────────────────────────── */}
+        {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <div
           className="print:hidden"
           style={{
-            background: "linear-gradient(135deg, #10141A 0%, #5B5FEF 50%, #5B5FEF 100%)",
+            background: "linear-gradient(135deg, #0B1020 0%, #1A2050 45%, #5B5FEF 100%)",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          <div className="max-w-7xl mx-auto px-6 py-10">
-            {/* Breadcrumbs */}
-            <div className="flex items-center gap-1.5 text-xs text-blue-200/70 mb-6">
+          <div style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 24px" }}>
+            {/* Breadcrumb */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(147,197,253,0.7)", marginBottom: 24 }}>
               <BookOpen size={12} />
               <span>النظام</span>
               <ChevronLeft size={10} />
-              <span className="text-blue-100 font-semibold">{data.title}</span>
+              <span style={{ color: "rgba(219,234,254,0.9)", fontWeight: 600 }}>{data.title}</span>
             </div>
 
-            <div className="flex flex-col md:flex-row md:items-end gap-6">
-              <div className="flex-1">
-                <h1 className="text-3xl md:text-4xl font-black text-white leading-tight">
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 24 }}>
+              <div style={{ flex: 1, minWidth: 260 }}>
+                <h1 style={{ fontSize: "clamp(24px,4vw,36px)", fontWeight: 900, color: "#fff", margin: "0 0 8px", lineHeight: 1.2 }}>
                   {data.title}
                 </h1>
-                <p className="mt-2 text-blue-200/80 text-base leading-relaxed max-w-2xl">
+                <p style={{ color: "rgba(147,197,253,0.8)", fontSize: 15, margin: "0 0 16px", lineHeight: 1.6, maxWidth: 520 }}>
                   {data.subtitle}
                 </p>
-                <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-blue-200/60">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 16, fontSize: 12, color: "rgba(147,197,253,0.6)" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "pulse 2s infinite" }} />
                     الإصدار {data.version}
                   </span>
                   <span>·</span>
@@ -499,101 +654,132 @@ export default function GuideContent({ data }: { data: GuideData }) {
               </div>
 
               {/* Toolbar */}
-              <div className="flex items-center gap-2 print:hidden">
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }} className="print:hidden">
                 <button
                   onClick={() => window.print()}
-                  title="طباعة"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-blue-100 bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "8px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600,
+                    color: "rgba(219,234,254,0.9)", background: "rgba(255,255,255,0.10)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}
                 >
                   <Printer size={14} />
-                  <span className="hidden sm:inline">طباعة</span>
+                  <span>طباعة</span>
                 </button>
                 <button
-                  onClick={handleCopyPageLink}
-                  title="نسخ رابط الصفحة"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-blue-100 bg-white/10 hover:bg-white/20 border border-white/15 transition-colors"
+                  onClick={() => navigator.clipboard.writeText(window.location.href).catch(() => {})}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "8px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600,
+                    color: "rgba(219,234,254,0.9)", background: "rgba(255,255,255,0.10)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}
                 >
                   <Link2 size={14} />
-                  <span className="hidden sm:inline">نسخ الرابط</span>
+                  <span>نسخ الرابط</span>
                 </button>
               </div>
             </div>
 
-            {/* Search bar */}
-            <div className="mt-6 relative max-w-lg">
-              <Search size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-blue-300/60" />
+            {/* Search */}
+            <div style={{ marginTop: 24, position: "relative", maxWidth: 520 }}>
+              <Search size={15} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(147,197,253,0.55)", pointerEvents: "none" }} />
               <input
                 type="text"
                 placeholder="ابحث في الدليل..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pr-10 pl-4 py-2.5 rounded-xl text-sm bg-white/10 border border-white/15 text-white placeholder-blue-200/50 focus:outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/15 transition-all"
                 dir="rtl"
+                style={{
+                  width: "100%", paddingRight: 40, paddingLeft: searchQuery ? 36 : 16,
+                  paddingTop: 10, paddingBottom: 10,
+                  borderRadius: 14, fontSize: 14,
+                  background: "rgba(255,255,255,0.10)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "#fff", outline: "none",
+                  fontFamily: "inherit",
+                  boxSizing: "border-box",
+                }}
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-200/50 hover:text-white"
+                  style={{
+                    position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "rgba(147,197,253,0.6)",
+                  }}
                 >
                   <XCircle size={14} />
                 </button>
               )}
             </div>
-
             {searchQuery && (
-              <p className="mt-2 text-xs text-blue-200/60">
-                {filteredSections.length === 0
-                  ? "لا توجد نتائج"
-                  : `${filteredSections.length} قسم يطابق البحث`}
+              <p style={{ marginTop: 8, fontSize: 12, color: "rgba(147,197,253,0.6)" }}>
+                {filteredSections.length === 0 ? "لا توجد نتائج" : `${filteredSections.length} قسم يطابق البحث`}
               </p>
             )}
           </div>
         </div>
 
         {/* ── Body ─────────────────────────────────────────────────────────── */}
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
-          <div className="flex gap-8" dir="rtl">
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 16px" }}>
+          <div style={{ display: "flex", gap: 32, alignItems: "flex-start" }} dir="rtl">
 
             {/* ── TOC Sidebar ─────────────────────────────────────────────── */}
-            <aside className="hidden lg:block w-60 xl:w-64 shrink-0 print:hidden">
-              <div className="sticky top-6 space-y-4">
-                <div
-                  className="rounded-2xl border border-slate-200 dark:border-slate-700/60 overflow-hidden"
-                  style={{ background: "var(--surface)", boxShadow: "var(--shadow-card)" }}
-                >
-                  <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">الأقسام</p>
+            <aside style={{ width: 240, flexShrink: 0 }} className="hidden lg:block print:hidden">
+              <div style={{ position: "sticky", top: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+                {/* Sections nav */}
+                <div style={{
+                  background: P.surface,
+                  border: `1px solid ${P.border}`,
+                  borderRadius: 20, overflow: "hidden",
+                  boxShadow: P.shadow,
+                }}>
+                  <div style={{
+                    padding: "12px 14px", borderBottom: `1px solid ${P.divider}`,
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                  }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: P.subtle, textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
+                      الأقسام
+                    </p>
                     <button
                       onClick={() => setAllExpanded(!allExpanded)}
                       title={allExpanded ? "طي الكل" : "فتح الكل"}
-                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1 rounded"
+                      style={{ background: "none", border: "none", cursor: "pointer", color: P.subtle, padding: 4, borderRadius: 6 }}
                     >
                       {allExpanded ? <Minimize size={12} /> : <Expand size={12} />}
                     </button>
                   </div>
-                  <div className="p-2">
-                    <TOC
-                      sections={data.sections}
-                      activeId={activeId}
-                      onNavigate={scrollToSection}
-                    />
+                  <div style={{ padding: 8 }}>
+                    <TOC sections={data.sections} activeId={activeId} onNavigate={scrollToSection} />
                   </div>
                 </div>
 
                 {/* Quick stats */}
-                <div
-                  className="rounded-2xl border border-slate-200 dark:border-slate-700/60 p-4"
-                  style={{ background: "var(--surface)", boxShadow: "var(--shadow-card)" }}
-                >
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">الدليل يغطي</p>
-                  <div className="space-y-2">
+                <div style={{
+                  background: P.surface,
+                  border: `1px solid ${P.border}`,
+                  borderRadius: 20, padding: "16px",
+                  boxShadow: P.shadow,
+                }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: P.subtle, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
+                    الدليل يغطي
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {[
                       { label: "الأقسام", value: `${data.sections.length}` },
                       { label: "الموضوعات", value: `${data.sections.reduce((a, s) => a + s.subSections.length, 0)}` },
                     ].map((item) => (
-                      <div key={item.label} className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">{item.label}</span>
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full">
+                      <div key={item.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: 13, color: P.muted }}>{item.label}</span>
+                        <span style={{
+                          fontSize: 12, fontWeight: 700, color: P.text,
+                          background: "#F1F5F9", padding: "2px 10px", borderRadius: 999,
+                        }}>
                           {item.value}
                         </span>
                       </div>
@@ -604,14 +790,18 @@ export default function GuideContent({ data }: { data: GuideData }) {
             </aside>
 
             {/* ── Main content ─────────────────────────────────────────────── */}
-            <main ref={mainRef} className="flex-1 min-w-0 space-y-12">
+            <main ref={mainRef} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 48 }}>
               {filteredSections.length === 0 ? (
-                <div className="text-center py-20">
-                  <Search size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                  <p className="text-slate-500 dark:text-slate-400 font-medium">لا توجد نتائج لـ "{searchQuery}"</p>
+                <div style={{ textAlign: "center", padding: "80px 0" }}>
+                  <Search size={40} style={{ margin: "0 auto 16px", color: P.border, display: "block" }} />
+                  <p style={{ color: P.muted, fontWeight: 500, fontSize: 15 }}>لا توجد نتائج لـ "{searchQuery}"</p>
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="mt-3 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    style={{
+                      marginTop: 12, fontSize: 13, color: P.primary,
+                      background: "none", border: "none", cursor: "pointer",
+                      fontFamily: "inherit", textDecoration: "underline",
+                    }}
                   >
                     مسح البحث
                   </button>
@@ -623,31 +813,47 @@ export default function GuideContent({ data }: { data: GuideData }) {
               )}
 
               {/* Footer */}
-              <div className="pt-8 border-t border-slate-200 dark:border-slate-700/60 text-center text-xs text-slate-400 dark:text-slate-500 space-y-1">
-                <p>نظام الجوكر — دليل الاستخدام</p>
-                <p>آخر تحديث: {data.lastUpdated} · الإصدار {data.version}</p>
+              <div style={{
+                paddingTop: 32,
+                borderTop: `1px solid ${P.border}`,
+                textAlign: "center",
+                fontSize: 12,
+                color: P.subtle,
+                lineHeight: 1.8,
+              }}>
+                <p style={{ margin: "0 0 2px" }}>نظام الجوكر — دليل الاستخدام</p>
+                <p style={{ margin: 0 }}>آخر تحديث: {data.lastUpdated} · الإصدار {data.version}</p>
               </div>
             </main>
           </div>
         </div>
       </div>
 
-      {/* ── Back to top ─────────────────────────────────────────────────────── */}
+      {/* ── Back to top ──────────────────────────────────────────────────────── */}
       {showBackTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-6 left-6 z-40 p-3 rounded-2xl bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all print:hidden"
+          className="print:hidden"
+          style={{
+            position: "fixed", bottom: 24, insetInlineStart: 24, zIndex: 40,
+            padding: 12, borderRadius: 16,
+            background: P.primary,
+            color: "#fff",
+            boxShadow: `0 8px 24px rgba(91,95,239,0.35)`,
+            border: "none", cursor: "pointer",
+            transition: "transform .2s, box-shadow .2s",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "none"; }}
           title="العودة للأعلى"
         >
           <ArrowUp size={18} />
         </button>
       )}
 
-      {/* ── Print styles ─────────────────────────────────────────────────────── */}
       <style>{`
         @media print {
           body { background: white !important; }
-          .sidebar-bg { display: none !important; }
           .print\\:hidden { display: none !important; }
         }
       `}</style>

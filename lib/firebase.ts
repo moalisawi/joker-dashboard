@@ -9,6 +9,7 @@ const firebaseConfig = {
   storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET     ?? "build-placeholder.appspot.com",
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "000000000000",
   appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID             ?? "1:000000000000:web:0000000000000000",
+  databaseURL:       process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL       ?? "",
 };
 
 // Namespace import (not destructured named imports) — the firebase/app wrapper

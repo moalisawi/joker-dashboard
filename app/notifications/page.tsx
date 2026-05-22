@@ -480,9 +480,9 @@ export default function NotificationsPage() {
                   onClick={() => setFilter("unread", filters.unread ? undefined : true)}
                   style={{
                     padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                    background: filters.unread ? "#10141A" : "var(--surface-2)",
+                    background: filters.unread ? "#5B5FEF" : "var(--surface-2)",
                     color: filters.unread ? "#fff" : "var(--text-secondary)",
-                    border: `1px solid ${filters.unread ? "#10141A" : "var(--border)"}`,
+                    border: `1px solid ${filters.unread ? "#5B5FEF" : "var(--border)"}`,
                     cursor: "pointer", fontFamily: "inherit",
                   }}
                 >

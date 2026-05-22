@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,27 +9,46 @@ import { useSubscribers } from "@/hooks/useSubscribers";
 import { usePayments }    from "@/hooks/usePayments";
 import { useRefunds }     from "@/hooks/useRefunds";
 import { useAuthStore }   from "@/store/authStore";
-import { useThemeStore }  from "@/store/themeStore";
 import {
   exportSubscribersCSV,
   exportPaymentsCSV,
   exportEmployeePerformanceCSV,
 } from "@/lib/analytics/reports";
 import { canExportReports, canViewFinancialReports } from "@/lib/permissionGuards";
-import { Download, Users, CreditCard, Briefcase, FileText, Calendar } from "lucide-react";
+import {
+  Download, Users, CreditCard, Briefcase,
+  Calendar, FileSpreadsheet, Lock, CheckCircle2, X,
+  TrendingUp, ChevronLeft,
+} from "lucide-react";
+
+// ─── types ────────────────────────────────────────────────────────────────────
+
+interface ReportItem {
+  key:         string;
+  icon:        React.ReactNode;
+  label:       string;
+  description: string;
+  color:       string;
+  bg:          string;
+  border:      string;
+  stat:        string;
+  statLabel:   string;
+  formats:     string[];
+  restricted?: boolean;
+  onExport:    () => void;
+}
 
 export default function ReportsPage() {
-  const router     = useRouter();
-  const { user }   = useAuthStore();
-  const { dark }   = useThemeStore();
+  const router  = useRouter();
+  const { user } = useAuthStore();
   const { loading } = useAuthStore();
 
   const { subscribers } = useSubscribers();
   const { payments }    = usePayments({});
   const { refunds }     = useRefunds({});
 
-  const canExport  = canExportReports(user)        || user?.role === "owner" || user?.role === "admin";
-  const canViewFin = canViewFinancialReports(user)  || user?.role === "owner" || user?.role === "admin";
+  const canExport  = canExportReports(user)       || user?.role === "owner" || user?.role === "admin";
+  const canViewFin = canViewFinancialReports(user) || user?.role === "owner" || user?.role === "admin";
 
   useEffect(() => {
     if (!loading && user && !canExport && !canViewFin) router.replace("/");
@@ -38,98 +57,344 @@ export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo,   setDateTo]   = useState("");
 
-  const card = dark ? "rgba(255,255,255,0.035)" : "var(--surface)";
-  const brd  = dark ? "rgba(255,255,255,0.07)"  : "var(--border)";
+  const dateActive = !!(dateFrom || dateTo);
 
-  const reports = [
+  const reports: ReportItem[] = [
     {
-      key: "subscribers",
-      icon: <Users size={20}/>,
-      label: "تقرير المشتركين",
-      description: "قائمة كاملة بالمشتركين مع بياناتهم المالية",
-      color: "#5B5FEF",
-      onExport: () => exportSubscribersCSV(subscribers, { dateFrom: dateFrom||undefined, dateTo: dateTo||undefined }),
+      key:         "subscribers",
+      icon:        <Users size={22} />,
+      label:       "تقرير المشتركين",
+      description: "قائمة شاملة بجميع المشتركين مع حالة الاشتراك والبيانات المالية وتاريخ التسجيل",
+      color:       "#5B5FEF",
+      bg:          "rgba(91,95,239,0.08)",
+      border:      "rgba(91,95,239,0.20)",
+      stat:        `${subscribers.length}`,
+      statLabel:   "مشترك",
+      formats:     ["CSV", "Excel"],
+      onExport:    () => exportSubscribersCSV(subscribers, { dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }),
     },
     {
-      key: "payments",
-      icon: <CreditCard size={20}/>,
-      label: "تقرير المدفوعات",
-      description: "جميع الدفعات مع العملات وأساليب الدفع",
-      color: "#5B5FEF",
-      restricted: !canViewFin,
-      onExport: () => exportPaymentsCSV(payments, refunds, dateFrom||undefined, dateTo||undefined),
+      key:         "payments",
+      icon:        <CreditCard size={22} />,
+      label:       "تقرير المدفوعات",
+      description: "جميع الدفعات والاستردادات مع العملات وطرق الدفع والإجماليات",
+      color:       "#22C55E",
+      bg:          "#ECFDF3",
+      border:      "rgba(34,197,94,0.25)",
+      stat:        `${payments.length}`,
+      statLabel:   "دفعة",
+      formats:     ["CSV", "Excel"],
+      restricted:  !canViewFin,
+      onExport:    () => exportPaymentsCSV(payments, refunds, dateFrom || undefined, dateTo || undefined),
     },
     {
-      key: "employees",
-      icon: <Briefcase size={20}/>,
-      label: "أداء الموظفين",
-      description: "مقارنة أداء الموظفين بالإيراد والمشتركين",
-      color: "#F59E0B",
-      onExport: () => exportEmployeePerformanceCSV(subscribers),
+      key:         "employees",
+      icon:        <Briefcase size={22} />,
+      label:       "أداء الموظفين",
+      description: "مقارنة أداء كل موظف من حيث عدد المشتركين والإيراد المحقق",
+      color:       "#F59E0B",
+      bg:          "#FFFBEB",
+      border:      "rgba(245,158,11,0.25)",
+      stat:        `${new Set(subscribers.map(s => s.convincedBy).filter(Boolean)).size}`,
+      statLabel:   "موظف نشط",
+      formats:     ["CSV"],
+      onExport:    () => exportEmployeePerformanceCSV(subscribers),
     },
   ];
 
   return (
     <ProtectedLayout>
-      <div className="min-h-full" style={{ background: "var(--page-bg)" }}>
-        <div className="mx-auto max-w-screen-xl p-5 md:p-7 space-y-6">
+      <div style={{ minHeight: "100%", background: "var(--page-bg)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 24px 48px" }}>
 
           <PageHeader title="التقارير" subtitle="تصدير البيانات والتقارير التفصيلية" />
 
-          {/* Date filters */}
-          <div className="flex flex-wrap gap-3 p-4 rounded-2xl"
-            style={{ background: card, border: `1px solid ${brd}` }}>
-            <div className="flex items-center gap-2">
-              <Calendar size={14} style={{ color: "var(--text-muted)" }}/>
-              <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>فلترة بالتاريخ:</span>
+          {/* ── Summary stats ─────────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, margin: "24px 0" }}>
+            {[
+              { label: "إجمالي المشتركين", value: subscribers.length, color: "#5B5FEF", bg: "rgba(91,95,239,0.08)" },
+              { label: "الدفعات",          value: payments.length,    color: "#22C55E", bg: "#ECFDF3" },
+              { label: "الاستردادات",      value: refunds.length,     color: "#EF4444", bg: "#FEF2F2" },
+              { label: "التقارير المتاحة", value: reports.filter(r => !r.restricted).length, color: "#F59E0B", bg: "#FFFBEB" },
+            ].map((s) => (
+              <div key={s.label} style={{
+                background: "var(--surface)", border: "1px solid var(--border-light)",
+                borderRadius: 16, padding: "14px 16px",
+                boxShadow: "var(--shadow-card)",
+              }}>
+                <p style={{ fontSize: 24, fontWeight: 900, color: s.color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                  {s.value.toLocaleString("ar-EG")}
+                </p>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, fontWeight: 500 }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Date filter ───────────────────────────────────────────────── */}
+          <div style={{
+            background: "var(--surface)",
+            border: `1px solid ${dateActive ? "rgba(91,95,239,0.30)" : "var(--border-light)"}`,
+            borderRadius: 18,
+            padding: "16px 20px",
+            display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12,
+            marginBottom: 24,
+            boxShadow: dateActive ? "0 0 0 3px rgba(91,95,239,0.08)" : "var(--shadow-card)",
+            transition: "border-color .2s, box-shadow .2s",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 9,
+                background: dateActive ? "rgba(91,95,239,0.10)" : "var(--surface-secondary)",
+                border: `1px solid ${dateActive ? "rgba(91,95,239,0.22)" : "var(--border-light)"}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <Calendar size={14} style={{ color: dateActive ? "#5B5FEF" : "var(--text-muted)" }} />
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: dateActive ? "#5B5FEF" : "var(--text-secondary)" }}>
+                فلترة بالتاريخ
+              </span>
+              {dateActive && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "#5B5FEF", color: "#fff" }}>
+                  نشط
+                </span>
+              )}
             </div>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-              className="form-input text-sm" dir="ltr" placeholder="من"/>
-            <input type="date" value={dateTo}   onChange={(e) => setDateTo(e.target.value)}
-              className="form-input text-sm" dir="ltr" placeholder="إلى"/>
-            {(dateFrom || dateTo) && (
-              <button onClick={() => { setDateFrom(""); setDateTo(""); }}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                style={{ background: "#EF444418", color: "#EF4444" }}>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 260 }}>
+              <input
+                type="date" value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                dir="ltr"
+                style={{
+                  flex: 1, padding: "8px 12px",
+                  border: `1px solid ${dateFrom ? "#5B5FEF" : "var(--border-light)"}`,
+                  borderRadius: 12, fontSize: 13,
+                  background: dateFrom ? "rgba(91,95,239,0.05)" : "var(--surface-secondary)",
+                  color: dateFrom ? "#5B5FEF" : "var(--text-secondary)",
+                  outline: "none", fontFamily: "inherit", cursor: "pointer",
+                }}
+              />
+              <ChevronLeft size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+              <input
+                type="date" value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                dir="ltr"
+                style={{
+                  flex: 1, padding: "8px 12px",
+                  border: `1px solid ${dateTo ? "#5B5FEF" : "var(--border-light)"}`,
+                  borderRadius: 12, fontSize: 13,
+                  background: dateTo ? "rgba(91,95,239,0.05)" : "var(--surface-secondary)",
+                  color: dateTo ? "#5B5FEF" : "var(--text-secondary)",
+                  outline: "none", fontFamily: "inherit", cursor: "pointer",
+                }}
+              />
+            </div>
+
+            {dateActive && (
+              <button
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  fontSize: 12, fontWeight: 600, color: "#EF4444",
+                  background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.20)",
+                  borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                <X size={11} />
                 مسح
               </button>
             )}
           </div>
 
-          {/* Report cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* ── Report cards ──────────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 20 }}>
             {reports.map((r) => (
-              <div key={r.key}
-                className="rounded-2xl p-5 flex flex-col gap-4"
-                style={{ background: card, border: `1px solid ${brd}`, opacity: r.restricted ? 0.5 : 1 }}>
-                <div className="flex items-start justify-between">
-                  <div className="h-11 w-11 flex items-center justify-center rounded-xl"
-                    style={{ background: `${r.color}18`, border: `1px solid ${r.color}28` }}>
-                    <span style={{ color: r.color }}>{r.icon}</span>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-bold text-base mb-1" style={{ color: "var(--text-primary)" }}>{r.label}</h3>
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{r.description}</p>
-                  {r.restricted && (
-                    <p className="text-xs mt-1.5 font-semibold" style={{ color: "#EF4444" }}>
-                      يتطلب صلاحية عرض البيانات المالية
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={r.restricted ? undefined : r.onExport}
-                  disabled={r.restricted || !canExport}
-                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:opacity-90"
-                  style={{ background: r.restricted || !canExport ? "#9ca3af" : `linear-gradient(135deg,${r.color}dd,${r.color}99)` }}>
-                  <Download size={14}/>
-                  تصدير CSV
-                </button>
-              </div>
+              <ReportCard
+                key={r.key}
+                report={r}
+                canExport={canExport}
+                dateFrom={dateFrom}
+                dateTo={dateTo}
+              />
             ))}
           </div>
+
+          {/* ── Info box ──────────────────────────────────────────────────── */}
+          <div style={{
+            marginTop: 32, padding: "14px 18px",
+            background: "rgba(91,95,239,0.04)",
+            border: "1px solid rgba(91,95,239,0.15)",
+            borderRadius: 16,
+            display: "flex", alignItems: "flex-start", gap: 10,
+          }}>
+            <TrendingUp size={15} style={{ color: "#5B5FEF", flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#5B5FEF", margin: "0 0 2px" }}>
+                نصيحة: استخدم فلترة التاريخ للحصول على تقارير دقيقة
+              </p>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, lineHeight: 1.6 }}>
+                حدد نطاقاً زمنياً لتصدير بيانات فترة معينة فقط. تدعم التقارير صيغة CSV المتوافقة مع Excel وجداول Google.
+              </p>
+            </div>
+          </div>
+
         </div>
       </div>
     </ProtectedLayout>
+  );
+}
+
+// ─── Report card component ────────────────────────────────────────────────────
+
+function ReportCard({ report: r, canExport, dateFrom, dateTo }: {
+  report: ReportItem;
+  canExport: boolean;
+  dateFrom: string;
+  dateTo: string;
+}) {
+  const [exporting, setExporting] = useState(false);
+  const [done,      setDone]      = useState(false);
+
+  const disabled = r.restricted || !canExport;
+
+  async function handleExport() {
+    if (disabled) return;
+    setExporting(true);
+    try {
+      await r.onExport();
+      setDone(true);
+      setTimeout(() => setDone(false), 2000);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const hasDateFilter = !!(dateFrom || dateTo);
+
+  return (
+    <div style={{
+      background: "var(--surface)",
+      border: `1px solid var(--border-light)`,
+      borderRadius: 22,
+      overflow: "hidden",
+      boxShadow: "var(--shadow-card)",
+      display: "flex", flexDirection: "column",
+      opacity: disabled ? 0.65 : 1,
+      transition: "box-shadow .2s, transform .2s",
+    }}
+    onMouseEnter={(e) => {
+      if (!disabled) {
+        (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(15,23,42,0.10)";
+        (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+      }
+    }}
+    onMouseLeave={(e) => {
+      (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-card)";
+      (e.currentTarget as HTMLElement).style.transform = "none";
+    }}
+    >
+      {/* Card header — colored strip */}
+      <div style={{
+        padding: "20px 20px 16px",
+        background: r.bg,
+        borderBottom: `1px solid ${r.border}`,
+        display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
+      }}>
+        {/* Icon */}
+        <div style={{
+          width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+          background: "rgba(255,255,255,0.70)",
+          border: `1px solid ${r.border}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: r.color,
+          boxShadow: `0 2px 8px ${r.border}`,
+        }}>
+          {r.icon}
+        </div>
+
+        {/* Stat pill */}
+        <div style={{ textAlign: "left" }}>
+          <p style={{ fontSize: 22, fontWeight: 900, color: r.color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+            {Number(r.stat).toLocaleString("ar-EG")}
+          </p>
+          <p style={{ fontSize: 11, color: r.color, opacity: 0.7, fontWeight: 600, marginTop: 2 }}>{r.statLabel}</p>
+        </div>
+      </div>
+
+      {/* Card body */}
+      <div style={{ padding: "16px 20px 20px", flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--text-primary)", margin: 0 }}>{r.label}</h3>
+            {r.restricted && (
+              <Lock size={13} style={{ color: "#EF4444", flexShrink: 0 }} />
+            )}
+          </div>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.65, margin: 0 }}>{r.description}</p>
+
+          {r.restricted && (
+            <p style={{ fontSize: 12, marginTop: 8, fontWeight: 600, color: "#EF4444", display: "flex", alignItems: "center", gap: 5 }}>
+              <Lock size={11} />
+              يتطلب صلاحية عرض البيانات المالية
+            </p>
+          )}
+        </div>
+
+        {/* Formats + date badge */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          {r.formats.map(fmt => (
+            <span key={fmt} style={{
+              fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
+              background: "var(--surface-secondary)", border: "1px solid var(--border-light)",
+              color: "var(--text-secondary)",
+              display: "flex", alignItems: "center", gap: 4,
+            }}>
+              <FileSpreadsheet size={10} />
+              {fmt}
+            </span>
+          ))}
+          {hasDateFilter && !r.restricted && (
+            <span style={{
+              fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 6,
+              background: "rgba(91,95,239,0.08)", border: "1px solid rgba(91,95,239,0.20)",
+              color: "#5B5FEF",
+            }}>
+              {dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : dateFrom ? `من ${dateFrom}` : `حتى ${dateTo}`}
+            </span>
+          )}
+        </div>
+
+        {/* Export button */}
+        <button
+          onClick={handleExport}
+          disabled={disabled || exporting}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            padding: "11px 16px", borderRadius: 14,
+            fontSize: 13, fontWeight: 700,
+            cursor: disabled ? "not-allowed" : "pointer",
+            fontFamily: "inherit",
+            border: "none",
+            marginTop: "auto",
+            transition: "all .2s",
+            background: disabled
+              ? "var(--surface-secondary)"
+              : done
+              ? "#22C55E"
+              : r.color,
+            color: disabled ? "var(--text-muted)" : "#fff",
+            boxShadow: disabled ? "none" : `0 4px 14px ${r.color}40`,
+          }}
+        >
+          {done ? (
+            <><CheckCircle2 size={15} /> تم التصدير!</>
+          ) : exporting ? (
+            <><span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite", display: "inline-block" }} /> جاري التصدير...</>
+          ) : (
+            <><Download size={15} /> تصدير CSV</>
+          )}
+        </button>
+      </div>
+    </div>
   );
 }

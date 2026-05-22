@@ -57,7 +57,7 @@ export default function StatsDateFilter({ value, onChange }: Props) {
     border: "none",
     cursor: "pointer",
     fontFamily: "inherit",
-    background: active ? "#10141A" : "transparent",
+    background: active ? "#5B5FEF" : "transparent",
     color: active ? "#fff" : "var(--jk-muted)",
     boxShadow: active ? "var(--jk-shadow-nav)" : "none",
     borderRadius: 999,
@@ -126,7 +126,7 @@ export default function StatsDateFilter({ value, onChange }: Props) {
               >
                 <ChevronRight size={15} />
               </button>
-              <span className="text-sm font-black" style={{ color: "#10141A" }}>{pickerYear}</span>
+              <span className="text-sm font-black" style={{ color: "#5B5FEF" }}>{pickerYear}</span>
               <button
                 className="p-1 transition rounded-full disabled:opacity-30"
                 style={{ color: "#6B7280" }}
@@ -153,7 +153,7 @@ export default function StatsDateFilter({ value, onChange }: Props) {
                     className="text-xs py-1.5 font-bold transition-all"
                     style={{
                       borderRadius: 9999,
-                      background: selected ? "#10141A" : "transparent",
+                      background: selected ? "#5B5FEF" : "transparent",
                       color: selected ? "#fff" : isFuture ? "#9CA3AF" : "#6B7280",
                       cursor: isFuture ? "not-allowed" : "pointer",
                     }}

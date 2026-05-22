@@ -294,7 +294,7 @@ export default function SubscribersTable({
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     <Link href={`/subscribers/${s.id}`} className="flex items-center gap-2.5 group">
                       <span className="h-8 w-8 shrink-0 flex items-center justify-center rounded-xl text-[10px] font-black text-white"
-                        style={{ background: "linear-gradient(135deg,#1E2332,#10141A)", boxShadow: "0 2px 6px rgba(16,20,26,.18)", letterSpacing: "0.04em" }}>
+                        style={{ background: "linear-gradient(135deg,#1E2332,#0B1020)", boxShadow: "0 2px 6px rgba(16,20,26,.18)", letterSpacing: "0.04em" }}>
                         {(s.name || "؟").split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
                       </span>
                       <span className="text-sm font-semibold group-hover:text-blue-500 transition-colors" style={{ color: "var(--text-primary)" }}>

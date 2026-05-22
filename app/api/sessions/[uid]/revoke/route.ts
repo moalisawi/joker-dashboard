@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getDatabase } from "firebase-admin/database";
 import { requireRole } from "@/lib/requireRole";
 import { initializeAdminApp } from "@/lib/serverAuth";
 import { hasAdminCredentials } from "@/lib/serverFirestore";
@@ -59,6 +60,27 @@ export async function POST(
         });
       });
       await batch.commit();
+    }
+
+    // Instantly signal all RTDB sessions for this user to terminate.
+    // Client usePresence hooks detect terminated=true and sign out immediately.
+    // databaseURL is configured in the admin app init (serverAuth.ts).
+    try {
+      const adminDb         = getDatabase();
+      const userPresenceRef = adminDb.ref(`presence/${targetUid}`);
+      const presenceSnap    = await userPresenceRef.once("value");
+      const presenceData    = presenceSnap.val() as Record<string, object> | null;
+      if (presenceData) {
+        const updates: Record<string, boolean> = {};
+        Object.keys(presenceData).forEach((sessionId) => {
+          updates[`${sessionId}/terminated`] = true;
+          updates[`${sessionId}/online`]     = false;
+        });
+        await userPresenceRef.update(updates);
+      }
+    } catch (rtdbErr) {
+      // Non-fatal — Firebase Auth token revocation already prevents re-auth
+      console.warn("[sessions/revoke] RTDB update failed:", rtdbErr);
     }
 
     // Audit log

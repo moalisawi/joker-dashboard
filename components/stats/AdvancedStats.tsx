@@ -64,12 +64,16 @@ export default function AdvancedStats({ subscribers }: Props) {
     );
   }, [subscribers, filterPkg, filterCountry, filterMonth, filterEmp, filterPayment]);
 
-  const totals = useMemo(() => ({
-    count:   filtered.length,
-    revenue: filtered.reduce((a, s) => a + s.netAmountUSD,       0),
-    paid:    filtered.reduce((a, s) => a + s.paidAmountUSD,      0),
-    rem:     filtered.reduce((a, s) => a + s.remainingAmountUSD, 0),
-  }), [filtered]);
+  const totals = useMemo(() => {
+    const paid = filtered.reduce((a, s) => a + s.paidAmountUSD,      0);
+    const rem  = filtered.reduce((a, s) => a + s.remainingAmountUSD, 0);
+    return {
+      count:   filtered.length,
+      total:   paid + rem,   // إجمالي العقود = المحصّل + المتبقي
+      paid,
+      rem,
+    };
+  }, [filtered]);
 
   const empStats = useMemo(() => {
     return employeeNames.map((emp) => {
@@ -155,10 +159,10 @@ export default function AdvancedStats({ subscribers }: Props) {
         {/* Summary numbers */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
-            { label: "الاشتراكات",  value: formatNumber(totals.count),        cls: "text-slate-800" },
-            { label: "الإيرادات",   value: canRev ? `$${formatNumber(totals.revenue, 2)}` : "—", cls: "text-emerald-700" },
-            { label: "المحصّل",     value: canRev ? `$${formatNumber(totals.paid, 2)}`    : "—", cls: "text-blue-700"    },
-            { label: "المتبقي",     value: canRev ? `$${formatNumber(totals.rem, 2)}`     : "—", cls: "text-amber-700"   },
+            { label: "الاشتراكات",    value: formatNumber(totals.count),                                       cls: "text-slate-800"   },
+            { label: "إجمالي العقود", value: canRev ? `$${formatNumber(totals.total, 2)}` : "—",              cls: "text-indigo-700"  },
+            { label: "المحصّل",       value: canRev ? `$${formatNumber(totals.paid,  2)}` : "—",              cls: "text-emerald-700" },
+            { label: "المتبقي",       value: canRev ? `$${formatNumber(totals.rem,   2)}` : "—",              cls: "text-amber-700"   },
           ].map((c) => (
             <div key={c.label} className="bg-slate-50 rounded-xl p-3 text-center">
               <p className="text-xs text-slate-400 mb-1">{c.label}</p>

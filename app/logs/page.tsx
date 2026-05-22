@@ -196,10 +196,10 @@ export default function LogsPage() {
   if (loading) {
     return (
       <ProtectedLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center space-y-3">
-            <RefreshCw size={28} className="text-slate-300 animate-spin mx-auto" />
-            <p className="text-sm text-slate-400">جاري تحميل السجلات...</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
+          <div style={{ textAlign: "center" }}>
+            <RefreshCw size={28} style={{ color: "var(--text-muted)", margin: "0 auto 12px", display: "block", animation: "spin 1s linear infinite" }} />
+            <p style={{ fontSize: 14, color: "var(--text-muted)" }}>جاري تحميل السجلات...</p>
           </div>
         </div>
       </ProtectedLayout>
@@ -268,9 +268,17 @@ export default function LogsPage() {
         <div className="print:hidden">
           <button
             onClick={() => setShowFilters((v) => !v)}
-            className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition mb-2"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 7,
+              padding: "7px 14px", borderRadius: 12, fontSize: 13, fontWeight: 600,
+              cursor: "pointer", fontFamily: "inherit", marginBottom: 12,
+              background: showFilters ? "rgba(91,95,239,0.08)" : "var(--surface)",
+              color: showFilters ? "#5B5FEF" : "var(--text-secondary)",
+              border: `1px solid ${showFilters ? "rgba(91,95,239,0.22)" : "var(--border-light)"}`,
+              transition: "all .15s",
+            }}
           >
-            <Activity size={14} />
+            <Activity size={13} />
             {showFilters ? "إخفاء الفلاتر" : "إظهار الفلاتر"}
           </button>
           {showFilters && (
@@ -287,21 +295,36 @@ export default function LogsPage() {
         {tab === "timeline" && (
           <div className="space-y-6">
             {logs.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
-                <ScrollText size={32} className="text-slate-200 mx-auto mb-3" />
-                <p className="text-slate-400 text-sm">لا توجد سجلات تطابق الفلاتر</p>
+              <div style={{
+                background: "var(--surface)", border: "1px solid var(--border-light)",
+                borderRadius: 20, padding: "48px 24px", textAlign: "center",
+                boxShadow: "var(--shadow-card)",
+              }}>
+                <ScrollText size={32} style={{ color: "var(--border-light)", margin: "0 auto 12px", display: "block" }} />
+                <p style={{ fontSize: 14, color: "var(--text-muted)" }}>لا توجد سجلات تطابق الفلاتر المختارة</p>
               </div>
             ) : (
               <>
                 {grouped.map((group) => (
                   <section key={group.label}>
                     {/* group header */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, color: "var(--text-secondary)",
+                        textTransform: "uppercase", letterSpacing: "0.07em",
+                        whiteSpace: "nowrap",
+                      }}>
                         {group.label}
                       </span>
-                      <div className="flex-1 h-px bg-slate-100" />
-                      <span className="text-xs text-slate-400">{group.logs.length} سجل</span>
+                      <div style={{ flex: 1, height: 1, background: "var(--border-soft)" }} />
+                      <span style={{
+                        fontSize: 11, color: "var(--text-muted)",
+                        background: "var(--surface-secondary)",
+                        border: "1px solid var(--border-light)",
+                        padding: "2px 8px", borderRadius: 999, fontWeight: 600,
+                      }}>
+                        {group.logs.length}
+                      </span>
                     </div>
 
                     {/* cards */}
@@ -319,7 +342,15 @@ export default function LogsPage() {
                     <button
                       onClick={handleLoadMore}
                       disabled={loadingMore}
-                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition shadow-sm disabled:opacity-60"
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 8,
+                        padding: "9px 22px", borderRadius: 12,
+                        background: "var(--surface)", border: "1px solid var(--border-light)",
+                        fontSize: 13, fontWeight: 600, color: "var(--text-secondary)",
+                        cursor: "pointer", fontFamily: "inherit",
+                        boxShadow: "var(--shadow-card)",
+                        opacity: loadingMore ? 0.6 : 1,
+                      }}
                     >
                       {loadingMore
                         ? <><RefreshCw size={14} className="animate-spin" /> جاري التحميل...</>

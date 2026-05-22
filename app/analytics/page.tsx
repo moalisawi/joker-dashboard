@@ -33,12 +33,12 @@ import type { Insight } from "@/lib/analytics/insights";
 
 // ── Premium Analytics Palette ─────────────────────────────────────────────────
 const P = {
-  bg:         "#F5F6FA",
+  bg:         "#F5F7FB",
   card:       "#FFFFFF",
   border:     "#E5E7EB",
   divider:    "#F3F4F6",
-  primary:    "#4F46FF",
-  primarySoft:"#6B7CFF",
+  primary:    "#5B5FEF",
+  primarySoft:"#818CF8",
   darkCard1:  "#0B1020",
   darkCard2:  "#1A2745",
   textMain:   "#111827",
@@ -55,12 +55,12 @@ const _LIGHT = {}; // kept for compatibility — use P instead
 const t = { textPri: P.textMain, textSec: P.textMuted, divider: P.border, grid: P.grid, tick: P.tick };
 
 const CHART_COLORS = [
-  "#4F46FF","#22C55E","#F59E0B","#EF4444",
-  "#8B5CF6","#06B6D4","#F97316","#6B7CFF",
+  "#5B5FEF","#22C55E","#F59E0B","#EF4444",
+  "#8B5CF6","#06B6D4","#F97316","#818CF8",
 ];
 
 const ACC = {
-  indigo:  "#4F46FF",
+  indigo:  "#5B5FEF",
   emerald: "#22C55E",
   sky:     "#06B6D4",
   amber:   "#F59E0B",
@@ -155,14 +155,14 @@ function FeaturedStatCard({ icon, label: lbl, value, sub, trend, spark }: {
       <div style={{
         position:"absolute", top:-40, right:-40, width:160, height:160,
         borderRadius:"50%",
-        background:"radial-gradient(circle, rgba(79,70,255,0.35) 0%, transparent 70%)",
+        background:"radial-gradient(circle, rgba(91,95,239,0.35) 0%, transparent 70%)",
         pointerEvents:"none",
       }}/>
       {/* Secondary purple orb */}
       <div style={{
         position:"absolute", bottom:-30, left:-20, width:120, height:120,
         borderRadius:"50%",
-        background:"radial-gradient(circle, rgba(107,124,255,0.20) 0%, transparent 70%)",
+        background:"radial-gradient(circle, rgba(129,140,248,0.20) 0%, transparent 70%)",
         pointerEvents:"none",
       }}/>
 
@@ -171,7 +171,7 @@ function FeaturedStatCard({ icon, label: lbl, value, sub, trend, spark }: {
         <div style={{
           width:46, height:46, borderRadius:14, flexShrink:0,
           display:"flex", alignItems:"center", justifyContent:"center",
-          background:"rgba(79,70,255,0.25)", border:"1px solid rgba(79,70,255,0.40)",
+          background:"rgba(91,95,239,0.25)", border:"1px solid rgba(91,95,239,0.40)",
           color: P.primarySoft,
         }}>{icon}</div>
         {trend != null && (
@@ -329,7 +329,7 @@ function LegendPill({ color, label: lbl, value }: { color: string; label: string
 // ── Insight card ─────────────────────────────────────────────────────────────
 function InsightCard({ insight }: { insight: Insight }) {
   const cfg: Record<string, { icon: React.ReactNode; bg: string; border: string; color: string }> = {
-    info:     { icon:<Info size={14}/>,          bg:"rgba(79,70,255,0.06)",  border:"rgba(79,70,255,0.15)",  color: P.primary  },
+    info:     { icon:<Info size={14}/>,          bg:"rgba(91,95,239,0.06)",  border:"rgba(91,95,239,0.15)",  color: P.primary  },
     warning:  { icon:<AlertTriangle size={14}/>, bg:"rgba(245,158,11,0.07)", border:"rgba(245,158,11,0.18)", color: P.warning  },
     critical: { icon:<XCircle size={14}/>,       bg:"rgba(239,68,68,0.06)",  border:"rgba(239,68,68,0.16)",  color: P.danger   },
     success:  { icon:<CheckCircle2 size={14}/>,  bg:"rgba(34,197,94,0.06)",  border:"rgba(34,197,94,0.16)",  color: P.success  },
@@ -530,7 +530,7 @@ export default function AnalyticsPage() {
                   transition:"all .18s ease",
                   background: tab === tb.key ? P.primary : "transparent",
                   color:      tab === tb.key ? "#FFFFFF" : P.textMuted,
-                  boxShadow:  tab === tb.key ? `0 4px 14px rgba(79,70,255,0.35)` : "none",
+                  boxShadow:  tab === tb.key ? `0 4px 14px rgba(91,95,239,0.35)` : "none",
                 }}>
                 {tb.icon}{tb.label}
               </button>
@@ -568,7 +568,7 @@ export default function AnalyticsPage() {
                     />
                     <StatCard
                       icon={<Users size={18}/>}
-                      accent={P.primary} accentLight="rgba(79,70,255,0.10)"
+                      accent={P.primary} accentLight="rgba(91,95,239,0.10)"
                       label="المشتركون النشطون"
                       value={formatNumber(kpi.active)}
                       sub={`من ${formatNumber(kpi.total)} مشترك`}
@@ -805,7 +805,7 @@ export default function AnalyticsPage() {
                       </div>
                       <Link href="/admin/teams" style={{
                         fontSize:12, fontWeight:600, padding:"5px 12px", borderRadius:999,
-                        background:`rgba(79,70,255,0.08)`, color: P.primary, border:`1px solid rgba(79,70,255,0.18)`,
+                        background:`rgba(91,95,239,0.08)`, color: P.primary, border:`1px solid rgba(91,95,239,0.18)`,
                         textDecoration:"none", transition:"all .15s ease",
                       }}>إدارة ←</Link>
                     </div>
@@ -847,7 +847,7 @@ export default function AnalyticsPage() {
                             ? <Link key={td.name} href={`/admin/teams/${td.id}`}
                                 style={{ display:"block", padding:"10px 8px", borderRadius:14, border:"1px solid transparent",
                                   textDecoration:"none", transition:"all .15s ease" }}
-                                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background="#F8F9FF"; el.style.borderColor=`rgba(79,70,255,0.10)`; }}
+                                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background="#F8F9FF"; el.style.borderColor=`rgba(91,95,239,0.10)`; }}
                                 onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background="transparent"; el.style.borderColor="transparent"; }}>
                                 {inner}
                               </Link>

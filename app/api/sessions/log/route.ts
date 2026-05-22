@@ -133,28 +133,33 @@ export async function POST(request: Request): Promise<NextResponse> {
     const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
-    const docRef = await getFirestore().collection("loginSessions").add({
-      uid:            user.uid,
-      email:          user.email || "",
-      displayName:    userData?.name || userData?.email || user.email || "",
-      role:           user.role,
-      status:         "active",
-      isActive:       true,
-      loginAt:        now,
-      lastSeenAt:     now,
-      createdAt:      now,
-      expiresAt,
-      ipAddress:      ip,
-      country:        geo.country,
-      city:           geo.city,
-      userAgent:      ua,
-      browser:        parsed.browser,
-      browserVersion: parsed.browserVersion,
-      os:             parsed.os,
-      osVersion:      parsed.osVersion,
-      device:         parsed.device,
-      isSuspicious:   false,
-    });
+    // Strip undefined fields — Firestore rejects them
+    const sessionData = Object.fromEntries(
+      Object.entries({
+        uid:            user.uid,
+        email:          user.email || "",
+        displayName:    userData?.name || userData?.email || user.email || "",
+        role:           user.role,
+        status:         "active",
+        isActive:       true,
+        loginAt:        now,
+        lastSeenAt:     now,
+        createdAt:      now,
+        expiresAt,
+        ipAddress:      ip,
+        country:        geo.country,
+        city:           geo.city,
+        userAgent:      ua,
+        browser:        parsed.browser,
+        browserVersion: parsed.browserVersion,
+        os:             parsed.os,
+        osVersion:      parsed.osVersion,
+        device:         parsed.device,
+        isSuspicious:   false,
+      }).filter(([, v]) => v !== undefined)
+    );
+
+    const docRef = await getFirestore().collection("loginSessions").add(sessionData);
 
     return NextResponse.json({ success: true, sessionId: docRef.id });
   } catch (err) {

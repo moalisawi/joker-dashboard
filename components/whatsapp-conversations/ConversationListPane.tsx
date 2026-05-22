@@ -121,7 +121,7 @@ export default function ConversationListPane({ leads, selectedId, onSelect, t }:
                 cursor: "pointer",
                 fontFamily: "inherit",
                 transition: "all .15s",
-                background: filter === f.key ? "#10141A" : `${t.divider}`,
+                background: filter === f.key ? "#5B5FEF" : `${t.divider}`,
                 color: filter === f.key ? "#fff" : t.textSec,
                 fontWeight: filter === f.key ? 600 : 400,
               }}
@@ -175,7 +175,7 @@ export default function ConversationListPane({ leads, selectedId, onSelect, t }:
                 {/* Avatar */}
                 <div style={{
                   width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-                  background: "#10141A", color: "#fff",
+                  background: "#5B5FEF", color: "#fff",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 15, fontWeight: 700,
                 }}>

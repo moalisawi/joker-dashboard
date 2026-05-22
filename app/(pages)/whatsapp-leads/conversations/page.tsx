@@ -7,7 +7,6 @@ import { collection, onSnapshot, orderBy, query, where } from "firebase/firestor
 import { db } from "@/lib/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import { useAuthStore } from "@/store/authStore";
-import { useThemeStore } from "@/store/themeStore";
 import { whatsappLeadsService } from "@/services/whatsapp-leads.service";
 import type { WhatsappMessage } from "@/types/whatsapp-lead";
 import {
@@ -42,7 +41,7 @@ const LIGHT = {
   cardShadow:   "0 1px 2px rgba(16,20,26,.04), 0 12px 28px -12px rgba(16,20,26,.08)",
   headerBg:     "rgba(255,255,255,0.80)",
   divider:      "rgba(16,20,26,0.06)",
-  textPri:      "#10141A",
+  textPri:      "#5B5FEF",
   textSec:      "#6B7280",
   textMut:      "#9CA3AF",
   inboundBubble: "#F0F0F0",
@@ -74,10 +73,9 @@ function ConversationsPageInner() {
   const router     = useRouter();
   const params     = useSearchParams();
   const leadId     = params.get("leadId");
-  const { dark }   = useThemeStore();
   const { user }   = useAuthStore();
   const qc         = useQueryClient();
-  const t = dark ? DARK : LIGHT;
+  const t = LIGHT;
 
   const { data: allLeads = [] } = useAllLeadsQuery();
 

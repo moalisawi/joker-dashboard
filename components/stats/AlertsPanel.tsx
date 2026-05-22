@@ -61,7 +61,7 @@ function OpenBtn({ onClick }: { onClick: () => void }) {
         fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0,
         boxShadow: "var(--jk-shadow-flat)", transition: "all .15s ease",
       }}
-      onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "#10141A"; el.style.color = "#fff"; el.style.borderColor = "#10141A"; }}
+      onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "#5B5FEF"; el.style.color = "#fff"; el.style.borderColor = "#5B5FEF"; }}
       onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "var(--jk-surface)"; el.style.color = "var(--jk-text)"; el.style.borderColor = "var(--jk-border)"; }}
     >
       فتح

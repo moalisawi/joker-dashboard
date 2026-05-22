@@ -23,12 +23,18 @@ interface NavItem {
   roles?:      string[];
 }
 
+interface TooltipState {
+  label: string;
+  y: number;
+}
+
 export default function Sidebar() {
   const pathname  = usePathname();
   const router    = useRouter();
   const { user, can }     = useAuthStore();
   const { unreadCount }   = useNotificationStore();
   const [open, setOpen]   = useState(false);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
   const uid = user?.uid ?? "";
 
@@ -63,6 +69,11 @@ export default function Sidebar() {
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
+
+  function showTooltip(e: React.MouseEvent, label: string) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setTooltip({ label, y: rect.top + rect.height / 2 });
+  }
 
   const railContent = (
     <aside style={{
@@ -102,6 +113,7 @@ export default function Sidebar() {
         boxShadow: "0 2px 8px rgba(16,20,26,.06), 0 1px 2px rgba(16,20,26,.04)",
         width: 56,
         overflowY: "auto",
+        overflowX: "visible",
         scrollbarWidth: "none",
       }}>
         {visibleItems.map((item) => {
@@ -113,7 +125,14 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              title={item.label}
+              onMouseEnter={(e) => {
+                if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(16,20,26,.06)";
+                showTooltip(e, item.label);
+              }}
+              onMouseLeave={(e) => {
+                if (!active) (e.currentTarget as HTMLElement).style.background = "transparent";
+                setTooltip(null);
+              }}
               style={{
                 width: 42, height: 42, borderRadius: "50%",
                 background: active ? "#5B5FEF" : "transparent",
@@ -123,11 +142,8 @@ export default function Sidebar() {
                 boxShadow: active ? "0 6px 16px rgba(91,95,239,0.30)" : "none",
                 transition: "all .15s ease",
               }}
-              onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(16,20,26,.06)"; }}
-              onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
             >
               {item.icon}
-
               {badgeCount > 0 && (
                 <span style={{
                   position: "absolute", top: 5, insetInlineEnd: 5,
@@ -145,7 +161,14 @@ export default function Sidebar() {
       <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
         <button
           onClick={handleLogout}
-          title="تسجيل الخروج"
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,.10)";
+            showTooltip(e, "تسجيل الخروج");
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.55)";
+            setTooltip(null);
+          }}
           style={{
             width: 42, height: 42, borderRadius: "50%",
             background: "rgba(255,255,255,.55)",
@@ -155,12 +178,47 @@ export default function Sidebar() {
             transition: "all .15s ease",
             boxShadow: "0 1px 3px rgba(16,20,26,.08)",
           }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,.10)"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.55)"; }}
         >
           <LogOut size={16} />
         </button>
       </div>
+
+      {/* Tooltip — fixed position to avoid overflow clipping */}
+      {tooltip && (
+        <div
+          style={{
+            position: "fixed",
+            right: 88,
+            top: tooltip.y,
+            transform: "translateY(-50%)",
+            background: "#111827",
+            color: "#fff",
+            padding: "6px 12px",
+            borderRadius: 10,
+            fontSize: 12,
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+            zIndex: 9999,
+            pointerEvents: "none",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+            fontFamily: "var(--font-cairo)",
+            letterSpacing: "0.01em",
+          }}
+        >
+          {tooltip.label}
+          {/* Arrow pointing right toward sidebar */}
+          <span style={{
+            position: "absolute",
+            right: -6,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 0, height: 0,
+            borderTop: "5px solid transparent",
+            borderBottom: "5px solid transparent",
+            borderLeft: "6px solid #111827",
+          }} />
+        </div>
+      )}
     </aside>
   );
 
