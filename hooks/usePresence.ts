@@ -82,7 +82,7 @@ export function usePresence() {
         return;
       }
 
-      if (!mounted || !rtdb) return;
+      if (!mounted || !rtdb || !user) return;
 
       const ua          = typeof navigator !== "undefined" ? navigator.userAgent : "";
       activePath        = `presence/${user.uid}/${sessionId}`;
