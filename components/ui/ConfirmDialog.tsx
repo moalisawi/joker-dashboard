@@ -27,7 +27,7 @@ export default function ConfirmDialog({
   loading,
   destructive  = false,
 }: Props) {
-  const accent = destructive ? "#CE6969" : "#10141A";
+  const accent = destructive ? "#EF4444" : "#10141A";
 
   return (
     <AnimatePresence>

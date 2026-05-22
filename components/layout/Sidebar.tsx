@@ -132,7 +132,7 @@ export default function Sidebar() {
                 <span style={{
                   position: "absolute", top: 5, insetInlineEnd: 5,
                   width: 8, height: 8, borderRadius: "50%",
-                  background: "#CE6969",
+                  background: "#EF4444",
                   boxShadow: "0 0 0 2px rgba(232,234,238,.9)",
                 }} />
               )}
@@ -150,12 +150,12 @@ export default function Sidebar() {
             width: 42, height: 42, borderRadius: "50%",
             background: "rgba(255,255,255,.55)",
             border: "1px solid rgba(255,255,255,.75)",
-            color: "#CE6969", cursor: "pointer",
+            color: "#EF4444", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             transition: "all .15s ease",
             boxShadow: "0 1px 3px rgba(16,20,26,.08)",
           }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(206,105,105,.10)"; }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,.10)"; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.55)"; }}
         >
           <LogOut size={16} />

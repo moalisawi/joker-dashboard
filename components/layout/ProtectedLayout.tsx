@@ -33,7 +33,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--page-bg)" }}>
         <div className="flex flex-col items-center gap-4">
           <div className="w-11 h-11 rounded-full border-[3px] animate-spin" style={{ borderColor: "#10141A", borderTopColor: "transparent" }} />
-          <p className="text-sm font-medium" style={{ color: "#64748B" }}>جاري التحميل...</p>
+          <p className="text-sm font-medium" style={{ color: "#6B7280" }}>جاري التحميل...</p>
         </div>
       </div>
     );

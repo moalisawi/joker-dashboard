@@ -433,7 +433,7 @@ export default function SubscribersTable({
             <div key={s.id} className="p-4 space-y-3">
               <div className="flex items-start gap-3">
                 <span className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl text-[11px] font-black text-white mt-0.5"
-                  style={{ background: "linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+                  style={{ background: "linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
                   {(s.name || "؟").split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
                 </span>
                 <div className="flex-1 min-w-0">

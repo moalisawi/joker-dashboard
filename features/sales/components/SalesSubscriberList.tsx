@@ -6,7 +6,7 @@ import { formatDate, formatNumber } from "@/lib/utils";
 import type { Subscriber } from "@/types";
 import { Search, ArrowLeft, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444" };
 
 function StatusDot({ status }: { status: string }) {
   if (status === "نشط")         return <CheckCircle2 size={12} style={{ color:ACC.emerald }}/>;
@@ -117,7 +117,7 @@ export default function SalesSubscriberList({ subscribers, canRev }: Props) {
               </thead>
               <tbody>
                 {visible.map((s) => (
-                  <tr key={s.id} className="transition-colors hover:bg-[#83A2DB08]"
+                  <tr key={s.id} className="transition-colors hover:bg-[#5B5FEF08]"
                     style={{ borderBottom:"1px solid var(--divider)" }}>
                     <td className="px-5 py-3">
                       <p className="font-semibold" style={{ color:"var(--text-primary)" }}>{s.name}</p>

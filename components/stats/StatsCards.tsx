@@ -25,12 +25,12 @@ interface CardConfig {
 }
 
 const CARD_STYLES = {
-  total:     { iconColor: "#10141A",  tagColor: "#64748B" },
-  active:    { iconColor: "#83A2DB",  tagColor: "#83A2DB" },
-  expiring:  { iconColor: "#E8B570",  tagColor: "#E8B570" },
-  paused:    { iconColor: "#E8B570",  tagColor: "#E8B570" },
-  frozen:    { iconColor: "#9DB4D6",  tagColor: "#9DB4D6" },
-  withdrawn: { iconColor: "#94A3B8",  tagColor: "#94A3B8" },
+  total:     { iconColor: "#10141A",  tagColor: "#6B7280" },
+  active:    { iconColor: "#5B5FEF",  tagColor: "#5B5FEF" },
+  expiring:  { iconColor: "#F59E0B",  tagColor: "#F59E0B" },
+  paused:    { iconColor: "#F59E0B",  tagColor: "#F59E0B" },
+  frozen:    { iconColor: "#3B82F6",  tagColor: "#3B82F6" },
+  withdrawn: { iconColor: "#9CA3AF",  tagColor: "#9CA3AF" },
   silver: {
     iconColor:   "#5A6680",
     tagColor:    "#475569",
@@ -45,8 +45,8 @@ const CARD_STYLES = {
     cardBorder:  "1px solid rgba(210,155,30,.28)",
     labelColor:  "#92640A",
   },
-  mrr:       { iconColor: "#83A2DB",  tagColor: "#83A2DB" },
-  churn:     { iconColor: "#CE6969",  tagColor: "#CE6969" },
+  mrr:       { iconColor: "#5B5FEF",  tagColor: "#5B5FEF" },
+  churn:     { iconColor: "#EF4444",  tagColor: "#EF4444" },
 } satisfies Record<string, CardConfig>;
 
 function StatCard({
@@ -175,7 +175,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         value={formatNumber(stats.total)}
         label="إجمالي المشتركين"
         sub={canRev && (
-          <p style={{ color: "#83A2DB", fontSize: 12, fontWeight: 700 }}>${formatNumber(stats.netUSD, 2)}</p>
+          <p style={{ color: "#5B5FEF", fontSize: 12, fontWeight: 700 }}>${formatNumber(stats.netUSD, 2)}</p>
         )}
       />
 
@@ -194,7 +194,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         value={formatNumber(stats.expiring)}
         label="ينتهي قريباً"
         sub={canRev && stats.remaining > 0 && (
-          <p style={{ color: "#E8B570", fontSize: 12, fontWeight: 700 }}>متبقي ${formatNumber(stats.remaining, 2)}</p>
+          <p style={{ color: "#F59E0B", fontSize: 12, fontWeight: 700 }}>متبقي ${formatNumber(stats.remaining, 2)}</p>
         )}
       />
 
@@ -252,7 +252,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           value={`$${formatNumber(stats.mrr, 0)}`}
           label="الإيراد — صافي الفترة"
           sub={
-            <p style={{ color: "#83A2DB", fontSize: 12, fontWeight: 600 }}>صافي بعد الاسترداد</p>
+            <p style={{ color: "#5B5FEF", fontSize: 12, fontWeight: 600 }}>صافي بعد الاسترداد</p>
           }
         />
       )}
@@ -266,8 +266,8 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
           label="نسبة الانسحاب"
           sub={
             stats.churnRate === 0
-              ? <p style={{ color: "#83A2DB", fontSize: 12, fontWeight: 600 }}>لا انسحاب هذا الشهر</p>
-              : <p style={{ color: "#CE6969", fontSize: 12, fontWeight: 600 }}>
+              ? <p style={{ color: "#5B5FEF", fontSize: 12, fontWeight: 600 }}>لا انسحاب هذا الشهر</p>
+              : <p style={{ color: "#EF4444", fontSize: 12, fontWeight: 600 }}>
                   {Math.round(stats.churnRate * 100 * subscribers.length / 100)} منسحب
                 </p>
           }

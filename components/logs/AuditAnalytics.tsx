@@ -26,18 +26,18 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  success:  "#83A2DB",
-  info:     "#83A2DB",
-  warning:  "#E8B570",
-  critical: "#CE6969",
+  success:  "#5B5FEF",
+  info:     "#5B5FEF",
+  warning:  "#F59E0B",
+  critical: "#EF4444",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  subscriber: "#83A2DB",
-  financial:  "#83A2DB",
-  user:       "#E8B570",
-  auth:       "#CE6969",
-  system:     "#94a3b8",
+  subscriber: "#5B5FEF",
+  financial:  "#5B5FEF",
+  user:       "#F59E0B",
+  auth:       "#EF4444",
+  system:     "#9ca3af",
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -107,7 +107,7 @@ export default function AuditAnalytics({ logs }: AuditAnalyticsProps) {
       .map(([name, count]) => ({
         name: CATEGORY_LABELS[name] ?? name,
         count,
-        color: CATEGORY_COLORS[name] ?? "#94a3b8",
+        color: CATEGORY_COLORS[name] ?? "#9ca3af",
       }));
 
     const refundByAdmin = Object.entries(refundAdmin)

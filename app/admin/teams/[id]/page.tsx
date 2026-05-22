@@ -28,15 +28,15 @@ import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
-  sales:    { label: "مبيعات",   color: "#83A2DB" },
-  followup: { label: "متابعة",  color: "#9DB4D6" },
-  admin:    { label: "مدير",    color: "#83A2DB" },
-  owner:    { label: "مالك",    color: "#E8B570" },
+  sales:    { label: "مبيعات",   color: "#5B5FEF" },
+  followup: { label: "متابعة",  color: "#3B82F6" },
+  admin:    { label: "مدير",    color: "#5B5FEF" },
+  owner:    { label: "مالك",    color: "#F59E0B" },
 };
 
 const TYPE_META: Record<string, { label: string; color: string }> = {
-  sales:     { label: "مبيعات", color: "#83A2DB" },
-  nutrition: { label: "تغذية",  color: "#9DB4D6" },
+  sales:     { label: "مبيعات", color: "#5B5FEF" },
+  nutrition: { label: "تغذية",  color: "#3B82F6" },
 };
 
 function permSummary(emp: UserProfile): string {
@@ -73,7 +73,7 @@ function MemberRow({
   isOwner: boolean;
   onRemove: (emp: UserProfile) => void;
 }) {
-  const roleMeta = ROLE_META[emp.employeeRole ?? ""] ?? { label: emp.employeeRole ?? "—", color: "#94a3b8" };
+  const roleMeta = ROLE_META[emp.employeeRole ?? ""] ?? { label: emp.employeeRole ?? "—", color: "#9ca3af" };
 
   return (
     <motion.tr
@@ -152,7 +152,7 @@ function MemberRow({
               onClick={() => onRemove(emp)}
               title="إزالة من الفريق"
               className="p-1.5 rounded-lg transition-colors"
-              style={{ background: "#CE696912", color: "#CE6969" }}
+              style={{ background: "#EF444412", color: "#EF4444" }}
             >
               <UserMinus size={13}/>
             </button>
@@ -166,12 +166,12 @@ function MemberRow({
 // ─── Subscribers Section ─────────────────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  "نشط":           "#83A2DB",
-  "ينتهي قريباً":  "#E8B570",
-  "منتهي":         "#CE6969",
-  "موقوف":         "#E8B570",
-  "متجمد":         "#9DB4D6",
-  "منسحب":         "#94a3b8",
+  "نشط":           "#5B5FEF",
+  "ينتهي قريباً":  "#F59E0B",
+  "منتهي":         "#EF4444",
+  "موقوف":         "#F59E0B",
+  "متجمد":         "#3B82F6",
+  "منسحب":         "#9ca3af",
 };
 
 function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: boolean }) {
@@ -205,7 +205,7 @@ function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: bo
       <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
         <h2 className="font-bold text-base" style={{ color: "var(--text-primary)" }}>مشتركو الفريق</h2>
         <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-          style={{ background: "#83A2DB15", color: "#83A2DB" }}>
+          style={{ background: "#5B5FEF15", color: "#5B5FEF" }}>
           {teamSubs.length} مشترك
         </span>
       </div>
@@ -213,10 +213,10 @@ function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: bo
       {/* Mini stats */}
       <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 border-b" style={{ borderColor: "var(--border)" }}>
         {[
-          { label: "الإجمالي",       value: teamSubs.length,            color: "#83A2DB" },
-          { label: "نشطون",          value: active,                     color: "#83A2DB" },
-          { label: "ينتهي قريباً",   value: expiring,                   color: "#E8B570" },
-          { label: "الإيراد",        value: canRev ? `$${formatNumber(revenue, 0)}` : "—", color: "#83A2DB" },
+          { label: "الإجمالي",       value: teamSubs.length,            color: "#5B5FEF" },
+          { label: "نشطون",          value: active,                     color: "#5B5FEF" },
+          { label: "ينتهي قريباً",   value: expiring,                   color: "#F59E0B" },
+          { label: "الإيراد",        value: canRev ? `$${formatNumber(revenue, 0)}` : "—", color: "#5B5FEF" },
         ].map((s) => (
           <div key={s.label} className="rounded-xl p-3 text-center"
             style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
@@ -273,7 +273,7 @@ function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: bo
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold"
-                      style={{ background: `${STATUS_COLOR[s.status] ?? "#94a3b8"}18`, color: STATUS_COLOR[s.status] ?? "#94a3b8" }}>
+                      style={{ background: `${STATUS_COLOR[s.status] ?? "#9ca3af"}18`, color: STATUS_COLOR[s.status] ?? "#9ca3af" }}>
                       {s.status}
                     </span>
                   </td>
@@ -284,7 +284,7 @@ function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: bo
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="text-sm tabular-nums font-semibold"
-                      style={{ color: s.daysRemaining <= 7 ? "#CE6969" : s.daysRemaining <= 30 ? "#E8B570" : "var(--text-primary)" }}>
+                      style={{ color: s.daysRemaining <= 7 ? "#EF4444" : s.daysRemaining <= 30 ? "#F59E0B" : "var(--text-primary)" }}>
                       {s.daysRemaining > 0 ? `${s.daysRemaining} يوم` : "منتهي"}
                     </span>
                   </td>
@@ -360,7 +360,7 @@ export default function TeamDetailPage() {
     }
   }
 
-  const typeMeta = TYPE_META[team?.type ?? ""] ?? { label: "—", color: "#94a3b8" };
+  const typeMeta = TYPE_META[team?.type ?? ""] ?? { label: "—", color: "#9ca3af" };
 
   const stats = {
     total:   members.length,
@@ -380,7 +380,7 @@ export default function TeamDetailPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl shadow-lg font-bold text-sm text-white flex items-center gap-2"
-            style={{ background: toast.ok ? "#83A2DB" : "#CE6969" }}
+            style={{ background: toast.ok ? "#5B5FEF" : "#EF4444" }}
           >
             {toast.ok ? "✓" : "✕"} {toast.msg}
           </motion.div>
@@ -430,7 +430,7 @@ export default function TeamDetailPage() {
                         {team.name}
                       </h1>
                       <span className="px-2.5 py-1 rounded-full text-xs font-bold"
-                        style={{ background: team.active ? "#83A2DB18" : "#94a3b818", color: team.active ? "#83A2DB" : "#94a3b8" }}>
+                        style={{ background: team.active ? "#5B5FEF18" : "#9ca3af18", color: team.active ? "#5B5FEF" : "#9ca3af" }}>
                         {team.active ? "نشط" : "معطّل"}
                       </span>
                     </div>
@@ -444,7 +444,7 @@ export default function TeamDetailPage() {
                   <div className="flex items-center gap-4 text-center">
                     {[
                       { label: "أعضاء",  value: stats.total,  color: typeMeta.color },
-                      { label: "نشطون",  value: stats.active, color: "#83A2DB" },
+                      { label: "نشطون",  value: stats.active, color: "#5B5FEF" },
                     ].map((s) => (
                       <div key={s.label}>
                         <p className="text-2xl font-black tabular-nums" style={{ color: s.color }}>{s.value}</p>
@@ -459,9 +459,9 @@ export default function TeamDetailPage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   { label: "إجمالي الأعضاء", value: stats.total,  color: typeMeta.color, icon: <User size={14}/> },
-                  { label: "نشطون",           value: stats.active, color: "#83A2DB",      icon: <CheckCircle2 size={14}/> },
-                  { label: "مبيعات",          value: stats.sales,  color: "#E8B570",      icon: <TrendingUp size={14}/> },
-                  { label: "متابعة",          value: stats.follow, color: "#9DB4D6",      icon: <ShieldCheck size={14}/> },
+                  { label: "نشطون",           value: stats.active, color: "#5B5FEF",      icon: <CheckCircle2 size={14}/> },
+                  { label: "مبيعات",          value: stats.sales,  color: "#F59E0B",      icon: <TrendingUp size={14}/> },
+                  { label: "متابعة",          value: stats.follow, color: "#3B82F6",      icon: <ShieldCheck size={14}/> },
                 ].map((s) => (
                   <div key={s.label} className="rounded-2xl p-4 flex items-center gap-3"
                     style={{ background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}>
@@ -558,7 +558,7 @@ export default function TeamDetailPage() {
                   disabled={assignTeamMut.isPending}
                   onClick={() => handleRemoveMember(removing)}
                   className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-                  style={{ background: "#CE6969" }}
+                  style={{ background: "#EF4444" }}
                 >
                   {assignTeamMut.isPending ? "جاري..." : "إزالة"}
                 </button>

@@ -465,7 +465,7 @@ export default function GuideContent({ data }: { data: GuideData }) {
         <div
           className="print:hidden"
           style={{
-            background: "linear-gradient(135deg, #10141A 0%, #83A2DB 50%, #83A2DB 100%)",
+            background: "linear-gradient(135deg, #10141A 0%, #5B5FEF 50%, #5B5FEF 100%)",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
           }}
         >

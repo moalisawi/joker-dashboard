@@ -89,7 +89,7 @@ export function Tab({
         <span
           className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black flex items-center justify-center"
           style={{
-            background: isActive ? "rgba(255,255,255,.22)" : "#CE6969",
+            background: isActive ? "rgba(255,255,255,.22)" : "#EF4444",
             color: "#fff",
           }}
         >

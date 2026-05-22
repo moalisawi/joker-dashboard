@@ -33,8 +33,8 @@ function UserAvatar({ name, role }: { name: string; role: Role }) {
     .toUpperCase();
   const bg =
     role === "owner" ? "#10141A"
-    : role === "admin" ? "#83A2DB"
-    : "#94A3B8";
+    : role === "admin" ? "#5B5FEF"
+    : "#9CA3AF";
   return (
     <div
       className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white"
@@ -389,7 +389,7 @@ export default function UsersPage() {
             { label: "مالكون",   value: stats.owners,    color: "#10141A" },
             { label: "مديرون",   value: stats.admins,    color: "var(--jk-blue)" },
             { label: "موظفون",   value: stats.employees, color: "var(--text-secondary)" },
-            { label: "نشطون",    value: stats.active,    color: "#83A2DB" },
+            { label: "نشطون",    value: stats.active,    color: "#5B5FEF" },
           ].map((s) => (
             <div key={s.label} style={{
               background: "var(--surface)", border: "1px solid var(--border-soft)",

@@ -60,7 +60,7 @@ export default function PermissionsEditor({ value, onChange, readOnly }: Props) 
               type="button"
               onClick={() => applyPreset(p.value)}
               className="px-3 py-1 rounded-lg text-xs font-bold border transition-all hover:opacity-80"
-              style={{ borderColor: "#83A2DB40", color: "#83A2DB", background: "#83A2DB10" }}
+              style={{ borderColor: "#5B5FEF40", color: "#5B5FEF", background: "#5B5FEF10" }}
             >
               {p.label}
             </button>
@@ -104,8 +104,8 @@ export default function PermissionsEditor({ value, onChange, readOnly }: Props) 
                   onClick={() => toggleAll(cat)}
                   className="text-xs font-semibold px-2 py-0.5 rounded-md transition-colors"
                   style={{
-                    background: allOn ? "#83A2DB18" : someOn ? "#E8B57018" : "transparent",
-                    color:      allOn ? "#83A2DB"   : someOn ? "#E8B570"   : "var(--text-muted)",
+                    background: allOn ? "#5B5FEF18" : someOn ? "#F59E0B18" : "transparent",
+                    color:      allOn ? "#5B5FEF"   : someOn ? "#F59E0B"   : "var(--text-muted)",
                   }}
                 >
                   {allOn ? "إلغاء الكل" : "تحديد الكل"}
@@ -122,8 +122,8 @@ export default function PermissionsEditor({ value, onChange, readOnly }: Props) 
                     key={action}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${readOnly ? "cursor-default" : "hover:bg-slate-50"}`}
                     style={{
-                      background: checked ? "#83A2DB10" : "transparent",
-                      border: `1px solid ${checked ? "#83A2DB30" : "var(--border)"}`,
+                      background: checked ? "#5B5FEF10" : "transparent",
+                      border: `1px solid ${checked ? "#5B5FEF30" : "var(--border)"}`,
                     }}
                   >
                     <input
@@ -135,7 +135,7 @@ export default function PermissionsEditor({ value, onChange, readOnly }: Props) 
                     />
                     <span
                       className="text-xs font-medium"
-                      style={{ color: checked ? "#83A2DB" : "var(--text-secondary)" }}
+                      style={{ color: checked ? "#5B5FEF" : "var(--text-secondary)" }}
                     >
                       {meta.actions[action] ?? action}
                     </span>

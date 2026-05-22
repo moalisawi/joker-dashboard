@@ -121,7 +121,7 @@ export default function StatsDateFilter({ value, onChange }: Props) {
             <div className="flex items-center justify-between mb-3">
               <button
                 className="p-1 transition rounded-full"
-                style={{ color: "#64748B" }}
+                style={{ color: "#6B7280" }}
                 onClick={() => setPickerYear((y) => y - 1)}
               >
                 <ChevronRight size={15} />
@@ -129,7 +129,7 @@ export default function StatsDateFilter({ value, onChange }: Props) {
               <span className="text-sm font-black" style={{ color: "#10141A" }}>{pickerYear}</span>
               <button
                 className="p-1 transition rounded-full disabled:opacity-30"
-                style={{ color: "#64748B" }}
+                style={{ color: "#6B7280" }}
                 onClick={() => setPickerYear((y) => y + 1)}
                 disabled={pickerYear >= currentYear}
               >
@@ -154,7 +154,7 @@ export default function StatsDateFilter({ value, onChange }: Props) {
                     style={{
                       borderRadius: 9999,
                       background: selected ? "#10141A" : "transparent",
-                      color: selected ? "#fff" : isFuture ? "#94A3B8" : "#64748B",
+                      color: selected ? "#fff" : isFuture ? "#9CA3AF" : "#6B7280",
                       cursor: isFuture ? "not-allowed" : "pointer",
                     }}
                   >

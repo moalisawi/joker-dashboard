@@ -43,8 +43,8 @@ const LIGHT = {
   headerBg:     "rgba(255,255,255,0.80)",
   divider:      "rgba(16,20,26,0.06)",
   textPri:      "#10141A",
-  textSec:      "#64748B",
-  textMut:      "#94A3B8",
+  textSec:      "#6B7280",
+  textMut:      "#9CA3AF",
   inboundBubble: "#F0F0F0",
 };
 const DARK = {
@@ -55,8 +55,8 @@ const DARK = {
   headerBg:     "rgba(255,255,255,0.03)",
   divider:      "rgba(255,255,255,0.07)",
   textPri:      "#f1f5f9",
-  textSec:      "#64748b",
-  textMut:      "#64748B",
+  textSec:      "#6b7280",
+  textMut:      "#6B7280",
   inboundBubble: "#2A2F32",
 };
 
@@ -253,7 +253,7 @@ export default function ConversationsPage() {
             alignItems: "center",
             justifyContent: "center",
             height: "100%",
-            color: "#64748B",
+            color: "#6B7280",
             fontSize: 14,
           }}
         >

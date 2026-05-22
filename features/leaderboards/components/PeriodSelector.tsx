@@ -2,7 +2,7 @@
 
 import { PERIOD_OPTIONS, type LeaderboardPeriod } from "@/features/leaderboards/lib/leaderboardMetrics";
 
-const ACC_INDIGO = "#83A2DB";
+const ACC_INDIGO = "#5B5FEF";
 
 interface Props {
   value:    LeaderboardPeriod;

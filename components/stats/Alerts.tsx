@@ -7,15 +7,15 @@ import { Bell } from "lucide-react";
 interface Props { subscribers: Subscriber[] }
 
 const AVATAR_COLORS = [
-  "#83A2DB","#9DB4D6","#CE6969","#E8B570",
-  "#94A3B8","#83A2DB","#CE6969","#E8B570",
+  "#5B5FEF","#3B82F6","#EF4444","#F59E0B",
+  "#9CA3AF","#5B5FEF","#EF4444","#F59E0B",
 ];
 
 function daysBadge(days: number) {
-  if (days <= 3)  return { bg: "rgba(206,105,105,.12)", color: "#CE6969",  border: "rgba(206,105,105,.30)" };
-  if (days <= 7)  return { bg: "rgba(232,181,112,.14)", color: "#E8B570",  border: "rgba(232,181,112,.32)" };
-  if (days <= 10) return { bg: "rgba(232,181,112,.14)", color: "#E8B570",  border: "rgba(232,181,112,.32)" };
-  return           { bg: "rgba(131,162,219,.14)", color: "#83A2DB",  border: "rgba(131,162,219,.32)" };
+  if (days <= 3)  return { bg: "rgba(239,68,68,.12)", color: "#EF4444",  border: "rgba(239,68,68,.30)" };
+  if (days <= 7)  return { bg: "rgba(245,158,11,.14)", color: "#F59E0B",  border: "rgba(245,158,11,.32)" };
+  if (days <= 10) return { bg: "rgba(245,158,11,.14)", color: "#F59E0B",  border: "rgba(245,158,11,.32)" };
+  return           { bg: "rgba(91,95,239,.14)", color: "#5B5FEF",  border: "rgba(91,95,239,.32)" };
 }
 
 export default function Alerts({ subscribers }: Props) {
@@ -56,7 +56,7 @@ export default function Alerts({ subscribers }: Props) {
           border: "1px solid var(--jk-border)",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <Bell size={18} style={{ color: "#E8B570" }} />
+          <Bell size={18} style={{ color: "#F59E0B" }} />
         </div>
       </div>
 

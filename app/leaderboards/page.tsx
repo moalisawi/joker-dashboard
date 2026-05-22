@@ -13,7 +13,7 @@ import {
   RefreshCw, TrendingUp, AlertCircle,
 } from "lucide-react";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444" };
 const tran = { duration:0.3, ease:"easeOut" } as const;
 const fadeUp = { initial:{ opacity:0, y:12 }, animate:{ opacity:1, y:0, transition:tran } };
 const stagger = { animate:{ transition:{ staggerChildren:0.07 } } };

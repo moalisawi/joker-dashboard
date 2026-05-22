@@ -240,7 +240,7 @@ export function PaymentMethodFormModal({ isOpen, onClose, initialData }: Props) 
             >إلغاء</button>
             <button type="submit" disabled={loading}
               className="px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
-              style={{ background: "linear-gradient(135deg,#83A2DB 0%,#83A2DB 100%)" }}
+              style={{ background: "linear-gradient(135deg,#5B5FEF 0%,#5B5FEF 100%)" }}
             >
               {loading && <Spinner size="sm" color="current" />}
               {isEdit ? "حفظ التعديلات" : "حفظ طريقة الدفع"}

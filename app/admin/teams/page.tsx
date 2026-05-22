@@ -51,16 +51,16 @@ import { CSS } from "@dnd-kit/utilities";
 const TYPE_META = {
   sales: {
     label:    "مبيعات",
-    color:    "#83A2DB",
-    gradient: "linear-gradient(135deg, rgba(131,162,219,.12) 0%, rgba(131,162,219,.04) 60%, transparent 100%)",
-    badge:    { bg: "rgba(131,162,219,.14)", border: "rgba(131,162,219,.32)" },
+    color:    "#5B5FEF",
+    gradient: "linear-gradient(135deg, rgba(91,95,239,.12) 0%, rgba(91,95,239,.04) 60%, transparent 100%)",
+    badge:    { bg: "rgba(91,95,239,.14)", border: "rgba(91,95,239,.32)" },
     icon:     <Briefcase size={15}/>,
   },
   nutrition: {
     label:    "تغذية",
-    color:    "#E8B570",
-    gradient: "linear-gradient(135deg, rgba(232,181,112,.12) 0%, rgba(232,181,112,.04) 60%, transparent 100%)",
-    badge:    { bg: "rgba(232,181,112,.14)", border: "rgba(232,181,112,.32)" },
+    color:    "#F59E0B",
+    gradient: "linear-gradient(135deg, rgba(245,158,11,.12) 0%, rgba(245,158,11,.04) 60%, transparent 100%)",
+    badge:    { bg: "rgba(245,158,11,.14)", border: "rgba(245,158,11,.32)" },
     icon:     <Users2 size={15}/>,
   },
 };
@@ -120,7 +120,7 @@ function CreateTeamModal({ onClose, onSuccess }: { onClose: () => void; onSucces
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={createMut.isPending}
               className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-              style={{ background:"linear-gradient(135deg,#9DB4D6,#83A2DB)" }}>
+              style={{ background:"linear-gradient(135deg,#3B82F6,#5B5FEF)" }}>
               {createMut.isPending ? "جاري..." : "إنشاء الفريق"}
             </button>
             <button type="button" onClick={onClose}
@@ -176,7 +176,7 @@ function RenameTeamModal({ team, onClose, onSuccess }: {
           <div className="flex gap-3">
             <button type="submit" disabled={updateMut.isPending}
               className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-              style={{ background:"#83A2DB" }}>
+              style={{ background:"#5B5FEF" }}>
               {updateMut.isPending ? "جاري..." : "حفظ"}
             </button>
             <button type="button" onClick={onClose}
@@ -228,33 +228,33 @@ function TeamCard({ team, memberCount, subscriberCount, canEdit, isOwner, onRena
           </div>
           <div className="flex items-center gap-1.5">
             <span className="px-2.5 py-1 rounded-full text-xs font-bold"
-              style={{ background: team.active ? "#83A2DB18" : "#94a3b818", color: team.active ? "#83A2DB" : "#94a3b8" }}>
+              style={{ background: team.active ? "#5B5FEF18" : "#9ca3af18", color: team.active ? "#5B5FEF" : "#9ca3af" }}>
               {team.active ? "نشط" : "معطّل"}
             </span>
             {canEdit && (
               <>
                 <button onClick={onRename} title="تغيير الاسم"
                   className="p-1.5 rounded-lg transition-colors"
-                  style={{ background:"#83A2DB12", color:"#83A2DB" }}>
+                  style={{ background:"#5B5FEF12", color:"#5B5FEF" }}>
                   <Edit2 size={12}/>
                 </button>
                 {team.active ? (
                   <button onClick={onDeactivate} title="تعطيل الفريق"
                     className="p-1.5 rounded-lg transition-colors"
-                    style={{ background:"#E8B57012", color:"#E8B570" }}>
+                    style={{ background:"#F59E0B12", color:"#F59E0B" }}>
                     <ShieldOff size={12}/>
                   </button>
                 ) : (
                   <button onClick={onActivate} title="إعادة تفعيل الفريق"
                     className="p-1.5 rounded-lg transition-colors"
-                    style={{ background:"#83A2DB12", color:"#83A2DB" }}>
+                    style={{ background:"#5B5FEF12", color:"#5B5FEF" }}>
                     <ShieldCheck size={12}/>
                   </button>
                 )}
                 {isOwner && (
                   <button onClick={onDelete} title="حذف الفريق"
                     className="p-1.5 rounded-lg transition-colors"
-                    style={{ background:"#CE696912", color:"#CE6969" }}>
+                    style={{ background:"#EF444412", color:"#EF4444" }}>
                     <Trash2 size={12}/>
                   </button>
                 )}
@@ -441,7 +441,7 @@ export default function AdminTeamsPage() {
               <RequirePermission permission={PERM.MANAGE_USERS}>
                 <button onClick={() => setShowCreate(true)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-bold text-sm shadow transition-all hover:opacity-90"
-                  style={{ background:"linear-gradient(135deg,#9DB4D6,#83A2DB)" }}>
+                  style={{ background:"linear-gradient(135deg,#3B82F6,#5B5FEF)" }}>
                   <Plus size={16}/> إنشاء فريق
                 </button>
               </RequirePermission>
@@ -451,8 +451,8 @@ export default function AdminTeamsPage() {
           {/* Stats */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label:"إجمالي الفرق",  value:stats.total,     color:"#64748B" },
-              { label:"الفرق النشطة",  value:stats.active,    color:"#83A2DB" },
+              { label:"إجمالي الفرق",  value:stats.total,     color:"#6B7280" },
+              { label:"الفرق النشطة",  value:stats.active,    color:"#5B5FEF" },
               { label:"فرق المبيعات",  value:stats.sales,     color: TYPE_META.sales.color     },
               { label:"فرق التغذية",   value:stats.nutrition, color: TYPE_META.nutrition.color },
             ].map((s) => (
@@ -478,7 +478,7 @@ export default function AdminTeamsPage() {
               action={canEdit
                 ? <button onClick={() => setShowCreate(true)}
                     className="px-4 py-2 rounded-xl text-white text-sm font-bold"
-                    style={{ background:"#9DB4D6" }}>إنشاء فريق</button>
+                    style={{ background:"#3B82F6" }}>إنشاء فريق</button>
                 : undefined}
             />
           ) : (

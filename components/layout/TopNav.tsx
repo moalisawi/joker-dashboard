@@ -153,7 +153,7 @@ export default function TopNav() {
               <span style={{
                 position: "absolute", top: 2, insetInlineEnd: 2,
                 width: 9, height: 9, borderRadius: "50%",
-                background: "#CE6969",
+                background: "#EF4444",
                 boxShadow: "0 0 0 2px #EBEEF2",
               }} />
             )}
@@ -166,7 +166,7 @@ export default function TopNav() {
           <div style={{ marginInlineStart: 4 }}>
             <div style={{
               width: 40, height: 40, borderRadius: "50%",
-              background: "linear-gradient(135deg, #83A2DB, #83A2DBcc)",
+              background: "linear-gradient(135deg, #5B5FEF, #5B5FEFcc)",
               display: "flex", alignItems: "center", justifyContent: "center",
               color: "#fff", fontSize: 15, fontWeight: 700,
               boxShadow: "0 1px 2px rgba(16,20,26,.10), inset 0 1px 0 rgba(255,255,255,.18)",

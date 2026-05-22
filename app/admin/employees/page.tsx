@@ -46,14 +46,14 @@ import { toast } from "@/lib/toast";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ROLE_META: Record<EmployeeRole, { label: string; color: string }> = {
-  owner:       { label: "مالك",        color: "#E8B570" },
-  admin:       { label: "مدير",        color: "#83A2DB" },
-  team_leader: { label: "قائد فريق",   color: "#9DB4D6" },
-  sales:       { label: "مبيعات",      color: "#83A2DB" },
-  followup:    { label: "متابعة",      color: "#9DB4D6" },
+  owner:       { label: "مالك",        color: "#F59E0B" },
+  admin:       { label: "مدير",        color: "#5B5FEF" },
+  team_leader: { label: "قائد فريق",   color: "#3B82F6" },
+  sales:       { label: "مبيعات",      color: "#5B5FEF" },
+  followup:    { label: "متابعة",      color: "#3B82F6" },
 };
 
-const TEAM_COLORS: Record<string, string> = { sales: "#83A2DB", nutrition: "#9DB4D6" };
+const TEAM_COLORS: Record<string, string> = { sales: "#5B5FEF", nutrition: "#3B82F6" };
 const DEPARTMENTS: EmployeeDepartment[]   = ["مبيعات", "متابعة", "إدارة", "أخرى"];
 
 function initials(n: string) {
@@ -96,9 +96,9 @@ function ActionsMenu({
     ...(canEdit  ? [{ icon: <Edit2 size={13}/>,       label: "تعديل البيانات",   type: "edit"         as ActionType }] : []),
     ...(canPerms ? [{ icon: <ShieldCheck size={13}/>, label: "تعديل الصلاحيات", type: "permissions"  as ActionType }] : []),
     ...(canEdit  ? [{ icon: <Users2 size={13}/>,      label: "تعيين فريق",      type: "assign-team"  as ActionType }] : []),
-    ...(canEdit && emp.active  ? [{ icon: <UserMinus size={13}/>, label: "تعطيل الحساب",  type: "deactivate"  as ActionType, color: "#E8B570" }] : []),
-    ...(canEdit && !emp.active ? [{ icon: <UserCheck size={13}/>, label: "إعادة تفعيل",   type: "reactivate"  as ActionType, color: "#83A2DB" }] : []),
-    ...(isOwner ? [{ icon: <Trash2 size={13}/>, label: "حذف نهائياً", type: "delete" as ActionType, color: "#CE6969" }] : []),
+    ...(canEdit && emp.active  ? [{ icon: <UserMinus size={13}/>, label: "تعطيل الحساب",  type: "deactivate"  as ActionType, color: "#F59E0B" }] : []),
+    ...(canEdit && !emp.active ? [{ icon: <UserCheck size={13}/>, label: "إعادة تفعيل",   type: "reactivate"  as ActionType, color: "#5B5FEF" }] : []),
+    ...(isOwner ? [{ icon: <Trash2 size={13}/>, label: "حذف نهائياً", type: "delete" as ActionType, color: "#EF4444" }] : []),
   ];
 
   if (!items.length) return null;
@@ -294,7 +294,7 @@ function EmployeeFormModal({
               <div className="flex gap-3 pt-1">
                 <button type="submit" disabled={pending}
                   className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60 transition"
-                  style={{ background:"linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+                  style={{ background:"linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
                   {pending ? "جاري الإنشاء..." : "إنشاء الحساب"}
                 </button>
                 <button type="button" onClick={onClose}
@@ -337,7 +337,7 @@ function EmployeeFormModal({
               <div className="flex gap-3 pt-1">
                 <button type="submit" disabled={pending}
                   className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60 transition"
-                  style={{ background:"linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+                  style={{ background:"linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
                   {pending ? "جاري الحفظ..." : "حفظ التعديلات"}
                 </button>
                 <button type="button" onClick={onClose}
@@ -395,7 +395,7 @@ function PermissionsModal({
         <div className="flex gap-3 px-5 py-4 border-t" style={{ borderColor:"var(--border)" }}>
           <button onClick={save} disabled={updatePerms.isPending}
             className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-            style={{ background:"linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+            style={{ background:"linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
             {updatePerms.isPending ? "جاري الحفظ..." : "حفظ الصلاحيات"}
           </button>
           <button onClick={onClose}
@@ -443,7 +443,7 @@ function AssignTeamModal({ employee, teams, onClose, onSuccess }:{
         <div className="flex gap-3">
           <button onClick={save} disabled={assignTeam.isPending}
             className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-60"
-            style={{ background:"#83A2DB" }}>
+            style={{ background:"#5B5FEF" }}>
             {assignTeam.isPending ? "جاري..." : "حفظ"}
           </button>
           <button onClick={onClose}
@@ -571,7 +571,7 @@ export default function AdminEmployeesPage() {
               <RequirePermission permission={PERM.MANAGE_USERS}>
                 <button onClick={() => setModal({ type: "create" })}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-bold text-sm shadow transition-all hover:opacity-90"
-                  style={{ background:"linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+                  style={{ background:"linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
                   <Plus size={16}/> إضافة موظف
                 </button>
               </RequirePermission>
@@ -581,10 +581,10 @@ export default function AdminEmployeesPage() {
           {/* Stats */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label:"إجمالي الموظفين", value:stats.total,    icon:<Users size={16}/>,    color:"#83A2DB" },
-              { label:"نشطون",            value:stats.active,   icon:<UCk   size={16}/>,    color:"#83A2DB" },
-              { label:"فريق المبيعات",    value:stats.sales,    icon:<Briefcase size={16}/>,color:"#E8B570" },
-              { label:"فريق المتابعة",    value:stats.followup, icon:<TrendingUp size={16}/>,color:"#9DB4D6" },
+              { label:"إجمالي الموظفين", value:stats.total,    icon:<Users size={16}/>,    color:"#5B5FEF" },
+              { label:"نشطون",            value:stats.active,   icon:<UCk   size={16}/>,    color:"#5B5FEF" },
+              { label:"فريق المبيعات",    value:stats.sales,    icon:<Briefcase size={16}/>,color:"#F59E0B" },
+              { label:"فريق المتابعة",    value:stats.followup, icon:<TrendingUp size={16}/>,color:"#3B82F6" },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl p-4 flex items-center gap-3"
                 style={{ background:"var(--surface)", border:"1px solid var(--border)", boxShadow:"var(--shadow-card)" }}>
@@ -696,7 +696,7 @@ export default function AdminEmployeesPage() {
                           <td className="px-4 py-3 whitespace-nowrap">
                             {team ? (
                               <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold"
-                                style={{ background:`${TEAM_COLORS[team.type] ?? "#83A2DB"}15`, color:TEAM_COLORS[team.type] ?? "#83A2DB" }}>
+                                style={{ background:`${TEAM_COLORS[team.type] ?? "#5B5FEF"}15`, color:TEAM_COLORS[team.type] ?? "#5B5FEF" }}>
                                 {team.name}
                               </span>
                             ) : <span style={{ color:"var(--text-muted)" }} className="text-xs">—</span>}
@@ -710,7 +710,7 @@ export default function AdminEmployeesPage() {
                           {/* Permissions count */}
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold"
-                              style={{ background:"#83A2DB10", color:"#83A2DB" }}>
+                              style={{ background:"#5B5FEF10", color:"#5B5FEF" }}>
                               <Lock size={10}/>
                               {pc.active}/{pc.total}
                             </span>
@@ -753,7 +753,7 @@ export default function AdminEmployeesPage() {
                 action={canEdit && !hasFilters
                   ? <button onClick={() => setModal({ type:"create" })}
                       className="px-4 py-2 rounded-xl text-white text-sm font-bold"
-                      style={{ background:"#83A2DB" }}>إضافة موظف</button>
+                      style={{ background:"#5B5FEF" }}>إضافة موظف</button>
                   : undefined}
               />
             )}
@@ -764,7 +764,7 @@ export default function AdminEmployeesPage() {
             <div className="rounded-2xl overflow-hidden"
               style={{ background:"var(--surface)", border:"1px solid var(--border)", boxShadow:"var(--shadow-card)" }}>
               <div className="flex items-center gap-2.5 px-5 py-4 border-b" style={{ borderColor:"var(--border)" }}>
-                <Trophy size={15} style={{ color:"#E8B570" }}/>
+                <Trophy size={15} style={{ color:"#F59E0B" }}/>
                 <span className="font-bold text-sm" style={{ color:"var(--text-primary)" }}>لوحة الأداء</span>
               </div>
               <div className="divide-y" style={{ borderColor:"var(--border)" }}>
@@ -789,7 +789,7 @@ export default function AdminEmployeesPage() {
                           </div>
                           <div className="h-1.5 rounded-full overflow-hidden" style={{ background:"var(--surface-2)" }}>
                             <div className="h-full rounded-full transition-all duration-700"
-                              style={{ width:`${pct}%`, background:"linear-gradient(90deg,#83A2DB,#9DB4D6)" }}/>
+                              style={{ width:`${pct}%`, background:"linear-gradient(90deg,#5B5FEF,#3B82F6)" }}/>
                           </div>
                         </div>
                       </div>

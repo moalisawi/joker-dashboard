@@ -40,8 +40,8 @@ function relativeTime(d: Date): string {
 }
 
 function statusDot(status: ConversationStatus | undefined) {
-  if (status === ConversationStatus.CLOSED)   return { bg: "#94A3B8", label: "مغلقة" };
-  if (status === ConversationStatus.ARCHIVED) return { bg: "#E8B570", label: "مؤرشفة" };
+  if (status === ConversationStatus.CLOSED)   return { bg: "#9CA3AF", label: "مغلقة" };
+  if (status === ConversationStatus.ARCHIVED) return { bg: "#F59E0B", label: "مؤرشفة" };
   return { bg: "#25D366", label: "مفتوحة" };
 }
 

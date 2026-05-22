@@ -273,7 +273,7 @@ export default function SubscribersPage() {
             {TABS.map((tab) => {
               const active = tab === activeTab;
               const meta = tab === "الكل" ? null : STATUS_META[tab as Exclude<StatusKey,"الكل">];
-              const badgeColor = meta?.color ?? "#64748b";
+              const badgeColor = meta?.color ?? "#6b7280";
               const badgeBg   = meta?.bg    ?? "rgba(100,116,139,.15)";
 
               return (
@@ -351,9 +351,9 @@ export default function SubscribersPage() {
                     if (isPaused || isFrozen || isWithdrawn) {
                       daysEl = <span style={{ color: "var(--jk-subtle)" }}>—</span>;
                     } else if (s.daysRemaining < 0) {
-                      daysEl = <span style={{ color: "#CE6969", fontWeight: 600 }}>متأخر {Math.abs(s.daysRemaining)} يوم</span>;
+                      daysEl = <span style={{ color: "#EF4444", fontWeight: 600 }}>متأخر {Math.abs(s.daysRemaining)} يوم</span>;
                     } else if (s.daysRemaining <= 7) {
-                      daysEl = <span style={{ color: "#E8B570", fontWeight: 600 }}>{s.daysRemaining} يوم</span>;
+                      daysEl = <span style={{ color: "#F59E0B", fontWeight: 600 }}>{s.daysRemaining} يوم</span>;
                     } else {
                       daysEl = <span style={{ color: "var(--jk-text)" }}>{s.daysRemaining} يوم</span>;
                     }
@@ -459,7 +459,7 @@ export default function SubscribersPage() {
 
                             {/* إيقاف / استئناف إيقاف */}
                             {can("canEdit") && (isPaused
-                              ? <Btn title="استئناف الإيقاف" color="#E8B570"
+                              ? <Btn title="استئناف الإيقاف" color="#F59E0B"
                                   icon={<Play size={13} />}
                                   loading={loadingId === `resume-${s.id}`}
                                   disabled={loadingId !== null}

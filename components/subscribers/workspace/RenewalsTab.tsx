@@ -28,7 +28,7 @@ import {
   XCircle, CheckCircle2, ChevronDown, ChevronUp, User,
 } from "lucide-react";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444", sky:"#3B82F6" };
 const fadeUp = { hidden:{opacity:0,y:10}, show:{opacity:1,y:0} };
 const tran   = { duration:0.28, ease:"easeOut" } as const;
 const stagger = { show:{transition:{staggerChildren:0.05}} };
@@ -254,7 +254,7 @@ export default function RenewalsTab({ subscriber: s, onRenew, canRev }: Props) {
           </div>
           <div className="p-5 space-y-4">
             {err && (
-              <div className="p-3 rounded-xl text-xs" style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#CE6969" }}>
+              <div className="p-3 rounded-xl text-xs" style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#EF4444" }}>
                 {err}
               </div>
             )}
@@ -322,7 +322,7 @@ export default function RenewalsTab({ subscriber: s, onRenew, canRev }: Props) {
                 <button onClick={onRenew}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl
                     text-white font-bold text-sm transition-all"
-                  style={{ background:`linear-gradient(135deg,${ACC.emerald},#83A2DB)` }}>
+                  style={{ background:`linear-gradient(135deg,${ACC.emerald},#5B5FEF)` }}>
                   <RefreshCw size={15}/>تجديد الاشتراك
                 </button>
               </div>

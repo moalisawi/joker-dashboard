@@ -86,11 +86,11 @@ const DRAFT_KEY = "subscriber-draft";
 const DRAFT_TTL = 24 * 60 * 60 * 1000;
 
 const SECTIONS = [
-  { key: "info",      icon: "👤", title: "بيانات المشترك",  color: "#83A2DB",  colorAlpha: "rgba(59,130,246,0.1)" },
-  { key: "package",   icon: "💳", title: "تفاصيل الباقة",  color: "#9DB4D6",  colorAlpha: "rgba(139,92,246,0.1)" },
-  { key: "payment",   icon: "💰", title: "الدفعة والدفع",  color: "#83A2DB",  colorAlpha: "rgba(16,185,129,0.1)" },
-  { key: "assign",    icon: "👥", title: "التعيين والمصدر", color: "#E8B570",  colorAlpha: "rgba(245,158,11,0.1)" },
-  { key: "notes",     icon: "📎", title: "ملاحظات ومرفقات", color: "#64748b",  colorAlpha: "rgba(100,116,139,0.1)" },
+  { key: "info",      icon: "👤", title: "بيانات المشترك",  color: "#5B5FEF",  colorAlpha: "rgba(59,130,246,0.1)" },
+  { key: "package",   icon: "💳", title: "تفاصيل الباقة",  color: "#3B82F6",  colorAlpha: "rgba(139,92,246,0.1)" },
+  { key: "payment",   icon: "💰", title: "الدفعة والدفع",  color: "#5B5FEF",  colorAlpha: "rgba(16,185,129,0.1)" },
+  { key: "assign",    icon: "👥", title: "التعيين والمصدر", color: "#F59E0B",  colorAlpha: "rgba(245,158,11,0.1)" },
+  { key: "notes",     icon: "📎", title: "ملاحظات ومرفقات", color: "#6b7280",  colorAlpha: "rgba(100,116,139,0.1)" },
 ] as const;
 
 type SectionKey = typeof SECTIONS[number]["key"];
@@ -485,7 +485,7 @@ export default function SubscriberModal({
             {/* Error */}
             {serverError && (
               <div className="mx-4 mt-4 px-3 py-2.5 rounded-xl text-sm flex items-center gap-2"
-                style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#CE6969" }}>
+                style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444" }}>
                 <AlertTriangle size={14} className="shrink-0" />
                 {serverError}
               </div>
@@ -553,7 +553,7 @@ export default function SubscriberModal({
                     <PhoneInput value={phoneE164} onChange={setPhoneE164} />
                     {duplicateSubscriber && (
                       <div className="flex items-center gap-1.5 mt-1.5 text-xs"
-                        style={{ color: "#E8B570" }}>
+                        style={{ color: "#F59E0B" }}>
                         <AlertTriangle size={11} />
                         مشترك موجود بنفس الرقم: <strong>{duplicateSubscriber.name}</strong>
                       </div>
@@ -597,13 +597,13 @@ export default function SubscriberModal({
                             className="py-2.5 rounded-xl text-sm font-bold border-2 transition-all"
                             style={{
                               borderColor: field.value === pkg
-                                ? (pkg === "فضية" ? "#83A2DB" : "#E8B570")
+                                ? (pkg === "فضية" ? "#5B5FEF" : "#F59E0B")
                                 : "var(--border)",
                               background:  field.value === pkg
                                 ? (pkg === "فضية" ? "rgba(96,165,250,0.1)" : "rgba(251,191,36,0.1)")
                                 : "var(--surface-2)",
                               color:       field.value === pkg
-                                ? (pkg === "فضية" ? "#83A2DB" : "#E8B570")
+                                ? (pkg === "فضية" ? "#5B5FEF" : "#F59E0B")
                                 : "var(--text-secondary)",
                             }}
                           >
@@ -704,7 +704,7 @@ export default function SubscriberModal({
                             type="button"
                             onClick={() => setValue("initialPayment", watchedTotalPrice, { shouldValidate: true })}
                             className="flex items-center gap-1 text-xs font-semibold rounded-lg px-2 py-1 transition-colors"
-                            style={{ color: "#83A2DB", background: "rgba(16,185,129,0.1)" }}
+                            style={{ color: "#5B5FEF", background: "rgba(16,185,129,0.1)" }}
                           >
                             <CheckCircle2 size={11} />
                             استلمت المبلغ كاملاً
@@ -766,7 +766,7 @@ export default function SubscriberModal({
                                 type="button"
                                 onClick={e => { e.stopPropagation(); removeFile(f.name); }}
                                 className="p-1 rounded-lg opacity-40 hover:opacity-80 transition-opacity shrink-0"
-                                style={{ color: "#CE6969" }}
+                                style={{ color: "#EF4444" }}
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -1001,7 +1001,7 @@ function Field({
       </div>
       {children}
       {error && (
-        <span className="text-xs" style={{ color: "#CE6969" }}>{error}</span>
+        <span className="text-xs" style={{ color: "#EF4444" }}>{error}</span>
       )}
     </div>
   );

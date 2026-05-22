@@ -95,10 +95,10 @@ export default function LoginPage() {
             <div
               className="mb-4 p-3 text-sm font-medium"
               style={{
-                background: "rgba(206,105,105,.10)",
-                border: "1px solid rgba(206,105,105,.25)",
+                background: "rgba(239,68,68,.10)",
+                border: "1px solid rgba(239,68,68,.25)",
                 borderRadius: "var(--radius-md)",
-                color: "#CE6969",
+                color: "#EF4444",
               }}
             >
               {error}

@@ -82,7 +82,7 @@ export default function PaymentMethodsPage() {
     return (
       <ProtectedLayout>
         <div className="min-h-full flex flex-col items-center justify-center gap-3" style={{ background: "var(--page-bg)" }}>
-          <AlertCircle size={36} style={{ color: "#CE6969" }} />
+          <AlertCircle size={36} style={{ color: "#EF4444" }} />
           <p className="font-bold" style={{ color: "var(--text-primary)" }}>غير مصرح بالوصول</p>
         </div>
       </ProtectedLayout>
@@ -115,7 +115,7 @@ export default function PaymentMethodsPage() {
                 </div>
                 <button onClick={() => setModal({ type: "form" })}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg,#83A2DB 0%,#83A2DB 100%)" }}>
+                  style={{ background: "linear-gradient(135deg,#5B5FEF 0%,#5B5FEF 100%)" }}>
                   <Plus size={15} /> إضافة طريقة دفع
                 </button>
               </div>
@@ -159,8 +159,8 @@ export default function PaymentMethodsPage() {
         <div className="modal-overlay" style={{ zIndex: 55 }} onClick={() => setModal({ type: "none" })}>
           <div className="modal-panel max-w-sm w-full p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#CE696918" }}>
-                <AlertCircle size={18} style={{ color: "#CE6969" }} />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#EF444418" }}>
+                <AlertCircle size={18} style={{ color: "#EF4444" }} />
               </div>
               <h3 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>تأكيد الحذف</h3>
             </div>
@@ -177,7 +177,7 @@ export default function PaymentMethodsPage() {
               </button>
               <button disabled={deleteMutation.isPending} onClick={() => confirmDelete(modal.method)}
                 className="px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-50 flex items-center gap-2"
-                style={{ background: "linear-gradient(135deg,#CE6969,#CE6969)" }}>
+                style={{ background: "linear-gradient(135deg,#EF4444,#EF4444)" }}>
                 {deleteMutation.isPending && <Spinner size="sm" color="current" />}
                 حذف
               </button>

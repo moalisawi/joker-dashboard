@@ -18,7 +18,7 @@ import {
   RotateCcw, Plus, CreditCard, Calendar, Receipt,
 } from "lucide-react";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444", sky:"#3B82F6" };
 const fadeUp = { hidden:{opacity:0,y:10}, show:{opacity:1,y:0} };
 const tran   = { duration:0.28, ease:"easeOut" } as const;
 const stagger = { show:{transition:{staggerChildren:0.05}} };
@@ -120,7 +120,7 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
             value={remaining > 0 ? `$${formatNumber(remaining, 2)}` : "مكتمل"}
           />
           <FinKpi
-            accent={totalRefunded > 0 ? ACC.rose : "#94a3b8"}
+            accent={totalRefunded > 0 ? ACC.rose : "#9ca3af"}
             icon={<TrendingDown size={17}/>}
             label="المُسترد"
             value={totalRefunded > 0 ? `-$${formatNumber(totalRefunded, 2)}` : "—"}
@@ -150,7 +150,7 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
                 width: `${Math.min(100, (s.paidAmountUSD / s.totalPriceUSD) * 100)}%`,
                 background: remaining > 0
                   ? `linear-gradient(90deg, ${ACC.emerald}, ${ACC.amber})`
-                  : `linear-gradient(90deg, ${ACC.emerald}, #83A2DB)`,
+                  : `linear-gradient(90deg, ${ACC.emerald}, #5B5FEF)`,
               }}/>
           </div>
           <div className="flex items-center justify-between mt-1.5 text-[11px]">
@@ -182,7 +182,7 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
           {canPay && (
             <button onClick={onAddPayment}
               className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl text-white"
-              style={{ background:`linear-gradient(135deg,${ACC.emerald},#83A2DB)` }}>
+              style={{ background:`linear-gradient(135deg,${ACC.emerald},#5B5FEF)` }}>
               <Plus size={12}/>دفعة جديدة
             </button>
           )}
@@ -228,7 +228,7 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
               </thead>
               <tbody>
                 {filteredPayments.map((p) => (
-                  <tr key={p.id} className="transition-colors hover:bg-[#83A2DB08]"
+                  <tr key={p.id} className="transition-colors hover:bg-[#5B5FEF08]"
                     style={{ borderBottom:`1px solid var(--divider)` }}>
                     <td className="px-5 py-3 whitespace-nowrap" style={{ color:"var(--text-primary)" }}>
                       <span className="flex items-center gap-1.5"><Calendar size={10}/>{toDateStr(p.date)}</span>

@@ -10,10 +10,10 @@ interface Props {
 }
 
 const CURRENCIES = [
-  { code: "ILS",  label: "إجمالي الشيكل",  symbol: "₪",   iconColor: "#83A2DB" },
-  { code: "JOD",  label: "إجمالي الدينار", symbol: "JD",  iconColor: "#E8B570" },
-  { code: "EGP",  label: "إجمالي الجنيه",  symbol: "ج.م", iconColor: "#CE6969" },
-  { code: "USD",  label: "إجمالي الدولار", symbol: "$",   iconColor: "#9DB4D6", showTotal: true },
+  { code: "ILS",  label: "إجمالي الشيكل",  symbol: "₪",   iconColor: "#5B5FEF" },
+  { code: "JOD",  label: "إجمالي الدينار", symbol: "JD",  iconColor: "#F59E0B" },
+  { code: "EGP",  label: "إجمالي الجنيه",  symbol: "ج.م", iconColor: "#EF4444" },
+  { code: "USD",  label: "إجمالي الدولار", symbol: "$",   iconColor: "#3B82F6", showTotal: true },
 ] as const;
 
 export default function CurrencyCounters({ payments }: Props) {

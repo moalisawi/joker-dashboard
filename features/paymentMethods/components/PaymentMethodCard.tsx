@@ -24,13 +24,13 @@ const COUNTRY_LABELS: Record<string, string> = {
 const TYPE_CONFIG = {
   ewallet: {
     cardBg:      "linear-gradient(145deg, #EBF2FD 0%, #F5F9FF 55%, #FFFFFF 100%)",
-    cardBorder:  "rgba(131,162,219,0.22)",
-    glowColor:   "rgba(131,162,219,0.10)",
-    iconColor:   "#83A2DB",
-    iconBg:      "rgba(131,162,219,0.15)",
-    iconBorder:  "rgba(131,162,219,0.24)",
-    badgeBg:     "rgba(131,162,219,0.12)",
-    badgeBorder: "rgba(131,162,219,0.28)",
+    cardBorder:  "rgba(91,95,239,0.22)",
+    glowColor:   "rgba(91,95,239,0.10)",
+    iconColor:   "#5B5FEF",
+    iconBg:      "rgba(91,95,239,0.15)",
+    iconBorder:  "rgba(91,95,239,0.24)",
+    badgeBg:     "rgba(91,95,239,0.12)",
+    badgeBorder: "rgba(91,95,239,0.28)",
     badgeColor:  "#5a7fc4",
     Icon:        Wallet,
   },
@@ -50,35 +50,35 @@ const TYPE_CONFIG = {
     cardBg:      "linear-gradient(145deg, #F1F3F6 0%, #F7F8FA 55%, #FFFFFF 100%)",
     cardBorder:  "rgba(100,116,139,0.16)",
     glowColor:   "rgba(100,116,139,0.06)",
-    iconColor:   "#64748B",
+    iconColor:   "#6B7280",
     iconBg:      "rgba(100,116,139,0.10)",
     iconBorder:  "rgba(100,116,139,0.18)",
     badgeBg:     "rgba(100,116,139,0.10)",
     badgeBorder: "rgba(100,116,139,0.22)",
-    badgeColor:  "#64748B",
+    badgeColor:  "#6B7280",
     Icon:        Banknote,
   },
   crypto: {
     cardBg:      "linear-gradient(145deg, #EEF0FB 0%, #F4F3FF 55%, #FFFFFF 100%)",
-    cardBorder:  "rgba(157,180,214,0.22)",
-    glowColor:   "rgba(157,180,214,0.10)",
-    iconColor:   "#9DB4D6",
-    iconBg:      "rgba(157,180,214,0.15)",
-    iconBorder:  "rgba(157,180,214,0.24)",
-    badgeBg:     "rgba(157,180,214,0.12)",
-    badgeBorder: "rgba(157,180,214,0.28)",
+    cardBorder:  "rgba(59,130,246,0.22)",
+    glowColor:   "rgba(59,130,246,0.10)",
+    iconColor:   "#3B82F6",
+    iconBg:      "rgba(59,130,246,0.15)",
+    iconBorder:  "rgba(59,130,246,0.24)",
+    badgeBg:     "rgba(59,130,246,0.12)",
+    badgeBorder: "rgba(59,130,246,0.28)",
     badgeColor:  "#7094bc",
     Icon:        Bitcoin,
   },
   international: {
     cardBg:      "linear-gradient(145deg, #FFF4E8 0%, #FFFBF2 55%, #FFFFFF 100%)",
-    cardBorder:  "rgba(232,181,112,0.24)",
-    glowColor:   "rgba(232,181,112,0.10)",
+    cardBorder:  "rgba(245,158,11,0.24)",
+    glowColor:   "rgba(245,158,11,0.10)",
     iconColor:   "#d4933a",
-    iconBg:      "rgba(232,181,112,0.15)",
-    iconBorder:  "rgba(232,181,112,0.24)",
-    badgeBg:     "rgba(232,181,112,0.14)",
-    badgeBorder: "rgba(232,181,112,0.28)",
+    iconBg:      "rgba(245,158,11,0.15)",
+    iconBorder:  "rgba(245,158,11,0.24)",
+    badgeBg:     "rgba(245,158,11,0.14)",
+    badgeBorder: "rgba(245,158,11,0.28)",
     badgeColor:  "#b07820",
     Icon:        Globe,
   },
@@ -234,7 +234,7 @@ export function PaymentMethodCard({
               whiteSpace: "nowrap",
               ...(method.status === "active"
                 ? { background: cfg.badgeBg, color: cfg.badgeColor, border: `1px solid ${cfg.badgeBorder}` }
-                : { background: "rgba(148,163,184,.10)", color: "var(--jk-subtle)", border: "1px solid rgba(148,163,184,.20)" }),
+                : { background: "rgba(156,163,175,.10)", color: "var(--jk-subtle)", border: "1px solid rgba(156,163,175,.20)" }),
             }}>
               {method.status === "active" ? "مفعّلة" : "معطّلة"}
             </span>
@@ -286,9 +286,9 @@ export function PaymentMethodCard({
                     <button
                       style={{ width: "100%", display: "flex", alignItems: "center", gap: 10,
                         padding: "9px 14px", fontSize: 12.5, fontWeight: 500,
-                        color: "#CE6969", background: "transparent", border: "none",
+                        color: "#EF4444", background: "transparent", border: "none",
                         cursor: "pointer", textAlign: "start", transition: "background .1s" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(206,105,105,.06)")}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,.06)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       onClick={() => { setMenuOpen(false); onDelete(method); }}
                     >

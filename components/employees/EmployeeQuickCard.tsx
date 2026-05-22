@@ -18,12 +18,12 @@ import {
 // ─── tokens ───────────────────────────────────────────────────────────────────
 
 const ACC = {
-  indigo:  "#83A2DB",
-  emerald: "#83A2DB",
-  amber:   "#E8B570",
-  rose:    "#CE6969",
-  sky:     "#9DB4D6",
-  purple:  "#9DB4D6",
+  indigo:  "#5B5FEF",
+  emerald: "#5B5FEF",
+  amber:   "#F59E0B",
+  rose:    "#EF4444",
+  sky:     "#3B82F6",
+  purple:  "#3B82F6",
 };
 
 const GRADIENTS = [

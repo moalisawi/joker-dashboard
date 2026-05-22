@@ -47,7 +47,7 @@ export default function ReportsPage() {
       icon: <Users size={20}/>,
       label: "تقرير المشتركين",
       description: "قائمة كاملة بالمشتركين مع بياناتهم المالية",
-      color: "#83A2DB",
+      color: "#5B5FEF",
       onExport: () => exportSubscribersCSV(subscribers, { dateFrom: dateFrom||undefined, dateTo: dateTo||undefined }),
     },
     {
@@ -55,7 +55,7 @@ export default function ReportsPage() {
       icon: <CreditCard size={20}/>,
       label: "تقرير المدفوعات",
       description: "جميع الدفعات مع العملات وأساليب الدفع",
-      color: "#83A2DB",
+      color: "#5B5FEF",
       restricted: !canViewFin,
       onExport: () => exportPaymentsCSV(payments, refunds, dateFrom||undefined, dateTo||undefined),
     },
@@ -64,7 +64,7 @@ export default function ReportsPage() {
       icon: <Briefcase size={20}/>,
       label: "أداء الموظفين",
       description: "مقارنة أداء الموظفين بالإيراد والمشتركين",
-      color: "#E8B570",
+      color: "#F59E0B",
       onExport: () => exportEmployeePerformanceCSV(subscribers),
     },
   ];
@@ -90,7 +90,7 @@ export default function ReportsPage() {
             {(dateFrom || dateTo) && (
               <button onClick={() => { setDateFrom(""); setDateTo(""); }}
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                style={{ background: "#CE696918", color: "#CE6969" }}>
+                style={{ background: "#EF444418", color: "#EF4444" }}>
                 مسح
               </button>
             )}
@@ -112,7 +112,7 @@ export default function ReportsPage() {
                   <h3 className="font-bold text-base mb-1" style={{ color: "var(--text-primary)" }}>{r.label}</h3>
                   <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{r.description}</p>
                   {r.restricted && (
-                    <p className="text-xs mt-1.5 font-semibold" style={{ color: "#CE6969" }}>
+                    <p className="text-xs mt-1.5 font-semibold" style={{ color: "#EF4444" }}>
                       يتطلب صلاحية عرض البيانات المالية
                     </p>
                   )}
@@ -121,7 +121,7 @@ export default function ReportsPage() {
                   onClick={r.restricted ? undefined : r.onExport}
                   disabled={r.restricted || !canExport}
                   className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:opacity-90"
-                  style={{ background: r.restricted || !canExport ? "#94a3b8" : `linear-gradient(135deg,${r.color}dd,${r.color}99)` }}>
+                  style={{ background: r.restricted || !canExport ? "#9ca3af" : `linear-gradient(135deg,${r.color}dd,${r.color}99)` }}>
                   <Download size={14}/>
                   تصدير CSV
                 </button>

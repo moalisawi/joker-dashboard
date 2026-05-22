@@ -430,7 +430,7 @@ export default function AnalyticsPage() {
   }, [subscribers]);
 
   const packageData = useMemo(() => [
-    { name: "فضية",  value: subscribers.filter((s) => s.package === "فضية").length,  color: "#94a3b8" },
+    { name: "فضية",  value: subscribers.filter((s) => s.package === "فضية").length,  color: "#9ca3af" },
     { name: "ذهبية", value: subscribers.filter((s) => s.package === "ذهبية").length, color: ACC.amber },
   ], [subscribers]);
 
@@ -493,18 +493,18 @@ export default function AnalyticsPage() {
                     onClick={() => exportSubscribersByMonthCSV(subscribers, selectedMonth)}
                     disabled={!selectedMonth}
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white disabled:opacity-50 transition-opacity"
-                    style={{ background: "linear-gradient(135deg,#E8B570,#E8B570)" }}>
+                    style={{ background: "linear-gradient(135deg,#F59E0B,#F59E0B)" }}>
                     <Download size={12}/> تصدير الشهر
                   </button>
                 </div>
                 <button onClick={() => exportSubscribersCSV(subscribers)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-                  style={{ background: "linear-gradient(135deg,#83A2DB,#83A2DB)" }}>
+                  style={{ background: "linear-gradient(135deg,#5B5FEF,#5B5FEF)" }}>
                   <Download size={12}/> تصدير الكل
                 </button>
                 <button onClick={() => exportPaymentsCSV(payments, refunds)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-                  style={{ background: "linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+                  style={{ background: "linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
                   <Download size={12}/> تصدير الدفعات
                 </button>
               </div>
@@ -891,7 +891,7 @@ export default function AnalyticsPage() {
                     <button
                       onClick={() => exportEmployeePerformanceCSV(subscribers)}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold"
-                      style={{ background: "linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+                      style={{ background: "linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
                       <Download size={13}/> تصدير CSV
                     </button>
                   </div>

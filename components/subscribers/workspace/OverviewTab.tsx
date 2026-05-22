@@ -11,7 +11,7 @@ import type { Subscriber } from "@/types";
 import type { PaymentTransaction } from "@/types";
 import type { RefundTransaction } from "@/types";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444", sky:"#3B82F6" };
 const fadeUp = { hidden:{opacity:0,y:12}, show:{opacity:1,y:0} };
 const tran   = { duration:0.32, ease:"easeOut" } as const;
 const stagger = { show:{transition:{staggerChildren:0.05}} };
@@ -44,9 +44,9 @@ function statusColor(status: string) {
   if (status === "نشط")          return ACC.emerald;
   if (status === "ينتهي قريباً") return ACC.amber;
   if (status === "منتهي")        return ACC.rose;
-  if (status === "موقوف")        return "#E8B570";
+  if (status === "موقوف")        return "#F59E0B";
   if (status === "متجمد")        return ACC.sky;
-  return "#64748b";
+  return "#6b7280";
 }
 
 interface KpiProps {

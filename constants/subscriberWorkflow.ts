@@ -34,7 +34,7 @@ export const WORKFLOW_COLORS: Record<WorkflowStatus, { bg: string; color: string
   active:           { bg: "#d1fae518", color: "#059669" },
   paused:           { bg: "#fee2e218", color: "#dc2626" },
   completed:        { bg: "#d1fae518", color: "#047857" },
-  cancelled:        { bg: "#f1f5f918", color: "#64748b" },
+  cancelled:        { bg: "#f1f5f918", color: "#6b7280" },
   refunded:         { bg: "#fce7f318", color: "#db2777" },
 };
 
@@ -81,7 +81,7 @@ export const NOTE_TYPE_COLORS: Record<NoteType, string> = {
   nutrition:"#8b5cf6",
   renewal:  "#f59e0b",
   payment:  "#6366f1",
-  general:  "#64748b",
+  general:  "#6b7280",
 };
 
 // ─── Renewal Workflow Status ──────────────────────────────────────────────────

@@ -29,9 +29,9 @@ export function PaymentMethodsGrid({
       >
         <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center"
-          style={{ background: "#83A2DB18", border: "1px solid #83A2DB28" }}
+          style={{ background: "#5B5FEF18", border: "1px solid #5B5FEF28" }}
         >
-          <CreditCard size={24} style={{ color: "#83A2DB" }} />
+          <CreditCard size={24} style={{ color: "#5B5FEF" }} />
         </div>
         <p className="font-bold text-base" style={{ color: "var(--text-primary)" }}>
           لا توجد طرق دفع بعد

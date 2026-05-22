@@ -50,15 +50,15 @@ function fmtDate(iso: string): string {
 }
 
 const ACC = {
-  indigo:  "#83A2DB",
-  emerald: "#83A2DB",
-  amber:   "#E8B570",
-  rose:    "#CE6969",
-  sky:     "#9DB4D6",
-  violet:  "#9DB4D6",
-  orange:  "#E8B570",
-  teal:    "#83A2DB",
-  slate:   "#64748b",
+  indigo:  "#5B5FEF",
+  emerald: "#5B5FEF",
+  amber:   "#F59E0B",
+  rose:    "#EF4444",
+  sky:     "#3B82F6",
+  violet:  "#3B82F6",
+  orange:  "#F59E0B",
+  teal:    "#5B5FEF",
+  slate:   "#6b7280",
 };
 
 const fadeUp = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } };
@@ -76,8 +76,8 @@ interface Props {
 export default function TimelineTab({ subscriber: s, payments, refunds, canRev }: Props) {
   const { dark } = useThemeStore();
   const t = dark
-    ? { card: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.08)", t1: "#f1f5f9", t2: "#64748b", line: "rgba(255,255,255,0.08)" }
-    : { card: "var(--surface)", border: "rgba(15,23,42,0.08)", t1: "var(--text-primary)", t2: "#64748b", line: "rgba(15,23,42,0.08)" };
+    ? { card: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.08)", t1: "#f1f5f9", t2: "#6b7280", line: "rgba(255,255,255,0.08)" }
+    : { card: "var(--surface)", border: "rgba(15,23,42,0.08)", t1: "var(--text-primary)", t2: "#6b7280", line: "rgba(15,23,42,0.08)" };
 
   const { data: notes = [] } = useSubscriberNotes(s.id);
 

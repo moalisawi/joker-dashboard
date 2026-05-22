@@ -6,10 +6,10 @@ import type { PaymentMethod, BalancePeriod } from "../types";
 import { useAllMethodsBalanceQuery } from "../hooks/useAllMethodsBalanceQuery";
 
 const ACC = {
-  blue:   "#83A2DB",
-  emerald:"#83A2DB",
-  amber:  "#E8B570",
-  violet: "#9DB4D6",
+  blue:   "#5B5FEF",
+  emerald:"#5B5FEF",
+  amber:  "#F59E0B",
+  violet: "#3B82F6",
 };
 
 interface Props {

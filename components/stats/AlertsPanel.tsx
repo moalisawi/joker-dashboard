@@ -9,7 +9,7 @@ import { formatNumber } from "@/lib/utils";
 
 interface Props { subscribers: Subscriber[] }
 
-const PALETTE = ["#83A2DB","#CE6969","#E8B570","#9DB4D6","#22C55E","#64748B"];
+const PALETTE = ["#5B5FEF","#EF4444","#F59E0B","#3B82F6","#22C55E","#6B7280"];
 
 function avatarColor(name: string) {
   const h = [...name].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 0);
@@ -26,9 +26,9 @@ function DaysBadge({ days }: { days: number }) {
     <span style={{
       display: "inline-block", padding: "2px 9px", borderRadius: 999,
       fontSize: 12, fontWeight: 700, whiteSpace: "nowrap",
-      background: urgent ? "rgba(206,105,105,.12)" : "rgba(232,181,112,.14)",
-      color: urgent ? "#CE6969" : "#E8B570",
-      border: `1px solid ${urgent ? "rgba(206,105,105,.30)" : "rgba(232,181,112,.32)"}`,
+      background: urgent ? "rgba(239,68,68,.12)" : "rgba(245,158,11,.14)",
+      color: urgent ? "#EF4444" : "#F59E0B",
+      border: `1px solid ${urgent ? "rgba(239,68,68,.30)" : "rgba(245,158,11,.32)"}`,
     }}>
       {days <= 0 ? "منتهي" : `${days} يوم`}
     </span>
@@ -41,9 +41,9 @@ function StatusBadge({ type }: { type: "paused" | "frozen" }) {
     <span style={{
       display: "inline-block", padding: "2px 9px", borderRadius: 999,
       fontSize: 12, fontWeight: 600, whiteSpace: "nowrap",
-      background: paused ? "rgba(232,181,112,.14)" : "rgba(157,180,214,.14)",
-      color: paused ? "#E8B570" : "#9DB4D6",
-      border: `1px solid ${paused ? "rgba(232,181,112,.32)" : "rgba(157,180,214,.30)"}`,
+      background: paused ? "rgba(245,158,11,.14)" : "rgba(59,130,246,.14)",
+      color: paused ? "#F59E0B" : "#3B82F6",
+      border: `1px solid ${paused ? "rgba(245,158,11,.32)" : "rgba(59,130,246,.30)"}`,
     }}>
       {paused ? "موقوف" : "مجمد"}
     </span>
@@ -236,8 +236,8 @@ export default function AlertsPanel({ subscribers }: Props) {
           title="ينتهوون خلال 30 يوماً"
           subtitle="جدد الاشتراك قبل الانتهاء"
           items={expiring}
-          badgeColor="#E8B570"
-          badgeBg="rgba(232,181,112,.14)"
+          badgeColor="#F59E0B"
+          badgeBg="rgba(245,158,11,.14)"
           type="expiring"
           onOpen={openSub}
         />
@@ -245,8 +245,8 @@ export default function AlertsPanel({ subscribers }: Props) {
           title="المشتركون الموقوفون"
           subtitle="بحاجة لإجراء أو استئناف"
           items={paused}
-          badgeColor="#E8B570"
-          badgeBg="rgba(232,181,112,.14)"
+          badgeColor="#F59E0B"
+          badgeBg="rgba(245,158,11,.14)"
           type="paused"
           onOpen={openSub}
         />
@@ -254,8 +254,8 @@ export default function AlertsPanel({ subscribers }: Props) {
           title="المشتركون المجمدون"
           subtitle="لا يحتسبون في الإيرادات"
           items={frozen}
-          badgeColor="#9DB4D6"
-          badgeBg="rgba(157,180,214,.14)"
+          badgeColor="#3B82F6"
+          badgeBg="rgba(59,130,246,.14)"
           type="frozen"
           onOpen={openSub}
         />
@@ -298,8 +298,8 @@ export default function AlertsPanel({ subscribers }: Props) {
         <div>
           {logItems.map(({ s, type }) => {
             const Icon       = type === "expiring" ? Calendar : type === "paused" ? PauseCircle : Snowflake;
-            const iconColor  = type === "frozen" ? "#9DB4D6" : "#E8B570";
-            const iconBg     = type === "frozen" ? "rgba(157,180,214,.14)" : "rgba(232,181,112,.14)";
+            const iconColor  = type === "frozen" ? "#3B82F6" : "#F59E0B";
+            const iconBg     = type === "frozen" ? "rgba(59,130,246,.14)" : "rgba(245,158,11,.14)";
             const desc       = type === "expiring"
               ? (s.daysRemaining <= 0 ? "اشتراك منتهي" : `ينتهي خلال ${s.daysRemaining} يوماً`)
               : type === "paused" ? "موقوف · بحاجة لإجراء أو استئناف"

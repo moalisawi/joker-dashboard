@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444" };
 const fadeUp = { hidden:{opacity:0,y:10}, show:{opacity:1,y:0} };
 const tran   = { duration:0.28, ease:"easeOut" } as const;
 const stagger = { show:{transition:{staggerChildren:0.04}} };
@@ -219,7 +219,7 @@ export default function AssignmentsTab({ subscriber }: Props) {
               )}
               <button onClick={() => { setEditOpen((v)=>!v); setConfirm(false); }}
                 className="text-xs font-bold px-3 py-1.5 rounded-xl text-white transition-all"
-                style={{ background:"linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+                style={{ background:"linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
                 {editOpen ? "إغلاق" : "تعديل"}
               </button>
             </div>
@@ -234,7 +234,7 @@ export default function AssignmentsTab({ subscriber }: Props) {
             </div>
           )}
           {err && (
-            <div className="mb-3 p-2.5 rounded-xl text-xs" style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#CE6969" }}>
+            <div className="mb-3 p-2.5 rounded-xl text-xs" style={{ background:"#fef2f2", border:"1px solid #fecaca", color:"#EF4444" }}>
               {err}
             </div>
           )}
@@ -361,7 +361,7 @@ export default function AssignmentsTab({ subscriber }: Props) {
                   <div className="flex gap-2 pt-1">
                     <button onClick={handleSave} disabled={assignMut.isPending}
                       className="flex-1 py-2 rounded-xl text-white font-bold text-xs disabled:opacity-60"
-                      style={{ background:"linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+                      style={{ background:"linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
                       {assignMut.isPending ? "جاري..." : "حفظ التعيين"}
                     </button>
                     <button onClick={() => setEditOpen(false)}

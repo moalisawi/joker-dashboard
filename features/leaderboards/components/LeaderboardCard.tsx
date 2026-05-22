@@ -8,12 +8,12 @@ import type { LeaderboardEntry } from "@/features/leaderboards/lib/leaderboardMe
 import { Trophy, ChevronDown, ChevronUp } from "lucide-react";
 
 const MEDAL: Record<number, { emoji: string; color: string }> = {
-  1: { emoji:"🥇", color:"#E8B570" },
-  2: { emoji:"🥈", color:"#94a3b8" },
+  1: { emoji:"🥇", color:"#F59E0B" },
+  2: { emoji:"🥈", color:"#9ca3af" },
   3: { emoji:"🥉", color:"#b45309" },
 };
 
-const ACC_INDIGO = "#83A2DB";
+const ACC_INDIGO = "#5B5FEF";
 const PREVIEW = 3;
 
 interface Props {

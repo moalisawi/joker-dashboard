@@ -231,7 +231,7 @@ export default function LogsPage() {
           <StatCard
             label="إجمالي السجلات"
             value={stats.total}
-            icon={<ScrollText size={18} style={{ color: "#83A2DB" }} />}
+            icon={<ScrollText size={18} style={{ color: "#5B5FEF" }} />}
             color=""
           />
           <StatCard
@@ -249,7 +249,7 @@ export default function LogsPage() {
           <StatCard
             label="عمليات مالية"
             value={stats.financial}
-            icon={<DollarSign size={18} style={{ color: "#83A2DB" }} />}
+            icon={<DollarSign size={18} style={{ color: "#5B5FEF" }} />}
             color=""
           />
         </div>

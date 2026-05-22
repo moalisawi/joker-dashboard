@@ -175,7 +175,7 @@ export default function AdvancedStats({ subscribers }: Props) {
             </h4>
             <div className="space-y-3">
               {empStats.map((e) => {
-                const style = EMP_COLORS[e.name] || { bar: "#83A2DB", badge: "bg-indigo-100 text-indigo-700" };
+                const style = EMP_COLORS[e.name] || { bar: "#5B5FEF", badge: "bg-indigo-100 text-indigo-700" };
                 return (
                   <div key={e.name}>
                     <div className="flex items-center justify-between text-xs mb-1">

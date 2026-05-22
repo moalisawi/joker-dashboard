@@ -67,20 +67,20 @@ function getStatus(s: LoginSession): StatusInfo {
   const raw      = (s.status as string) || (s.isActive ? "active" : "logged_out");
   const diffMin  = (Date.now() - toMs(s.lastSeenAt)) / 60_000;
 
-  if (raw === "logged_out") return { label: "خرج",        textColor: "#64748b", bgColor: "#f1f5f9",         dotColor: "#94a3b8", online: false };
-  if (raw === "suspicious") return { label: "مشبوه",      textColor: "#E8B570", bgColor: "#fff7ed",         dotColor: "#E8B570", online: false };
+  if (raw === "logged_out") return { label: "خرج",        textColor: "#6b7280", bgColor: "#f1f5f9",         dotColor: "#9ca3af", online: false };
+  if (raw === "suspicious") return { label: "مشبوه",      textColor: "#F59E0B", bgColor: "#fff7ed",         dotColor: "#F59E0B", online: false };
   if (raw === "active" || s.isActive) {
-    if (diffMin < 5)  return { label: "متصل الآن",       textColor: "#83A2DB", bgColor: "#ecfdf5",         dotColor: "#83A2DB", online: true  };
-    if (diffMin < 30) return { label: "نشطة",             textColor: "#83A2DB", bgColor: "#eff6ff",         dotColor: "#83A2DB", online: false };
-    return                   { label: "منتهية",           textColor: "#64748B", bgColor: "#f9fafb",         dotColor: "#94A3B8", online: false };
+    if (diffMin < 5)  return { label: "متصل الآن",       textColor: "#5B5FEF", bgColor: "#ecfdf5",         dotColor: "#5B5FEF", online: true  };
+    if (diffMin < 30) return { label: "نشطة",             textColor: "#5B5FEF", bgColor: "#eff6ff",         dotColor: "#5B5FEF", online: false };
+    return                   { label: "منتهية",           textColor: "#6B7280", bgColor: "#f9fafb",         dotColor: "#9CA3AF", online: false };
   }
-  return { label: "منتهية", textColor: "#64748B", bgColor: "#f9fafb", dotColor: "#94A3B8", online: false };
+  return { label: "منتهية", textColor: "#6B7280", bgColor: "#f9fafb", dotColor: "#9CA3AF", online: false };
 }
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
-  owner:    { label: "مالك",   color: "#E8B570" },
-  admin:    { label: "مدير",   color: "#83A2DB" },
-  employee: { label: "موظف",   color: "#64748B" },
+  owner:    { label: "مالك",   color: "#F59E0B" },
+  admin:    { label: "مدير",   color: "#5B5FEF" },
+  employee: { label: "موظف",   color: "#6B7280" },
 };
 
 function DeviceIcon({ device }: { device: DeviceType }) {
@@ -134,7 +134,7 @@ function DetailModal({ session, currentUid, onClose, onRevoke }: {
   session: LoginSession; currentUid: string; onClose: () => void; onRevoke: () => void;
 }) {
   const si      = getStatus(session);
-  const role    = ROLE_META[session.role] ?? { label: session.role, color: "#64748B" };
+  const role    = ROLE_META[session.role] ?? { label: session.role, color: "#6B7280" };
   const canKick = si.online && session.uid !== currentUid;
 
   return (
@@ -261,7 +261,7 @@ function SessionRow({ session, currentUid, onClick }: {
   session: LoginSession; currentUid: string; onClick: () => void;
 }) {
   const si   = getStatus(session);
-  const role = ROLE_META[session.role] ?? { label: session.role, color: "#64748B" };
+  const role = ROLE_META[session.role] ?? { label: session.role, color: "#6B7280" };
   const self = session.uid === currentUid;
 
   return (

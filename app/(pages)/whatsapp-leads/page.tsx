@@ -42,15 +42,15 @@ const LIGHT = {
   cardBorder: "rgba(16,20,26,0.06)",
   cardShadow: "0 1px 2px rgba(16,20,26,.04), 0 8px 20px -8px rgba(16,20,26,.08)",
   textPri:    "#10141A",
-  textSec:    "#64748B",
-  textMut:    "#94A3B8",
+  textSec:    "#6B7280",
+  textMut:    "#9CA3AF",
   row:        "rgba(16,20,26,0.02)",
   rowHover:   "rgba(16,20,26,0.04)",
   divider:    "rgba(16,20,26,0.06)",
   inputBg:    "#F8FAFC",
   inputBorder:"rgba(16,20,26,0.10)",
   grid:       "rgba(16,20,26,0.06)",
-  tick:       "#94A3B8",
+  tick:       "#9CA3AF",
 };
 
 const DARK = {
@@ -59,15 +59,15 @@ const DARK = {
   cardBorder: "rgba(255,255,255,0.07)",
   cardShadow: "none",
   textPri:    "#f1f5f9",
-  textSec:    "#64748b",
-  textMut:    "#64748B",
+  textSec:    "#6b7280",
+  textMut:    "#6B7280",
   row:        "rgba(255,255,255,0.02)",
   rowHover:   "rgba(255,255,255,0.05)",
   divider:    "rgba(255,255,255,0.07)",
   inputBg:    "rgba(255,255,255,0.05)",
   inputBorder:"rgba(255,255,255,0.10)",
   grid:       "rgba(255,255,255,0.04)",
-  tick:       "#64748B",
+  tick:       "#6B7280",
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -83,10 +83,10 @@ const COUNTRY_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<LeadStatus, { bg: string; text: string; chart: string }> = {
-  [LeadStatus.INTERESTED]:          { bg: "#83A2DB", text: "#fff",     chart: "#83A2DB" },
-  [LeadStatus.READY_TO_PAY]:        { bg: "#83A2DB", text: "#fff",     chart: "#83A2DB" },
-  [LeadStatus.IMPORTANT_FOLLOW_UP]: { bg: "#E8B570", text: "#10141A", chart: "#E8B570" },
-  [LeadStatus.NEW]:                 { bg: "#94A3B8", text: "#fff",     chart: "#94A3B8" },
+  [LeadStatus.INTERESTED]:          { bg: "#5B5FEF", text: "#fff",     chart: "#5B5FEF" },
+  [LeadStatus.READY_TO_PAY]:        { bg: "#5B5FEF", text: "#fff",     chart: "#5B5FEF" },
+  [LeadStatus.IMPORTANT_FOLLOW_UP]: { bg: "#F59E0B", text: "#10141A", chart: "#F59E0B" },
+  [LeadStatus.NEW]:                 { bg: "#9CA3AF", text: "#fff",     chart: "#9CA3AF" },
   [LeadStatus.RETARGETING]:         { bg: "#A78BFA", text: "#fff",     chart: "#A78BFA" },
 };
 
@@ -557,7 +557,7 @@ export default function WhatsappLeadsPage() {
               <StatCard
                 label="رسائل اليوم"
                 value={analytics?.totalMessages}
-                accent="#83A2DB"
+                accent="#5B5FEF"
                 sub="إجمالي المحادثات النشطة"
                 icon={<MessageCircle size={14} />}
                 t={t}
@@ -565,19 +565,19 @@ export default function WhatsappLeadsPage() {
               <StatCard
                 label="مهتم"
                 value={analytics?.byStatus[LeadStatus.INTERESTED]}
-                accent="#83A2DB"
+                accent="#5B5FEF"
                 t={t}
               />
               <StatCard
                 label="جاهز للدفع"
                 value={analytics?.byStatus[LeadStatus.READY_TO_PAY]}
-                accent="#83A2DB"
+                accent="#5B5FEF"
                 t={t}
               />
               <StatCard
                 label="متابعة هامة"
                 value={analytics?.byStatus[LeadStatus.IMPORTANT_FOLLOW_UP]}
-                accent="#E8B570"
+                accent="#F59E0B"
                 t={t}
               />
               <StatCard

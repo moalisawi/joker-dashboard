@@ -69,9 +69,9 @@ function statusColor(status: string) {
   if (status === "نشط")          return ACC.emerald;
   if (status === "ينتهي قريباً") return ACC.amber;
   if (status === "منتهي")        return ACC.rose;
-  if (status === "موقوف")        return "#E8B570";
+  if (status === "موقوف")        return "#F59E0B";
   if (status === "متجمد")        return ACC.sky;
-  return "#64748b";
+  return "#6b7280";
 }
 
 // ── Tab definitions ───────────────────────────────────────────────────────────

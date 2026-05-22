@@ -55,7 +55,7 @@ interface Props {
 
 export default function SalesMonthlyTrendChart({ data, canRev, height = 200 }: Props) {
   const { dark } = useThemeStore();
-  const axisColor = dark ? "#64748B" : "#94A3B8";
+  const axisColor = dark ? "#6B7280" : "#9CA3AF";
   const gridColor = dark ? "#10141A" : "#f1f5f9";
 
   const chartData = data.map((d) => ({
@@ -69,13 +69,13 @@ export default function SalesMonthlyTrendChart({ data, canRev, height = 200 }: P
         <CartesianGrid vertical={false} stroke={gridColor}/>
         <XAxis
           dataKey="label"
-          tick={{ fontSize:11, fill: dark ? "#64748b" : "#94a3b8" }}
+          tick={{ fontSize:11, fill: dark ? "#6b7280" : "#9ca3af" }}
           axisLine={{ stroke:axisColor }}
           tickLine={false}
         />
         <YAxis
           yAxisId="subs"
-          tick={{ fontSize:11, fill: dark ? "#64748b" : "#94a3b8" }}
+          tick={{ fontSize:11, fill: dark ? "#6b7280" : "#9ca3af" }}
           axisLine={false}
           tickLine={false}
           width={24}
@@ -87,7 +87,7 @@ export default function SalesMonthlyTrendChart({ data, canRev, height = 200 }: P
           yAxisId="subs"
           dataKey="subscribers"
           name="subscribers"
-          fill="#83A2DB"
+          fill="#5B5FEF"
           radius={[4,4,0,0]}
           maxBarSize={40}
         />

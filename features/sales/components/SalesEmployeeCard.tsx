@@ -7,18 +7,18 @@ import type { SalesEmployeeMetrics } from "@/features/sales/lib/salesMetrics";
 import { Users, TrendingUp, DollarSign, RefreshCw, ArrowLeft } from "lucide-react";
 import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444" };
 
 function initials(name: string) {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 }
 
 const AVATAR_GRADIENTS = [
-  "linear-gradient(135deg,#83A2DB,#9DB4D6)",
-  "linear-gradient(135deg,#83A2DB,#83A2DB)",
-  "linear-gradient(135deg,#E8B570,#E8B570)",
-  "linear-gradient(135deg,#CE6969,#CE6969)",
-  "linear-gradient(135deg,#9DB4D6,#83A2DB)",
+  "linear-gradient(135deg,#5B5FEF,#3B82F6)",
+  "linear-gradient(135deg,#5B5FEF,#5B5FEF)",
+  "linear-gradient(135deg,#F59E0B,#F59E0B)",
+  "linear-gradient(135deg,#EF4444,#EF4444)",
+  "linear-gradient(135deg,#3B82F6,#5B5FEF)",
 ];
 
 interface Props {

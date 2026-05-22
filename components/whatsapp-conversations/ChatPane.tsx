@@ -27,8 +27,8 @@ function formatDateSeparator(date: Date): string {
 }
 
 function ReadIcon({ status }: { status: WhatsappMessage["status"] }) {
-  if (status === "sent")      return <span style={{ color: "#94A3B8", fontSize: 11 }}>✓</span>;
-  if (status === "delivered") return <span style={{ color: "#94A3B8", fontSize: 11 }}>✓✓</span>;
+  if (status === "sent")      return <span style={{ color: "#9CA3AF", fontSize: 11 }}>✓</span>;
+  if (status === "delivered") return <span style={{ color: "#9CA3AF", fontSize: 11 }}>✓✓</span>;
   return <span style={{ color: "#53BDEB", fontSize: 11 }}>✓✓</span>;
 }
 
@@ -45,8 +45,8 @@ function groupByDay(msgs: WhatsappMessage[]): { date: Date; messages: WhatsappMe
 
 const STATUS_META: Record<ConversationStatus, { label: string; bg: string; color: string }> = {
   [ConversationStatus.OPEN]:     { label: "مفتوحة",  bg: "rgba(37,211,102,.15)",  color: "#25D366" },
-  [ConversationStatus.CLOSED]:   { label: "مغلقة",   bg: "rgba(100,116,139,.15)", color: "#64748B" },
-  [ConversationStatus.ARCHIVED]: { label: "مؤرشفة",  bg: "rgba(245,158,11,.15)",  color: "#E8B570" },
+  [ConversationStatus.CLOSED]:   { label: "مغلقة",   bg: "rgba(100,116,139,.15)", color: "#6B7280" },
+  [ConversationStatus.ARCHIVED]: { label: "مؤرشفة",  bg: "rgba(245,158,11,.15)",  color: "#F59E0B" },
 };
 
 export default function ChatPane({
@@ -212,7 +212,7 @@ export default function ChatPane({
                         border: "1px solid rgba(245,158,11,.3)",
                         borderRadius: 10, padding: "8px 14px",
                       }}>
-                        <div style={{ fontSize: 10, color: "#E8B570", fontWeight: 600, marginBottom: 4 }}>ملاحظة داخلية</div>
+                        <div style={{ fontSize: 10, color: "#F59E0B", fontWeight: 600, marginBottom: 4 }}>ملاحظة داخلية</div>
                         <div style={{ fontSize: 13, color: t.textPri, fontStyle: "italic" }}>{msg.body}</div>
                         <div style={{ fontSize: 10, color: t.textMut, marginTop: 4 }}>
                           {msg.timestamp.toDate().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
@@ -328,9 +328,9 @@ export default function ChatPane({
               type="checkbox"
               checked={isNote}
               onChange={(e) => setIsNote(e.target.checked)}
-              style={{ cursor: "pointer", accentColor: "#E8B570" }}
+              style={{ cursor: "pointer", accentColor: "#F59E0B" }}
             />
-            <span style={{ fontSize: 12, color: isNote ? "#E8B570" : t.textSec, fontWeight: isNote ? 600 : 400 }}>
+            <span style={{ fontSize: 12, color: isNote ? "#F59E0B" : t.textSec, fontWeight: isNote ? 600 : 400 }}>
               ملاحظة داخلية
             </span>
           </label>

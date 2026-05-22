@@ -89,7 +89,7 @@ export default function AddNoteForm({ subscriberId, subscriberName, onSuccess }:
           type="submit"
           disabled={addNote.isPending}
           className="absolute bottom-2.5 left-2.5 p-1.5 rounded-lg text-white disabled:opacity-50 transition-opacity"
-          style={{ background: "linear-gradient(135deg,#83A2DB,#9DB4D6)" }}
+          style={{ background: "linear-gradient(135deg,#5B5FEF,#3B82F6)" }}
           title="إرسال"
         >
           <Send size={14}/>

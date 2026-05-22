@@ -52,17 +52,17 @@ function relativeTime(ms: number): string {
 type SevCfg = { iconBg: string; iconColor: string; dot: string; icon: React.ReactNode; label: string };
 
 const SEV: Record<NotificationSeverity, SevCfg> = {
-  success:  { iconBg: "#D1FAE5", iconColor: "#83A2DB", dot: "#83A2DB", label: "ناجح",    icon: <CheckCircle2 size={14} /> },
-  info:     { iconBg: "#DBEAFE", iconColor: "#83A2DB", dot: "#83A2DB", label: "معلومة",  icon: <Info         size={14} /> },
-  warning:  { iconBg: "#FEF3C7", iconColor: "#E8B570", dot: "#E8B570", label: "تحذير",  icon: <AlertTriangle size={14} /> },
-  critical: { iconBg: "#FEE2E2", iconColor: "#CE6969", dot: "#CE6969", label: "حرج",    icon: <XCircle      size={14} /> },
+  success:  { iconBg: "#D1FAE5", iconColor: "#5B5FEF", dot: "#5B5FEF", label: "ناجح",    icon: <CheckCircle2 size={14} /> },
+  info:     { iconBg: "#DBEAFE", iconColor: "#5B5FEF", dot: "#5B5FEF", label: "معلومة",  icon: <Info         size={14} /> },
+  warning:  { iconBg: "#FEF3C7", iconColor: "#F59E0B", dot: "#F59E0B", label: "تحذير",  icon: <AlertTriangle size={14} /> },
+  critical: { iconBg: "#FEE2E2", iconColor: "#EF4444", dot: "#EF4444", label: "حرج",    icon: <XCircle      size={14} /> },
 };
 
 const SEV_DARK: Record<NotificationSeverity, SevCfg> = {
-  success:  { iconBg: "rgba(16,185,129,.15)", iconColor: "#34D399", dot: "#83A2DB", label: "ناجح",   icon: <CheckCircle2 size={14} /> },
-  info:     { iconBg: "rgba(59,130,246,.15)", iconColor: "#83A2DB", dot: "#83A2DB", label: "معلومة", icon: <Info         size={14} /> },
-  warning:  { iconBg: "rgba(245,158,11,.15)", iconColor: "#E8B570", dot: "#E8B570", label: "تحذير", icon: <AlertTriangle size={14} /> },
-  critical: { iconBg: "rgba(239,68,68,.15)",  iconColor: "#CE6969", dot: "#CE6969", label: "حرج",   icon: <XCircle      size={14} /> },
+  success:  { iconBg: "rgba(16,185,129,.15)", iconColor: "#34D399", dot: "#5B5FEF", label: "ناجح",   icon: <CheckCircle2 size={14} /> },
+  info:     { iconBg: "rgba(59,130,246,.15)", iconColor: "#5B5FEF", dot: "#5B5FEF", label: "معلومة", icon: <Info         size={14} /> },
+  warning:  { iconBg: "rgba(245,158,11,.15)", iconColor: "#F59E0B", dot: "#F59E0B", label: "تحذير", icon: <AlertTriangle size={14} /> },
+  critical: { iconBg: "rgba(239,68,68,.15)",  iconColor: "#EF4444", dot: "#EF4444", label: "حرج",   icon: <XCircle      size={14} /> },
 };
 
 const TYPE_ICON: Record<string, React.ReactNode> = {
@@ -422,7 +422,7 @@ export default function NotificationsPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
           <MiniStat label="غير مقروء"  value={unread}    accent="var(--jk-blue)" />
           <MiniStat label="حرج"         value={critical}  accent="var(--jk-red)" />
-          <MiniStat label="مالية"       value={financial} accent="#83A2DB" />
+          <MiniStat label="مالية"       value={financial} accent="#5B5FEF" />
           <MiniStat label="أمان"        value={security}  accent="var(--jk-warn)" />
         </div>
 

@@ -9,10 +9,10 @@ import { useAuthStore } from "@/store/authStore";
 import { useSearchStore } from "@/store/searchStore";
 
 function statusColor(status: string): string {
-  if (status === "نشط")           return "#83A2DB";
-  if (status === "ينتهي قريباً")  return "#E8B570";
-  if (status === "منتهي")         return "#94A3B8";
-  return "#CE6969";
+  if (status === "نشط")           return "#5B5FEF";
+  if (status === "ينتهي قريباً")  return "#F59E0B";
+  if (status === "منتهي")         return "#9CA3AF";
+  return "#EF4444";
 }
 
 export default function GlobalSearch() {
@@ -49,7 +49,7 @@ export default function GlobalSearch() {
     sub:   [s.phone, s.residence, s.package].filter(Boolean).join(" · "),
     href:  `/subscribers/${s.id}`,
     badge: s.subscriptionState === "withdrawn" ? "منسحب" : s.status,
-    color: s.subscriptionState === "withdrawn" ? "#CE6969" : statusColor(s.status),
+    color: s.subscriptionState === "withdrawn" ? "#EF4444" : statusColor(s.status),
     searchValue: `${s.name} ${s.phone} ${s.residence} ${s.package} ${s.convincedBy}`.toLowerCase(),
   }));
 

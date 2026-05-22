@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useActiveEmployees } from "@/features/users/hooks";
 
 const AVATAR_COLORS = [
-  "#83A2DB", "#E8B570", "#CE6969", "#9DB4D6",
+  "#5B5FEF", "#F59E0B", "#EF4444", "#3B82F6",
   "#10b981", "#8b5cf6", "#f59e0b", "#ec4899",
 ];
 
@@ -23,9 +23,9 @@ function RoleBadge({ role, employeeRole }: { role: string; employeeRole?: string
   return (
     <span style={{
       fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999,
-      background: isManager ? "rgba(131,162,219,.12)" : "rgba(100,116,139,.1)",
-      color: isManager ? "#83A2DB" : "#718096",
-      border: `1px solid ${isManager ? "rgba(131,162,219,.22)" : "rgba(100,116,139,.18)"}`,
+      background: isManager ? "rgba(91,95,239,.12)" : "rgba(100,116,139,.1)",
+      color: isManager ? "#5B5FEF" : "#718096",
+      border: `1px solid ${isManager ? "rgba(91,95,239,.22)" : "rgba(100,116,139,.18)"}`,
       whiteSpace: "nowrap", flexShrink: 0,
     }}>
       {isManager ? "مدير" : "موظف"}
@@ -86,7 +86,7 @@ export default function TeamPerformance({ subscribers }: Props) {
           const pct    = (count / maxCount) * 100;
           const isManager = emp.role === "admin" || emp.role === "owner"
             || emp.employeeRole === "admin" || emp.employeeRole === "team_leader";
-          const dotColor = isManager ? "#22C55E" : "#E8B570";
+          const dotColor = isManager ? "#22C55E" : "#F59E0B";
 
           return (
             <div key={emp.uid}>

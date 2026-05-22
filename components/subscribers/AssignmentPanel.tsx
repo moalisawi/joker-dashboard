@@ -35,8 +35,8 @@ function HistoryEntry({ entry }: { entry: AssignmentHistoryEntry }) {
   return (
     <div className="flex items-start gap-3 py-2">
       <div className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-        style={{ background: "#83A2DB18", border: "1px solid #83A2DB28" }}>
-        <User size={10} style={{ color: "#83A2DB" }}/>
+        style={{ background: "#5B5FEF18", border: "1px solid #5B5FEF28" }}>
+        <User size={10} style={{ color: "#5B5FEF" }}/>
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
@@ -131,21 +131,21 @@ export default function AssignmentPanel({ subscriber, onSuccess }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center gap-2.5">
-          <UserCheck size={15} style={{ color: "#83A2DB" }}/>
+          <UserCheck size={15} style={{ color: "#5B5FEF" }}/>
           <span className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>التعيين</span>
         </div>
         <div className="flex items-center gap-2">
           {history.length > 0 && (
             <button onClick={() => setShowHistory((v) => !v)}
               className="text-[10px] font-semibold px-2 py-1 rounded-lg transition-colors"
-              style={{ background: "#83A2DB10", color: "#83A2DB" }}>
+              style={{ background: "#5B5FEF10", color: "#5B5FEF" }}>
               السجل ({history.length})
             </button>
           )}
           {canEdit && (
             <button onClick={() => setOpen((v) => !v)}
               className="text-xs font-bold px-3 py-1.5 rounded-xl text-white transition-all"
-              style={{ background: "linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+              style={{ background: "linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
               {open ? "إغلاق" : "تعديل"}
             </button>
           )}
@@ -157,19 +157,19 @@ export default function AssignmentPanel({ subscriber, onSuccess }: Props) {
         <p className="text-xs font-medium mb-3" style={{ color: "var(--text-muted)" }}>الحالة الحالية</p>
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
-            style={{ background: "#83A2DB12", color: "#83A2DB", border: "1px solid #83A2DB28" }}>
+            style={{ background: "#5B5FEF12", color: "#5B5FEF", border: "1px solid #5B5FEF28" }}>
             <UserCheck size={11}/>
             {subscriber.assignedSalesName ? (
-              <>مبيعات: <EmployeeNameChip name={subscriber.assignedSalesName} uid={subscriber.assignedSalesId} style={{ color:"#83A2DB", fontWeight:700 }}/></>
+              <>مبيعات: <EmployeeNameChip name={subscriber.assignedSalesName} uid={subscriber.assignedSalesId} style={{ color:"#5B5FEF", fontWeight:700 }}/></>
             ) : subscriber.assignedNutritionistName ? (
-              <>متابعة: <EmployeeNameChip name={subscriber.assignedNutritionistName} uid={subscriber.assignedNutritionistId} style={{ color:"#83A2DB", fontWeight:700 }}/></>
+              <>متابعة: <EmployeeNameChip name={subscriber.assignedNutritionistName} uid={subscriber.assignedNutritionistId} style={{ color:"#5B5FEF", fontWeight:700 }}/></>
             ) : (
               currentLabel
             )}
           </span>
           {subscriber.assignedTeamName && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
-              style={{ background: "#83A2DB12", color: "#83A2DB", border: "1px solid #83A2DB28" }}>
+              style={{ background: "#5B5FEF12", color: "#5B5FEF", border: "1px solid #5B5FEF28" }}>
               <Users2 size={11}/>{subscriber.assignedTeamName}
             </span>
           )}
@@ -236,7 +236,7 @@ export default function AssignmentPanel({ subscriber, onSuccess }: Props) {
               <div className="flex gap-2 pt-1">
                 <button onClick={handleSave} disabled={assignMut.isPending}
                   className="flex-1 py-2 rounded-xl text-white font-bold text-xs disabled:opacity-60"
-                  style={{ background: "linear-gradient(135deg,#83A2DB,#9DB4D6)" }}>
+                  style={{ background: "linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
                   {assignMut.isPending ? "جاري..." : "حفظ التعيين"}
                 </button>
                 <button onClick={() => setOpen(false)}

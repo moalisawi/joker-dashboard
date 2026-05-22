@@ -64,7 +64,7 @@ function InfoRow({ label, value, t }: { label: string; value: React.ReactNode; t
 
 function SectionTitle({ title }: { title: string }) {
   return (
-    <div style={{ fontSize: 11, fontWeight: 700, color: "#94A3B8", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+    <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
       {title}
     </div>
   );
@@ -308,7 +308,7 @@ export default function InfoSidebarPane({
             borderRadius: 8, padding: "8px 10px", marginBottom: 8,
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#E8B570" }}>{note.authorName}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#F59E0B" }}>{note.authorName}</span>
               <span style={{ fontSize: 10, color: t.textMut }}>
                 {note.createdAt.toDate().toLocaleDateString("ar-SA", { month: "short", day: "numeric" })}
               </span>
@@ -320,7 +320,7 @@ export default function InfoSidebarPane({
                   onClick={() => { onRemoveNote(note.id); setNoteToDelete(null); }}
                   style={{
                     fontSize: 11, padding: "3px 8px", borderRadius: 6, border: "none",
-                    background: "#CE6969", color: "#fff", cursor: "pointer", fontFamily: "inherit",
+                    background: "#EF4444", color: "#fff", cursor: "pointer", fontFamily: "inherit",
                   }}
                 >
                   تأكيد الحذف
@@ -361,7 +361,7 @@ export default function InfoSidebarPane({
               }}
             />
             {errors.body && (
-              <div style={{ fontSize: 11, color: "#CE6969", marginTop: 2 }}>{errors.body.message}</div>
+              <div style={{ fontSize: 11, color: "#EF4444", marginTop: 2 }}>{errors.body.message}</div>
             )}
             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
               <button

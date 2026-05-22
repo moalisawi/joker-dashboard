@@ -81,10 +81,10 @@ const ACTION_ICON: Record<string, React.ReactNode> = {
 // ─── severity styling ────────────────────────────────────────────────────────
 
 const SEVERITY_STYLE: Record<AuditSeverity, { bg: string; color: string; border: string; dot: string }> = {
-  success:  { bg: "rgba(131,162,219,.14)", color: "#83A2DB", border: "rgba(131,162,219,.32)", dot: "#83A2DB" },
-  info:     { bg: "rgba(157,180,214,.14)", color: "#9DB4D6", border: "rgba(157,180,214,.30)", dot: "#9DB4D6" },
-  warning:  { bg: "rgba(232,181,112,.14)", color: "#E8B570", border: "rgba(232,181,112,.32)", dot: "#E8B570" },
-  critical: { bg: "rgba(206,105,105,.12)", color: "#CE6969", border: "rgba(206,105,105,.30)", dot: "#CE6969" },
+  success:  { bg: "rgba(91,95,239,.14)", color: "#5B5FEF", border: "rgba(91,95,239,.32)", dot: "#5B5FEF" },
+  info:     { bg: "rgba(59,130,246,.14)", color: "#3B82F6", border: "rgba(59,130,246,.30)", dot: "#3B82F6" },
+  warning:  { bg: "rgba(245,158,11,.14)", color: "#F59E0B", border: "rgba(245,158,11,.32)", dot: "#F59E0B" },
+  critical: { bg: "rgba(239,68,68,.12)", color: "#EF4444", border: "rgba(239,68,68,.30)", dot: "#EF4444" },
 };
 
 const SEVERITY_ICON: Record<AuditSeverity, React.ReactNode> = {
@@ -199,8 +199,8 @@ export default function AuditCard({ log }: AuditCardProps) {
               {hasFinancial && (
                 <span style={{
                   padding: "3px 10px", borderRadius: 999, fontSize: 12, fontWeight: 600,
-                  background: log.financialData!.impactType === "negative" ? "rgba(206,105,105,.12)" : "rgba(131,162,219,.14)",
-                  color:      log.financialData!.impactType === "negative" ? "#CE6969"               : "#83A2DB",
+                  background: log.financialData!.impactType === "negative" ? "rgba(239,68,68,.12)" : "rgba(91,95,239,.14)",
+                  color:      log.financialData!.impactType === "negative" ? "#EF4444"               : "#5B5FEF",
                 }}>
                   {log.financialData!.impactType === "negative" ? "−" : "+"}
                   ${log.financialData!.amountUSD!.toFixed(2)}

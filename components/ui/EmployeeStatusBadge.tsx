@@ -6,11 +6,11 @@ interface Props {
 }
 
 const CONFIG: Record<string, { label: string; bg: string; color: string }> = {
-  active:    { label: "نشط",           bg: "#83A2DB18", color: "#83A2DB" },
-  pending:   { label: "معلّق التفعيل", bg: "#E8B57018", color: "#E8B570" },
-  suspended: { label: "موقوف",         bg: "#CE696918", color: "#CE6969" },
-  disabled:  { label: "معطّل",         bg: "#94a3b818", color: "#94a3b8" },
-  inactive:  { label: "غير نشط",       bg: "#94a3b818", color: "#94a3b8" },
+  active:    { label: "نشط",           bg: "#5B5FEF18", color: "#5B5FEF" },
+  pending:   { label: "معلّق التفعيل", bg: "#F59E0B18", color: "#F59E0B" },
+  suspended: { label: "موقوف",         bg: "#EF444418", color: "#EF4444" },
+  disabled:  { label: "معطّل",         bg: "#9ca3af18", color: "#9ca3af" },
+  inactive:  { label: "غير نشط",       bg: "#9ca3af18", color: "#9ca3af" },
 };
 
 export default function EmployeeStatusBadge({ active, status }: Props) {

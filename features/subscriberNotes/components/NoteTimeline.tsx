@@ -43,7 +43,7 @@ function NoteItem({
   const [editing, setEditing] = useState(false);
   const [draft,   setDraft]   = useState(note.content);
 
-  const color = NOTE_TYPE_COLORS[note.noteType] ?? "#64748b";
+  const color = NOTE_TYPE_COLORS[note.noteType] ?? "#6b7280";
 
   async function handleSave() {
     if (!draft.trim()) return;
@@ -106,7 +106,7 @@ function NoteItem({
               <button onClick={handleDelete}
                 disabled={deleteNote.isPending}
                 className="p-1 rounded-lg transition-colors disabled:opacity-40"
-                style={{ color: "#CE6969" }}
+                style={{ color: "#EF4444" }}
                 title="حذف">
                 <Trash2 size={12}/>
               </button>
@@ -125,7 +125,7 @@ function NoteItem({
             <div className="flex gap-2">
               <button onClick={handleSave} disabled={editNote.isPending}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60"
-                style={{ background: "#83A2DB" }}>
+                style={{ background: "#5B5FEF" }}>
                 <Check size={11}/> حفظ
               </button>
               <button onClick={() => setEditing(false)}

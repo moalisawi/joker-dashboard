@@ -174,7 +174,7 @@ export default function MonthlyCalendar({ subscribers }: Props) {
                     <span style={{
                       fontSize: 9, fontWeight: 700, lineHeight: 1,
                       padding: "2px 5px", borderRadius: 5,
-                      background: "rgba(131,162,219,.20)", color: "#4A78C0",
+                      background: "rgba(91,95,239,.20)", color: "#4A78C0",
                     }}>
                       {silver}ف
                     </span>
@@ -183,7 +183,7 @@ export default function MonthlyCalendar({ subscribers }: Props) {
                     <span style={{
                       fontSize: 9, fontWeight: 700, lineHeight: 1,
                       padding: "2px 5px", borderRadius: 5,
-                      background: "rgba(232,181,112,.22)", color: "#9A6A10",
+                      background: "rgba(245,158,11,.22)", color: "#9A6A10",
                     }}>
                       {gold}ذ
                     </span>
@@ -242,10 +242,10 @@ export default function MonthlyCalendar({ subscribers }: Props) {
                   background: "rgba(34,197,94,.08)",
                   border: "1px solid rgba(34,197,94,.20)",
                 }}>
-                  <p style={{ fontSize: "var(--fs-micro)", fontWeight: 700, color: "#83A2DB", letterSpacing: "0.06em", marginBottom: 4 }}>
+                  <p style={{ fontSize: "var(--fs-micro)", fontWeight: 700, color: "#5B5FEF", letterSpacing: "0.06em", marginBottom: 4 }}>
                     إيرادات اليوم
                   </p>
-                  <p style={{ fontSize: "var(--fs-display)", fontWeight: 800, color: "#83A2DB", letterSpacing: "-0.03em", lineHeight: 1.1 }}>
+                  <p style={{ fontSize: "var(--fs-display)", fontWeight: 800, color: "#5B5FEF", letterSpacing: "-0.03em", lineHeight: 1.1 }}>
                     ${formatNumber(dayModal.data.reduce((s, x) => s + x.netAmountUSD, 0), 2)}
                   </p>
                 </div>
@@ -284,7 +284,7 @@ export default function MonthlyCalendar({ subscribers }: Props) {
                       </div>
                       <div style={{
                         width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                        background: "linear-gradient(135deg, #83A2DB, #9DB4D6)",
+                        background: "linear-gradient(135deg, #5B5FEF, #3B82F6)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         color: "#fff", fontSize: 11, fontWeight: 700,
                       }}>

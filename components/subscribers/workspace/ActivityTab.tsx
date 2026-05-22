@@ -17,7 +17,7 @@ import {
   Filter, Clock, User,
 } from "lucide-react";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444", sky:"#3B82F6" };
 const fadeUp = { hidden:{opacity:0,y:8}, show:{opacity:1,y:0} };
 const tran   = { duration:0.25, ease:"easeOut" } as const;
 const stagger = { show:{transition:{staggerChildren:0.03}} };
@@ -136,7 +136,7 @@ export default function ActivityTab({ subscriber: s, canRev }: Props) {
         actor:     n.authorName ?? "",
         title:     `ملاحظة ${NOTE_TYPE_LABELS[n.noteType] ?? ""}`,
         body:      n.content,
-        accent:    NOTE_TYPE_COLORS[n.noteType] ?? "#64748b",
+        accent:    NOTE_TYPE_COLORS[n.noteType] ?? "#6b7280",
         badge:     NOTE_TYPE_LABELS[n.noteType],
       });
     }

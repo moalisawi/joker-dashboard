@@ -13,7 +13,7 @@ import {
   RefreshCw, Target, AlertCircle,
 } from "lucide-react";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444", sky:"#3B82F6" };
 const tran = { duration:0.32, ease:"easeOut" } as const;
 const stagger = { animate:{ transition:{ staggerChildren:0.06 } } };
 const fadeUp = { initial:{ opacity:0, y:14 }, animate:{ opacity:1, y:0, transition:tran } };
@@ -135,7 +135,7 @@ export default function SalesEmployeeDetailPage() {
                     accent={ACC.amber} icon={<DollarSign size={16}/>}/>
                   <Kpi label="الدخل الأولي"
                     value={canRev ? `$${formatNumber(metrics.initialRevenue, 0)}` : "—"}
-                    accent={ACC.sky ?? "#9DB4D6"} icon={<DollarSign size={16}/>}/>
+                    accent={ACC.sky ?? "#3B82F6"} icon={<DollarSign size={16}/>}/>
                   <Kpi label="التجديدات" value={String(metrics.renewals)}
                     accent={ACC.rose} icon={<RefreshCw size={16}/>}/>
                 </div>

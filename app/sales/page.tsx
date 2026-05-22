@@ -13,7 +13,7 @@ import {
   LayoutGrid, List, AlertCircle,
 } from "lucide-react";
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969" };
+const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444" };
 const tran = { duration:0.32, ease:"easeOut" } as const;
 
 function KpiStrip({ label, value, accent, icon }: {
@@ -139,7 +139,7 @@ export default function SalesListPage() {
                   </thead>
                   <tbody>
                     {data.map((m, i) => (
-                      <tr key={m.uid} className="transition-colors hover:bg-[#83A2DB08]"
+                      <tr key={m.uid} className="transition-colors hover:bg-[#5B5FEF08]"
                         style={{ borderBottom:"1px solid var(--divider)" }}>
                         <td className="px-5 py-3 font-black tabular-nums" style={{ color:ACC.indigo }}>
                           {i + 1}
