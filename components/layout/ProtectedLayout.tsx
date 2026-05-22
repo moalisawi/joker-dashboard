@@ -46,10 +46,10 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       <Sidebar />
       <main className="flex-1 overflow-auto min-w-0 flex flex-col">
         <div className="sticky top-0 z-30 px-5 pt-3" style={{
-          background: "rgba(232,234,238,0.72)",
+          background: "rgba(245,247,251,0.80)",
           backdropFilter: "blur(14px)",
           WebkitBackdropFilter: "blur(14px)",
-          borderBottom: "1px solid rgba(255,255,255,0.55)",
+          borderBottom: "1px solid rgba(229,231,235,0.60)",
         }}>
           <TopNav />
         </div>

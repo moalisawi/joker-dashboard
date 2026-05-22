@@ -1,14 +1,14 @@
 /**
- * Single source of truth for subscriber status colors — Silver Edition palette.
+ * Single source of truth for subscriber status colors — DESIGN.md palette.
  * All pages and charts must import from here.
  */
 
 export const STATUS_COLORS = {
-  active:    { color: "#83A2DB", bg: "rgba(131,162,219,.14)", border: "rgba(131,162,219,.32)" },
-  expired:   { color: "#CE6969", bg: "rgba(206,105,105,.12)", border: "rgba(206,105,105,.30)" },
-  paused:    { color: "#E8B570", bg: "rgba(232,181,112,.14)", border: "rgba(232,181,112,.32)" },
-  frozen:    { color: "#9DB4D6", bg: "rgba(157,180,214,.14)", border: "rgba(157,180,214,.30)" },
-  withdrawn: { color: "#94A3B8", bg: "rgba(148,163,184,.14)", border: "rgba(148,163,184,.30)" },
+  active:    { color: "#22C55E", bg: "#ECFDF3",  border: "rgba(34,197,94,0.30)"   },
+  expired:   { color: "#EF4444", bg: "#FEF2F2",  border: "rgba(239,68,68,0.30)"   },
+  paused:    { color: "#F59E0B", bg: "#FFFBEB",  border: "rgba(245,158,11,0.30)"  },
+  frozen:    { color: "#3B82F6", bg: "#EFF6FF",  border: "rgba(59,130,246,0.30)"  },
+  withdrawn: { color: "#9CA3AF", bg: "#F1F5F9",  border: "rgba(156,163,175,0.30)" },
 } as const;
 
 /** الترتيب الثابت في الـ donut / pie charts */
@@ -20,15 +20,16 @@ export const SUBSCRIBER_STATUS_CHART_COLORS = [
   STATUS_COLORS.withdrawn.color, // مسحوب
 ] as const;
 
-/** ألوان عامة للـ charts بدون تكرار خارج الـ palette */
+/** ألوان عامة للـ charts — DESIGN.md palette */
 export const CHART_PALETTE = [
-  "#83A2DB", // accent blue
-  "#CE6969", // danger red
-  "#E8B570", // warn amber
-  "#9DB4D6", // frozen blue
-  "#94A3B8", // withdrawn gray
-  "#64748B", // muted slate
-  "#10141A", // primary dark
+  "#5B5FEF", // primary blue
+  "#22C55E", // success green
+  "#F59E0B", // warning amber
+  "#EF4444", // danger red
+  "#8B5CF6", // purple
+  "#06B6D4", // cyan
+  "#3B82F6", // info blue
+  "#9CA3AF", // muted gray
 ] as const;
 
 export function getStatusColor(status: string) {

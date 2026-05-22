@@ -68,9 +68,9 @@ export default function LoginPage() {
           <div
             className="inline-flex items-center justify-center w-16 h-16 mb-4"
             style={{
-              background: "#10141A",
+              background: "#5B5FEF",
               borderRadius: 18,
-              boxShadow: "var(--jk-shadow-logo)",
+              boxShadow: "0 6px 16px rgba(91,95,239,0.30)",
             }}
           >
             <span className="text-white font-black text-2xl">ج</span>
@@ -83,10 +83,10 @@ export default function LoginPage() {
         <div
           className="p-8"
           style={{
-            background: "var(--jk-surface)",
+            background: "#FFFFFF",
             borderRadius: 28,
-            boxShadow: "var(--jk-shadow-modal)",
-            border: "1px solid var(--jk-border)",
+            boxShadow: "0px 10px 30px rgba(15,23,42,0.08)",
+            border: "1px solid #EEF2F7",
           }}
         >
           <h2 className="text-lg font-bold mb-6 text-center" style={{ color: "var(--text-primary)" }}>تسجيل الدخول</h2>

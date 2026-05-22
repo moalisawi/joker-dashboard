@@ -49,7 +49,7 @@ const LT = {
   shadow:  "var(--jk-shadow-card)",
 };
 
-const ACC = { indigo:"#83A2DB", emerald:"#83A2DB", amber:"#E8B570", rose:"#CE6969", sky:"#9DB4D6" };
+const ACC = { indigo:"#5B5FEF", emerald:"#22C55E", amber:"#F59E0B", rose:"#EF4444", sky:"#3B82F6" };
 const tran = { duration:0.36, ease:"easeOut" } as const;
 
 function initials(name: string) {

@@ -46,22 +46,22 @@ export default function TopNav() {
 
   const iconBtn: React.CSSProperties = {
     width: 40, height: 40, borderRadius: "50%",
-    background: "var(--jk-surface)",
-    border: "1px solid var(--jk-border-strong)",
-    color: "var(--jk-text)", cursor: "pointer",
+    background: "#FFFFFF",
+    border: "1px solid #E5E7EB",
+    color: "#6B7280", cursor: "pointer",
     display: "flex", alignItems: "center", justifyContent: "center",
     position: "relative",
-    boxShadow: "var(--jk-shadow-flat)",
+    boxShadow: "0 1px 3px rgba(15,23,42,0.04)",
     transition: "all .15s ease",
     flexShrink: 0,
   } as React.CSSProperties;
 
   const iconBtnActive: React.CSSProperties = {
     ...iconBtn,
-    background: "#10141A",
+    background: "#5B5FEF",
     color: "#fff",
-    borderColor: "#10141A",
-    boxShadow: "var(--jk-shadow-nav)",
+    borderColor: "#5B5FEF",
+    boxShadow: "0 6px 16px rgba(91,95,239,0.30)",
   };
 
   return (
@@ -75,16 +75,16 @@ export default function TopNav() {
       <div style={{ display: "flex", alignItems: "center", gap: 10, paddingInlineEnd: 16, flexShrink: 0 }}>
         <div style={{
           width: 34, height: 34, borderRadius: 10,
-          background: "#10141A",
+          background: "#5B5FEF",
           display: "flex", alignItems: "center", justifyContent: "center",
           color: "#fff", fontSize: 18, fontWeight: 800,
           fontFamily: "inherit",
-          boxShadow: "var(--jk-shadow-logo)",
+          boxShadow: "0 6px 16px rgba(91,95,239,0.30)",
           flexShrink: 0,
         }}>ج</div>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "var(--jk-text)", letterSpacing: "-0.01em", lineHeight: 1 }}>نظام الجوكر</div>
-          <div style={{ fontSize: 10.5, color: "var(--jk-muted)", marginTop: 2 }}>إدارة المبيعات</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", letterSpacing: "-0.01em", lineHeight: 1 }}>نظام الجوكر</div>
+          <div style={{ fontSize: 10.5, color: "#6B7280", marginTop: 2 }}>إدارة المبيعات</div>
         </div>
       </div>
 
@@ -103,10 +103,10 @@ export default function TopNav() {
               style={{
                 padding: "10px 22px",
                 borderRadius: 999,
-                background: active ? "#10141A" : "transparent",
-                color: active ? "#fff" : "var(--jk-muted)",
+                background: active ? "#5B5FEF" : "transparent",
+                color: active ? "#fff" : "#6B7280",
                 fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
-                boxShadow: active ? "var(--jk-shadow-nav)" : "none",
+                boxShadow: active ? "0 6px 16px rgba(91,95,239,0.30)" : "none",
                 transition: "all .15s ease",
                 textDecoration: "none",
                 display: "inline-block",

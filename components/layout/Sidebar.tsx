@@ -80,11 +80,11 @@ export default function Sidebar() {
       {/* Logo */}
       <div style={{
         width: 48, height: 48, borderRadius: 14,
-        background: "#10141A",
+        background: "#5B5FEF",
         display: "flex", alignItems: "center", justifyContent: "center",
         color: "#fff", fontSize: 22, fontWeight: 800,
         fontFamily: "inherit",
-        boxShadow: "var(--jk-shadow-logo)",
+        boxShadow: "0 6px 16px rgba(91,95,239,0.30)",
         marginBottom: 4, flexShrink: 0,
         userSelect: "none",
       }}>ج</div>
@@ -116,11 +116,11 @@ export default function Sidebar() {
               title={item.label}
               style={{
                 width: 42, height: 42, borderRadius: "50%",
-                background: active ? "#10141A" : "transparent",
-                color: active ? "#fff" : "#10141A",
+                background: active ? "#5B5FEF" : "transparent",
+                color: active ? "#fff" : "#111827",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 position: "relative", flexShrink: 0,
-                boxShadow: active ? "var(--jk-shadow-nav)" : "none",
+                boxShadow: active ? "0 6px 16px rgba(91,95,239,0.30)" : "none",
                 transition: "all .15s ease",
               }}
               onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(16,20,26,.06)"; }}
@@ -170,7 +170,7 @@ export default function Sidebar() {
       <button
         onClick={() => setOpen(true)}
         className="fixed top-4 right-4 z-50 md:hidden p-2 text-white shadow-lg"
-        style={{ background: "#10141A", borderRadius: 999, boxShadow: "var(--jk-shadow-nav)" }}
+        style={{ background: "#5B5FEF", borderRadius: 999, boxShadow: "0 6px 16px rgba(91,95,239,0.30)" }}
       >
         <Menu size={20} />
       </button>
@@ -193,7 +193,7 @@ export default function Sidebar() {
           <button
             onClick={() => setOpen(false)}
             className="absolute top-4 left-4 z-10 p-1"
-            style={{ color: "#10141A" }}
+            style={{ color: "#111827" }}
           >
             <X size={20} />
           </button>

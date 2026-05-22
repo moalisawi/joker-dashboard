@@ -26,12 +26,12 @@ import type { Subscriber } from "@/types";
 type StatusKey = "الكل" | "نشط" | "ينتهي قريباً" | "منتهي" | "موقوف" | "متجمد" | "منسحب";
 
 const STATUS_META: Record<Exclude<StatusKey, "الكل">, { color: string; bg: string }> = {
-  "نشط":          { color: "#83A2DB", bg: "rgba(131,162,219,.15)" },
-  "ينتهي قريباً": { color: "#E8B570", bg: "rgba(232,181,112,.15)" },
-  "منتهي":        { color: "#CE6969", bg: "rgba(206,105,105,.15)" },
-  "موقوف":        { color: "#E8B570", bg: "rgba(232,181,112,.15)"  },
-  "متجمد":        { color: "#9DB4D6", bg: "rgba(157,180,214,.15)" },
-  "منسحب":        { color: "#94a3b8", bg: "rgba(148,163,184,.15)" },
+  "نشط":          { color: "#22C55E", bg: "#ECFDF3" },
+  "ينتهي قريباً": { color: "#D97706", bg: "#FFFBEB" },
+  "منتهي":        { color: "#EF4444", bg: "#FEF2F2" },
+  "موقوف":        { color: "#D97706", bg: "#FFFBEB" },
+  "متجمد":        { color: "#3B82F6", bg: "#EFF6FF" },
+  "منسحب":        { color: "#9CA3AF", bg: "#F1F5F9" },
 };
 
 function getDisplayStatus(s: Subscriber): Exclude<StatusKey, "الكل"> {
@@ -44,7 +44,7 @@ function getDisplayStatus(s: Subscriber): Exclude<StatusKey, "الكل"> {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 function Avatar({ name }: { name: string }) {
   const chars = name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "؟";
-  const palette = ["#83A2DB","#E8B570","#CE6969","#9DB4D6","#10b981","#8b5cf6","#f59e0b"];
+  const palette = ["#5B5FEF","#22C55E","#EF4444","#3B82F6","#F59E0B","#8B5CF6","#06B6D4"];
   const c = palette[(name.charCodeAt(0) || 0) % palette.length];
   return (
     <span style={{
@@ -373,9 +373,9 @@ export default function SubscribersPage() {
                               <span style={{
                                 position: "absolute", bottom: 0, insetInlineEnd: 0,
                                 width: 9, height: 9, borderRadius: "50%", border: "1.5px solid var(--surface)",
-                                background: isFrozen ? "#9DB4D6" : isPaused ? "#E8B570"
-                                  : isWithdrawn ? "#94a3b8" : s.daysRemaining <= 0 ? "#CE6969"
-                                  : s.daysRemaining <= 7 ? "#E8B570" : "#22c55e",
+                                background: isFrozen ? "#3B82F6" : isPaused ? "#F59E0B"
+                                  : isWithdrawn ? "#9CA3AF" : s.daysRemaining <= 0 ? "#EF4444"
+                                  : s.daysRemaining <= 7 ? "#F59E0B" : "#22C55E",
                               }} />
                             </div>
                             <div>
@@ -422,7 +422,7 @@ export default function SubscribersPage() {
                             <span style={{
                               display: "inline-flex", alignItems: "center", justifyContent: "center",
                               width: 30, height: 30, borderRadius: "50%",
-                              background: "rgba(131,162,219,.15)", color: "#83A2DB",
+                              background: "#EEF0FF", color: "#5B5FEF",
                               fontSize: 12, fontWeight: 700,
                             }} title={s.convincedBy}>
                               {s.convincedBy.charAt(0)}
@@ -451,7 +451,7 @@ export default function SubscribersPage() {
 
                             {/* تجميد / استئناف تجميد */}
                             {can("canEdit") && (isFrozen
-                              ? <Btn title="استئناف الاشتراك" color="#9DB4D6"
+                              ? <Btn title="استئناف الاشتراك" color="#3B82F6"
                                   icon={<Play size={13} />} onClick={() => open("resume", s)} />
                               : isActive && <Btn title="تجميد" icon={<Snowflake size={13} />}
                                   onClick={() => open("freeze", s)} />
@@ -469,11 +469,11 @@ export default function SubscribersPage() {
                             )}
 
                             {can("canWithdraw") && isActive && (
-                              <Btn title="انسحاب" color="#CE6969"
+                              <Btn title="انسحاب" color="#EF4444"
                                 icon={<UserMinus size={13} />} onClick={() => open("withdraw", s)} />
                             )}
                             {can("canDelete") && (
-                              <Btn title="حذف" color="#CE6969"
+                              <Btn title="حذف" color="#EF4444"
                                 icon={<Trash2 size={13} />}
                                 loading={loadingId === `delete-${s.id}`}
                                 disabled={loadingId !== null}
