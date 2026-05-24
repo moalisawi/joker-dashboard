@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { logSessionLogout } from "@/lib/sessionLogger";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Users, ScrollText, LogOut, Menu, X,
   BarChart3, Bell, Briefcase, Users2, FileText, BookOpen, Shield, CreditCard,
@@ -25,7 +26,8 @@ interface NavItem {
 
 interface TooltipState {
   label: string;
-  y: number;
+  icon:  React.ReactNode;
+  y:     number;
 }
 
 export default function Sidebar() {
@@ -70,9 +72,9 @@ export default function Sidebar() {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
-  function showTooltip(e: React.MouseEvent, label: string) {
+  function showTooltip(e: React.MouseEvent, label: string, icon: React.ReactNode) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setTooltip({ label, y: rect.top + rect.height / 2 });
+    setTooltip({ label, icon, y: rect.top + rect.height / 2 });
   }
 
   const railContent = (
@@ -85,32 +87,40 @@ export default function Sidebar() {
       gap: 14,
       flexShrink: 0,
       height: "100%",
-      background: "var(--bg-sidebar)",
+      background: "transparent",
     }}>
 
       {/* Logo */}
-      <div style={{
-        width: 48, height: 48, borderRadius: 14,
-        background: "#5B5FEF",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: "#fff", fontSize: 22, fontWeight: 800,
-        fontFamily: "inherit",
-        boxShadow: "0 6px 16px rgba(91,95,239,0.30)",
-        marginBottom: 4, flexShrink: 0,
-        userSelect: "none",
-      }}>ج</div>
+      <motion.div
+        whileHover={{ scale: 1.08, rotate: 3 }}
+        whileTap={{ scale: 0.95 }}
+        transition={{ type: "spring", stiffness: 400, damping: 20 }}
+        style={{
+          width: 46, height: 46, borderRadius: 14,
+          background: "linear-gradient(135deg, #5B5FEF, #4338CA)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontSize: 21, fontWeight: 800,
+          fontFamily: "inherit",
+          boxShadow: "0 6px 20px rgba(91,95,239,0.38)",
+          marginBottom: 4, flexShrink: 0,
+          userSelect: "none",
+          cursor: "pointer",
+        }}
+      >
+        ج
+      </motion.div>
 
       {/* Nav pill */}
       <div style={{
         flex: 1,
-        display: "flex", flexDirection: "column", gap: 8,
-        padding: "14px 0", alignItems: "center",
-        background: "rgba(255,255,255,.60)",
-        backdropFilter: "blur(12px) saturate(1.4)",
-        WebkitBackdropFilter: "blur(12px) saturate(1.4)",
-        border: "1px solid rgba(255,255,255,.75)",
+        display: "flex", flexDirection: "column", gap: 6,
+        padding: "12px 0", alignItems: "center",
+        background: "rgba(255,255,255,0.62)",
+        backdropFilter: "blur(16px) saturate(1.6)",
+        WebkitBackdropFilter: "blur(16px) saturate(1.6)",
+        border: "1px solid rgba(255,255,255,0.78)",
         borderRadius: 999,
-        boxShadow: "0 2px 8px rgba(16,20,26,.06), 0 1px 2px rgba(16,20,26,.04)",
+        boxShadow: "0 2px 12px rgba(16,20,26,.07), 0 1px 3px rgba(16,20,26,.04)",
         width: 56,
         overflowY: "auto",
         overflowX: "visible",
@@ -125,100 +135,154 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              onMouseEnter={(e) => {
-                if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(16,20,26,.06)";
-                showTooltip(e, item.label);
-              }}
-              onMouseLeave={(e) => {
-                if (!active) (e.currentTarget as HTMLElement).style.background = "transparent";
-                setTooltip(null);
-              }}
+              onMouseEnter={(e) => showTooltip(e, item.label, item.icon)}
+              onMouseLeave={() => setTooltip(null)}
               style={{
-                width: 42, height: 42, borderRadius: "50%",
-                background: active ? "#5B5FEF" : "transparent",
-                color: active ? "#fff" : "#111827",
+                width: 40, height: 40, borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 position: "relative", flexShrink: 0,
-                boxShadow: active ? "0 6px 16px rgba(91,95,239,0.30)" : "none",
-                transition: "all .15s ease",
+                color: active ? "#fff" : "#6B7280",
+                textDecoration: "none",
+                transition: "color .15s ease",
               }}
             >
-              {item.icon}
+              {/* Active background */}
+              {active && (
+                <motion.span
+                  layoutId="sidebar-active"
+                  style={{
+                    position: "absolute", inset: 0, borderRadius: "50%",
+                    background: "linear-gradient(135deg, #5B5FEF, #4338CA)",
+                    boxShadow: "0 4px 14px rgba(91,95,239,0.38)",
+                  }}
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                />
+              )}
+
+              {/* Hover background */}
+              {!active && (
+                <motion.span
+                  className="sidebar-hover-bg"
+                  whileHover={{ opacity: 1 }}
+                  initial={{ opacity: 0 }}
+                  style={{
+                    position: "absolute", inset: 0, borderRadius: "50%",
+                    background: "rgba(91,95,239,0.09)",
+                  }}
+                />
+              )}
+
+              <span style={{ position: "relative", zIndex: 1, display: "flex" }}>
+                {item.icon}
+              </span>
+
               {badgeCount > 0 && (
-                <span style={{
-                  position: "absolute", top: 5, insetInlineEnd: 5,
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: "#EF4444",
-                  boxShadow: "0 0 0 2px rgba(232,234,238,.9)",
-                }} />
+                <span style={{ position: "absolute", top: 4, insetInlineEnd: 4, zIndex: 2 }}>
+                  <motion.span
+                    style={{
+                      position: "absolute", inset: -2, borderRadius: "50%",
+                      background: "#EF4444", display: "block",
+                    }}
+                    animate={{ scale: [1, 2.4, 2.4], opacity: [0.5, 0, 0] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeOut", times: [0, 0.55, 1] }}
+                  />
+                  <span style={{
+                    display: "block", width: 8, height: 8, borderRadius: "50%",
+                    background: "#EF4444",
+                    boxShadow: "0 0 0 2px rgba(232,234,238,.95)",
+                    position: "relative",
+                  }} />
+                </span>
               )}
             </Link>
           );
         })}
       </div>
 
-      {/* Bottom: logout */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
-        <button
-          onClick={handleLogout}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,.10)";
-            showTooltip(e, "تسجيل الخروج");
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.55)";
-            setTooltip(null);
-          }}
-          style={{
-            width: 42, height: 42, borderRadius: "50%",
-            background: "rgba(255,255,255,.55)",
-            border: "1px solid rgba(255,255,255,.75)",
-            color: "#EF4444", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all .15s ease",
-            boxShadow: "0 1px 3px rgba(16,20,26,.08)",
-          }}
-        >
-          <LogOut size={16} />
-        </button>
-      </div>
+      {/* Logout */}
+      <motion.button
+        onClick={handleLogout}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.92 }}
+        onMouseEnter={(e) => showTooltip(e, "تسجيل الخروج", <LogOut size={16} />)}
+        onMouseLeave={() => setTooltip(null)}
+        style={{
+          width: 40, height: 40, borderRadius: "50%",
+          background: "rgba(239,68,68,0.08)",
+          border: "1px solid rgba(239,68,68,0.18)",
+          color: "#EF4444", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "all .15s ease",
+        }}
+      >
+        <LogOut size={16} />
+      </motion.button>
 
-      {/* Tooltip — fixed position to avoid overflow clipping */}
-      {tooltip && (
-        <div
-          style={{
-            position: "fixed",
-            right: 88,
-            top: tooltip.y,
-            transform: "translateY(-50%)",
-            background: "#111827",
-            color: "#fff",
-            padding: "6px 12px",
-            borderRadius: 10,
-            fontSize: 12,
-            fontWeight: 700,
-            whiteSpace: "nowrap",
-            zIndex: 9999,
-            pointerEvents: "none",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
-            fontFamily: "var(--font-cairo)",
-            letterSpacing: "0.01em",
-          }}
-        >
-          {tooltip.label}
-          {/* Arrow pointing right toward sidebar */}
-          <span style={{
-            position: "absolute",
-            right: -6,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: 0, height: 0,
-            borderTop: "5px solid transparent",
-            borderBottom: "5px solid transparent",
-            borderLeft: "6px solid #111827",
-          }} />
-        </div>
-      )}
+      {/* Premium hover tooltip panel */}
+      <AnimatePresence>
+        {tooltip && (
+          <motion.div
+            initial={{ opacity: 0, x: -6, scale: 0.96 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: -4, scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 500, damping: 28, mass: 0.6 }}
+            style={{
+              position: "fixed",
+              right: 90,
+              top: tooltip.y,
+              transform: "translateY(-50%)",
+              zIndex: 9999,
+              pointerEvents: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 0,
+            }}
+          >
+            {/* Arrow */}
+            <span style={{
+              width: 0, height: 0,
+              borderTop: "6px solid transparent",
+              borderBottom: "6px solid transparent",
+              borderLeft: "7px solid rgba(255,255,255,0.97)",
+              filter: "drop-shadow(1px 0 2px rgba(0,0,0,0.06))",
+              flexShrink: 0,
+            }} />
+            {/* Panel */}
+            <div style={{
+              background: "rgba(255,255,255,0.97)",
+              backdropFilter: "blur(20px) saturate(1.8)",
+              WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+              border: "1px solid rgba(229,231,235,0.9)",
+              borderRadius: 12,
+              padding: "9px 14px 9px 12px",
+              boxShadow: "0 8px 32px rgba(15,23,42,0.14), 0 2px 8px rgba(15,23,42,0.06)",
+              display: "flex",
+              alignItems: "center",
+              gap: 9,
+              whiteSpace: "nowrap",
+              fontFamily: "var(--font-cairo)",
+            }}>
+              <span style={{
+                width: 30, height: 30, borderRadius: "50%",
+                background: "rgba(91,95,239,0.10)",
+                border: "1px solid rgba(91,95,239,0.18)",
+                color: "#5B5FEF",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                {tooltip.icon}
+              </span>
+              <span style={{
+                fontSize: 13, fontWeight: 700,
+                color: "#111827",
+                letterSpacing: "0.005em",
+              }}>
+                {tooltip.label}
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </aside>
   );
 
@@ -228,36 +292,52 @@ export default function Sidebar() {
       <button
         onClick={() => setOpen(true)}
         className="fixed top-4 right-4 z-50 md:hidden p-2 text-white shadow-lg"
-        style={{ background: "#5B5FEF", borderRadius: 999, boxShadow: "0 6px 16px rgba(91,95,239,0.30)" }}
+        style={{
+          background: "linear-gradient(135deg, #5B5FEF, #4338CA)",
+          borderRadius: 999,
+          boxShadow: "0 6px 16px rgba(91,95,239,0.38)",
+        }}
       >
         <Menu size={20} />
       </button>
 
       {/* Mobile overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Mobile sidebar */}
-      <div
-        className={`fixed right-0 top-0 h-full z-50 md:hidden transition-transform duration-300 ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="relative h-full">
-          <button
-            onClick={() => setOpen(false)}
-            className="absolute top-4 left-4 z-10 p-1"
-            style={{ color: "#111827" }}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 380, damping: 32 }}
+            className="fixed right-0 top-0 h-full z-50 md:hidden"
           >
-            <X size={20} />
-          </button>
-          {railContent}
-        </div>
-      </div>
+            <div className="relative h-full">
+              <button
+                onClick={() => setOpen(false)}
+                className="absolute top-4 left-4 z-10 p-1"
+                style={{ color: "#111827" }}
+              >
+                <X size={20} />
+              </button>
+              {railContent}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Desktop sidebar */}
       <div className="hidden md:block h-screen sticky top-0 flex-shrink-0">

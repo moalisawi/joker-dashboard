@@ -5,6 +5,7 @@ import "./globals.css";
 import ThemeProvider from "@/components/layout/ThemeProvider";
 import QueryProvider from "@/components/layout/QueryProvider";
 import AuthProvider from "@/components/layout/AuthProvider";
+import NavigationProgress from "@/components/ui/NavigationProgress";
 import { Toaster } from "sonner";
 
 const cairo = Cairo({
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" className={cairo.variable} data-scroll-behavior="smooth">
       <body className="min-h-screen">
         <QueryProvider>
+          <NavigationProgress />
           <AuthProvider />
           <ThemeProvider>{children}</ThemeProvider>
           <Toaster

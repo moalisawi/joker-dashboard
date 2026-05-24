@@ -1,18 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node_modules/.bin/eslint --version)",
-      "Bash(firebase apps:list --project joker-prod)",
-      "Bash(firebase apps:create WEB \"joker-dashboard\" --project joker-prod)",
-      "Bash(firebase deploy *)",
-      "Bash(firebase functions:artifacts:setpolicy --project joker-prod)",
-      "Bash(gcloud --version)",
-      "Bash(firebase login:list *)",
-      "Read(//c/Users/zorom/AppData/Local/firebase-tools\" 2>/dev/**)",
-      "Read(//c/Users/zorom/AppData/Roaming/firebase-tools\" 2>/dev/**)",
-      "Read(//c/Users/zorom/.config/**)",
-      "Read(//c/Users/zorom/AppData/Local/**)",
-      "Bash(node auto-migrate.js)"
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(node -e ' *)",
+      "Bash(python -c \"import json,sys; pkg=json.load\\(sys.stdin\\); print\\(list\\(pkg.get\\('exports', {}\\).keys\\(\\)\\)[:10]\\)\")",
+      "Bash(npx eslint *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\zorom\\\\Documents\\\\Codex\\\\2026-05-03\\\\doctype-html-html-lang-ar-dir\\\\joker-dashboard\" -Recurse -Name -Include \"firestore.rules\", \"firestore.indexes.json\", \"constants.ts\", \"collections.ts\")",
+      "Bash(Select-Object -First 20)",
+      "Bash(xargs grep -ln \"subscriberAssignments\\\\|SUBSCRIBER_ASSIGNMENTS\")",
+      "Bash(xargs grep -l \"sanitize\\\\|escapeHtml\\\\|xss\")",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(git reset *)",
+      "Bash(git commit -m ' *)",
+      "Bash(Select-Object Name, BaseName)",
+      "PowerShell($path = \"app\\\\\\(pages\\)\\\\whatsapp-leads\\\\page.tsx\"; $bytes = [System.IO.File]::ReadAllBytes\\($path\\); $mojibake = [System.Text.Encoding]::UTF8.GetString\\($bytes\\); $fixed = [System.Text.Encoding]::GetEncoding\\(1252\\).GetBytes\\($mojibake\\); [System.IO.File]::WriteAllBytes\\($path, $fixed\\); Get-Content $path -TotalCount 5 | Select-Object -Skip 0; Write-Output \"---line 202---\"; \\(Get-Content $path\\)[201])",
+      "PowerShell($files = @\\(\"app\\\\page.tsx\",\"app\\\\admin\\\\employees\\\\page.tsx\",\"app\\\\admin\\\\teams\\\\page.tsx\",\"app\\\\analytics\\\\page.tsx\",\"app\\\\guide\\\\page.tsx\",\"app\\\\leaderboards\\\\page.tsx\",\"app\\\\login\\\\page.tsx\",\"app\\\\logs\\\\page.tsx\",\"app\\\\notifications\\\\page.tsx\",\"app\\\\payment-methods\\\\page.tsx\",\"app\\\\reports\\\\page.tsx\",\"app\\\\sales\\\\page.tsx\",\"app\\\\sessions\\\\page.tsx\",\"app\\\\users\\\\page.tsx\"\\); foreach \\($p in $files\\) { if \\(Test-Path $p\\) { $bytes = [System.IO.File]::ReadAllBytes\\($p\\); $mojibake = [System.Text.Encoding]::UTF8.GetString\\($bytes\\); $fixed = [System.Text.Encoding]::GetEncoding\\(1252\\).GetBytes\\($mojibake\\); [System.IO.File]::WriteAllBytes\\($p, $fixed\\); Write-Output \\(\"fixed: \" + $p\\) } else { Write-Output \\(\"MISSING: \" + $p\\) } })",
+      "PowerShell($path = \"app\\\\notifications\\\\page.tsx\"; $bytes = [System.IO.File]::ReadAllBytes\\($path\\); Write-Output \\(\"First 6 bytes \\(hex\\): \" + \\($bytes[0..5] | ForEach-Object { $_.ToString\\('X2'\\) }\\) -join \" \"\\))",
+      "Bash(cp app/login/page.tsx /tmp/login-backup.tsx)",
+      "Bash(node scripts/fix-mojibake.js app/login/page.tsx)",
+      "Bash(node -e \"const s = require\\('fs'\\).readFileSync\\('scripts/fix-mojibake.js','utf8'\\); const m = s.match\\(/MOJI_RE = \\(.+\\)/\\); console.log\\(JSON.stringify\\(m[1]\\)\\); console.log\\('cps:', [...m[1]].map\\(c=>c.codePointAt\\(0\\).toString\\(16\\)\\).join\\(' '\\)\\);\")",
+      "PowerShell($files = @\\(\"app\\\\\\(pages\\)\\\\whatsapp-leads\\\\page.tsx\",\"app\\\\page.tsx\",\"app\\\\admin\\\\employees\\\\page.tsx\",\"app\\\\admin\\\\teams\\\\page.tsx\",\"app\\\\analytics\\\\page.tsx\",\"app\\\\guide\\\\page.tsx\",\"app\\\\leaderboards\\\\page.tsx\",\"app\\\\login\\\\page.tsx\",\"app\\\\logs\\\\page.tsx\",\"app\\\\notifications\\\\page.tsx\",\"app\\\\payment-methods\\\\page.tsx\",\"app\\\\reports\\\\page.tsx\",\"app\\\\sales\\\\page.tsx\",\"app\\\\sessions\\\\page.tsx\",\"app\\\\users\\\\page.tsx\"\\); foreach \\($p in $files\\) { $bytes = [System.IO.File]::ReadAllBytes\\($p\\); if \\($bytes[0] -eq 0x3F\\) { $trimmed = $bytes[1..\\($bytes.Length - 1\\)]; [System.IO.File]::WriteAllBytes\\($p, $trimmed\\); Write-Output \\(\"stripped leading ?: \" + $p\\) } else { Write-Output \\(\"ok: \" + $p\\) } })"
     ]
   }
 }

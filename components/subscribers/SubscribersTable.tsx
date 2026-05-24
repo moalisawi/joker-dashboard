@@ -292,15 +292,15 @@ export default function SubscribersTable({
                   <td className="hidden sm:table-cell px-4 py-3.5 text-xs" style={{ color: "var(--text-muted)" }}>{i + 1}</td>
                   <td className="hidden sm:table-cell px-4 py-3.5 text-xs whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{formatDate(s.date)}</td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
-                    <Link href={`/subscribers/${s.id}`} className="flex items-center gap-2.5 group">
+                    <button onClick={() => onProfile(s)} className="flex items-center gap-2.5 group" style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                       <span className="h-8 w-8 shrink-0 flex items-center justify-center rounded-xl text-[10px] font-black text-white"
-                        style={{ background: "linear-gradient(135deg,#1E2332,#0B1020)", boxShadow: "0 2px 6px rgba(16,20,26,.18)", letterSpacing: "0.04em" }}>
+                        style={{ background: "linear-gradient(135deg,#5B5FEF,#4338CA)", boxShadow: "0 2px 6px rgba(91,95,239,.28)", letterSpacing: "0.04em" }}>
                         {(s.name || "؟").split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
                       </span>
-                      <span className="text-sm font-semibold group-hover:text-blue-500 transition-colors" style={{ color: "var(--text-primary)" }}>
+                      <span className="text-sm font-semibold group-hover:text-indigo-500 transition-colors" style={{ color: "var(--text-primary)" }}>
                         {s.name || "-"}
                       </span>
-                    </Link>
+                    </button>
                   </td>
                   <td className="hidden lg:table-cell px-4 py-3.5 text-xs font-mono whitespace-nowrap" style={{ color: "var(--text-secondary)" }} dir="ltr">
                     {s.dialCode} {s.phone}

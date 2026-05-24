@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CHART_PALETTE, STATUS_COLORS } from "@/lib/statusColors";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
 } from "recharts";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import PageHeader from "@/components/layout/PageHeader";
 import { useSubscribers } from "@/hooks/useSubscribers";
@@ -16,75 +15,55 @@ import { formatNumber, ARABIC_MONTHS, RESIDENCE_COUNTRIES, PHONE_COUNTRIES } fro
 import { useTeams } from "@/hooks/useTeams";
 import Link from "next/link";
 import {
-  Users, DollarSign, TrendingUp, CreditCard,
-  RefreshCw, ArrowUpRight, Activity, Zap,
-  Medal, Lightbulb, AlertTriangle, CheckCircle2, Info, XCircle,
-  Download,
+  Users, DollarSign, TrendingUp, TrendingDown,
+  ArrowUpRight, ArrowDownRight, Activity, Zap, Medal, Lightbulb,
+  AlertTriangle, CheckCircle2, Info, XCircle, Download,
+  UserMinus, Target, BarChart2, Sparkles, Crown, Star,
+  CreditCard, Globe, Radio, Eye,
 } from "lucide-react";
 import { useEmployeePerformance } from "@/hooks/useEmployeePerformance";
-import { useDashboardMetrics }    from "@/hooks/useDashboardMetrics";
-import { useRefunds }             from "@/hooks/useRefunds";
-import { canExportReports }       from "@/lib/permissionGuards";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useRefunds } from "@/hooks/useRefunds";
+import { canExportReports } from "@/lib/permissionGuards";
 import {
   exportSubscribersCSV, exportPaymentsCSV, exportEmployeePerformanceCSV,
   exportSubscribersByMonthCSV,
 } from "@/lib/analytics/reports";
 import type { Insight } from "@/lib/analytics/insights";
+import { retentionRate, calculateChurnRate, monthlyAcquisitionTrend } from "@/lib/analytics/calculations";
 
-// ── Premium Analytics Palette ─────────────────────────────────────────────────
-const P = {
-  bg:         "#F5F7FB",
-  card:       "#FFFFFF",
-  border:     "#E5E7EB",
-  divider:    "#F3F4F6",
-  primary:    "#5B5FEF",
-  primarySoft:"#818CF8",
-  darkCard1:  "#0B1020",
-  darkCard2:  "#1A2745",
-  textMain:   "#111827",
-  textMuted:  "#6B7280",
-  success:    "#22C55E",
-  warning:    "#F59E0B",
-  danger:     "#EF4444",
-  grid:       "#F3F4F6",
-  tick:       "#9CA3AF",
-};
+/* ─────────────────────────────────────────────────────────────────────
+   CONSTANTS
+   ───────────────────────────────────────────────────────────────────── */
+const C = {
+  primary: "#5B5FEF",
+  success: "#22C55E",
+  warning: "#F59E0B",
+  danger:  "#EF4444",
+  purple:  "#8B5CF6",
+  cyan:    "#06B6D4",
+  dark1:   "#080E1C",
+  dark2:   "#111C35",
+  dark3:   "#0F1E40",
+  tick:    "#94A3B8",
+  grid:    "#F1F5F9",
+} as const;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _LIGHT = {}; // kept for compatibility — use P instead
-const t = { textPri: P.textMain, textSec: P.textMuted, divider: P.border, grid: P.grid, tick: P.tick };
+const PALETTE = [C.primary, C.success, C.warning, C.purple, C.cyan, C.danger, "#F97316", "#818CF8"];
 
-const CHART_COLORS = [
-  "#5B5FEF","#22C55E","#F59E0B","#EF4444",
-  "#8B5CF6","#06B6D4","#F97316","#818CF8",
-];
+/* ─────────────────────────────────────────────────────────────────────
+   ANIMATION PRESETS
+   ───────────────────────────────────────────────────────────────────── */
+const fadeUp   = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { duration: 0.40, ease: [0.25, 0.46, 0.45, 0.94] as [number,number,number,number] } } };
+const fadeIn   = { hidden: { opacity: 0        }, show: { opacity: 1,     transition: { duration: 0.30 } } };
+const stagger  = { show: { transition: { staggerChildren: 0.06 } } };
+const stagger2 = { show: { transition: { staggerChildren: 0.10 } } };
+const spring   = { type: "spring", stiffness: 400, damping: 28 } as const;
+const fast     = { duration: 0.16, ease: "easeOut" } as const;
 
-const ACC = {
-  indigo:  "#5B5FEF",
-  emerald: "#22C55E",
-  sky:     "#06B6D4",
-  amber:   "#F59E0B",
-  violet:  "#8B5CF6",
-  rose:    "#EF4444",
-  teal:    "#14B8A6",
-};
-
-// ── Animations ────────────────────────────────────────────────────────────────
-const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
-const stagger = { show: { transition: { staggerChildren: 0.07 } } };
-const tran = { duration: 0.4, ease: "easeOut" } as const;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function resLabel(v: string) {
-  return (
-    RESIDENCE_COUNTRIES.find((c) => c.value === v)?.name ||
-    PHONE_COUNTRIES.find((c) => c.iso === v)?.name ||
-    v || "غير محدد"
-  );
-}
-function topN<T extends { value: number }>(arr: T[], n: number): T[] {
-  return [...arr].sort((a, b) => b.value - a.value).slice(0, n);
-}
+/* ─────────────────────────────────────────────────────────────────────
+   HELPERS
+   ───────────────────────────────────────────────────────────────────── */
 function toDateStr(raw: unknown): string {
   if (typeof raw === "string") return raw;
   if (raw && typeof (raw as { toDate?: () => Date }).toDate === "function")
@@ -92,24 +71,59 @@ function toDateStr(raw: unknown): string {
   if (raw instanceof Date) return raw.toISOString().slice(0, 10);
   return "";
 }
+function resLabel(v: string) {
+  return RESIDENCE_COUNTRIES.find(c => c.value === v)?.name ||
+    PHONE_COUNTRIES.find(c => c.iso === v)?.name || v || "غير محدد";
+}
+function topN<T extends { value: number }>(arr: T[], n: number) {
+  return [...arr].sort((a, b) => b.value - a.value).slice(0, n);
+}
 
-// ── Tooltip ───────────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────────────
+   ANIMATED COUNTER HOOK
+   ───────────────────────────────────────────────────────────────────── */
+function useCounter(target: number, ms = 1000): number {
+  const [v, setV] = useState(0);
+  const raf = useRef(0);
+  useEffect(() => {
+    setV(0);
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - t0) / ms, 1);
+      const e = 1 - Math.pow(1 - p, 3);
+      setV(Math.round(e * target));
+      if (p < 1) raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
+  }, [target, ms]);
+  return v;
+}
+
+type Range  = "7d" | "30d" | "90d" | "12m";
+type TabKey = "overview" | "employees" | "insights";
+
+/* ─────────────────────────────────────────────────────────────────────
+   TOOLTIPS
+   ───────────────────────────────────────────────────────────────────── */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DarkTip({ active, payload, label: lbl, prefix = "" }: any) {
+function DarkTip({ active, payload, label, prefix = "" }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: P.darkCard1, border: "1px solid rgba(255,255,255,0.10)",
-      borderRadius: 14, padding: "10px 14px", minWidth: 130,
-      boxShadow: "0 8px 32px rgba(0,0,0,0.40)",
+      background: "rgba(8,14,28,0.97)", backdropFilter: "blur(16px)",
+      border: "1px solid rgba(255,255,255,0.09)",
+      borderRadius: 14, padding: "10px 14px", minWidth: 140,
+      boxShadow: "0 16px 48px rgba(0,0,0,0.55)",
     }}>
-      {lbl && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 600, marginBottom: 6 }}>{lbl}</p>}
+      {label && <p style={{ fontSize: 10.5, color: "rgba(255,255,255,0.38)", fontWeight: 700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</p>}
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       {payload.map((p: any, i: number) => (
-        <p key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: p.color || p.fill }} />
-          {p.name ? `${p.name}: ` : ""}{prefix}{formatNumber(p.value as number, prefix ? 2 : 0)}
-        </p>
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: i > 0 ? 5 : 0 }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: p.color || p.fill, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 500 }}>{p.name}</span>
+          <span style={{ marginRight: "auto", fontSize: 13, fontWeight: 800, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{prefix}{formatNumber(p.value, prefix ? 2 : 0)}</span>
+        </div>
       ))}
     </div>
   );
@@ -120,95 +134,120 @@ function PieTip({ active, payload }: any) {
   const p = payload[0];
   return (
     <div style={{
-      background: P.darkCard1, border: "1px solid rgba(255,255,255,0.10)",
+      background: "rgba(8,14,28,0.97)", backdropFilter: "blur(16px)",
+      border: "1px solid rgba(255,255,255,0.09)",
       borderRadius: 14, padding: "10px 14px",
-      boxShadow: "0 8px 32px rgba(0,0,0,0.40)",
+      boxShadow: "0 16px 48px rgba(0,0,0,0.55)",
     }}>
-      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 600, marginBottom: 4 }}>{p.name}</p>
-      <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", fontVariantNumeric: "tabular-nums" }}>
-        {formatNumber(p.value)}{p.payload?.percent ? ` · ${(p.payload.percent * 100).toFixed(1)}%` : ""}
+      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", fontWeight: 600, marginBottom: 4 }}>{p.name}</p>
+      <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", fontVariantNumeric: "tabular-nums" }}>
+        {formatNumber(p.value)}
+        {p.payload?.percent && (
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.40)", fontWeight: 500, marginRight: 6 }}>
+            · {(p.payload.percent * 100).toFixed(1)}%
+          </span>
+        )}
       </p>
     </div>
   );
 }
 
-// ── Featured Stat Card — dark gradient (main revenue metric) ─────────────────
-function FeaturedStatCard({ icon, label: lbl, value, sub, trend, spark }: {
-  icon: React.ReactNode; label: string; value: string;
-  sub?: string; trend?: number; spark: number[];
-}) {
-  const sparkData = spark.map((v) => ({ v }));
-  const isUp = (trend ?? 0) >= 0;
+/* ─────────────────────────────────────────────────────────────────────
+   DELTA BADGE
+   ───────────────────────────────────────────────────────────────────── */
+function Delta({ v, size = "sm" }: { v: number | null | undefined; size?: "sm" | "md" }) {
+  if (v == null) return null;
+  const up = v >= 0;
+  const pad  = size === "md" ? "5px 11px" : "3px 8px";
+  const fs   = size === "md" ? 12 : 10.5;
   return (
-    <motion.div variants={fadeUp} transition={tran}
-      whileHover={{ y: -3, transition: { duration: 0.2 } }}
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 3,
+      padding: pad, borderRadius: 999, fontSize: fs, fontWeight: 700,
+      background: up ? "rgba(34,197,94,0.13)" : "rgba(239,68,68,0.11)",
+      color: up ? C.success : C.danger,
+      border: `1px solid ${up ? "rgba(34,197,94,0.22)" : "rgba(239,68,68,0.20)"}`,
+      flexShrink: 0,
+    }}>
+      {up ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
+      {up ? "+" : ""}{v.toFixed(1)}%
+    </span>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   SKELETON
+   ───────────────────────────────────────────────────────────────────── */
+function Bone({ h = 80, r = 18 }: { h?: number; r?: number }) {
+  return <div className="animate-pulse" style={{ height: h, borderRadius: r, background: "var(--jk-panel)" }} />;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   HERO KPI CARD  (dark gradient — the dominant revenue card)
+   ───────────────────────────────────────────────────────────────────── */
+function HeroKPI({ icon, eyebrow, label, value, sub, delta, spark, rawVal }: {
+  icon: React.ReactNode; eyebrow: string; label: string;
+  value: string; sub?: string; delta?: number | null; spark: number[]; rawVal?: number;
+}) {
+  const counted = useCounter(rawVal ?? 0, 1200);
+  const display = rawVal !== undefined ? value.replace(/[\d,]+/, formatNumber(counted, 0)) : value;
+  const sparkD  = spark.map(v => ({ v }));
+
+  return (
+    <motion.div variants={fadeUp}
+      whileHover={{ y: -4, transition: fast }}
       style={{
-        position: "relative", overflow: "hidden", borderRadius: 24,
-        padding: "28px 24px 20px",
-        display: "flex", flexDirection: "column", gap: 20,
-        background: `linear-gradient(145deg, ${P.darkCard1} 0%, ${P.darkCard2} 100%)`,
-        border: "1px solid rgba(255,255,255,0.07)",
-        boxShadow: "0 8px 32px rgba(11,16,32,0.55), inset 0 1px 0 rgba(255,255,255,0.06)",
+        position: "relative", overflow: "hidden", borderRadius: 26,
+        padding: "28px 26px 22px",
+        background: `linear-gradient(148deg, ${C.dark1} 0%, ${C.dark2} 55%, ${C.dark3} 100%)`,
+        border: "1px solid rgba(255,255,255,0.065)",
+        boxShadow: "0 16px 56px rgba(8,14,28,0.70), inset 0 1px 0 rgba(255,255,255,0.06)",
+        display: "flex", flexDirection: "column", gap: 18,
       }}>
 
-      {/* Blue glow orb */}
-      <div style={{
-        position:"absolute", top:-40, right:-40, width:160, height:160,
-        borderRadius:"50%",
-        background:"radial-gradient(circle, rgba(91,95,239,0.35) 0%, transparent 70%)",
-        pointerEvents:"none",
-      }}/>
-      {/* Secondary purple orb */}
-      <div style={{
-        position:"absolute", bottom:-30, left:-20, width:120, height:120,
-        borderRadius:"50%",
-        background:"radial-gradient(circle, rgba(129,140,248,0.20) 0%, transparent 70%)",
-        pointerEvents:"none",
-      }}/>
+      {/* Glow orbs */}
+      <div style={{ position:"absolute", top:-70, right:-70, width:220, height:220, borderRadius:"50%", background:"radial-gradient(circle, rgba(91,95,239,0.32) 0%, transparent 65%)", pointerEvents:"none" }} />
+      <div style={{ position:"absolute", bottom:-50, left:-40, width:180, height:180, borderRadius:"50%", background:"radial-gradient(circle, rgba(129,140,248,0.15) 0%, transparent 65%)", pointerEvents:"none" }} />
+      <div style={{ position:"absolute", top:"50%", left:"38%", width:130, height:130, borderRadius:"50%", background:"radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%)", pointerEvents:"none" }} />
 
-      {/* Header: icon + trend */}
+      {/* Top row */}
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", position:"relative" }}>
-        <div style={{
-          width:46, height:46, borderRadius:14, flexShrink:0,
-          display:"flex", alignItems:"center", justifyContent:"center",
-          background:"rgba(91,95,239,0.25)", border:"1px solid rgba(91,95,239,0.40)",
-          color: P.primarySoft,
-        }}>{icon}</div>
-        {trend != null && (
-          <span style={{
-            display:"flex", alignItems:"center", gap:4,
-            borderRadius:999, padding:"5px 11px", fontSize:11, fontWeight:700,
-            background: isUp ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.18)",
-            color: isUp ? P.success : P.danger,
-            border: `1px solid ${isUp ? "rgba(34,197,94,0.30)" : "rgba(239,68,68,0.30)"}`,
-          }}>
-            <ArrowUpRight size={10} style={{ transform: isUp ? "none" : "rotate(90deg)" }}/>
-            {isUp ? "+" : ""}{trend.toFixed(2)}%
-          </span>
-        )}
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{
+            width:48, height:48, borderRadius:16, flexShrink:0,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            background:"rgba(91,95,239,0.22)", border:"1px solid rgba(91,95,239,0.38)",
+            color:"#A5B4FC", boxShadow:"0 4px 16px rgba(91,95,239,0.28)",
+          }}>{icon}</div>
+          <div>
+            <p style={{ fontSize:9.5, fontWeight:700, letterSpacing:"0.13em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)", marginBottom:2 }}>{eyebrow}</p>
+            <p style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.58)" }}>{label}</p>
+          </div>
+        </div>
+        {delta != null && <Delta v={delta} size="sm" />}
       </div>
 
-      {/* Text */}
+      {/* Value */}
       <div style={{ position:"relative" }}>
-        <p style={{ fontSize:11, fontWeight:600, letterSpacing:"0.09em", textTransform:"uppercase",
-          color:"rgba(255,255,255,0.40)", marginBottom:8 }}>{lbl}</p>
-        <p style={{ fontSize:32, fontWeight:900, color:"#FFFFFF",
-          letterSpacing:"-0.03em", lineHeight:1, fontVariantNumeric:"tabular-nums" }}>{value}</p>
-        {sub && <p style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:6, fontWeight:500 }}>{sub}</p>}
+        <p style={{
+          fontSize:48, fontWeight:900, color:"#FFFFFF", lineHeight:1,
+          letterSpacing:"-0.045em", fontVariantNumeric:"tabular-nums",
+          textShadow:"0 2px 20px rgba(165,180,252,0.22)",
+        }}>{display}</p>
+        {sub && <p style={{ fontSize:12, color:"rgba(255,255,255,0.30)", marginTop:7, fontWeight:500, letterSpacing:"0.01em" }}>{sub}</p>}
       </div>
 
       {/* Sparkline */}
       <div style={{ height:52, position:"relative" }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={sparkData} margin={{ top:0, bottom:0, left:0, right:0 }}>
+          <AreaChart data={sparkD} margin={{ top:4, bottom:0, left:0, right:0 }}>
             <defs>
-              <linearGradient id="featSpk" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={P.primary} stopOpacity={0.50}/>
-                <stop offset="100%" stopColor={P.primary} stopOpacity={0}/>
+              <linearGradient id="heroSpk" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#818CF8" stopOpacity={0.50} />
+                <stop offset="100%" stopColor="#818CF8" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <Area type="monotoneX" dataKey="v" stroke={P.primarySoft} strokeWidth={2}
-              fill="url(#featSpk)" dot={false} isAnimationActive={false}/>
+            <Area type="monotone" dataKey="v" stroke="#818CF8" strokeWidth={2.5} fill="url(#heroSpk)" dot={false} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -216,66 +255,45 @@ function FeaturedStatCard({ icon, label: lbl, value, sub, trend, spark }: {
   );
 }
 
-// ── Stat Card — white premium ─────────────────────────────────────────────────
-function StatCard({ icon, label: lbl, value, sub, trend, accent, spark, accentLight }: {
+/* ─────────────────────────────────────────────────────────────────────
+   SECONDARY KPI CARD  (light surface)
+   ───────────────────────────────────────────────────────────────────── */
+function KPI({ icon, label, value, sub, delta, accent, accentBg, spark, rawVal, compact }: {
   icon: React.ReactNode; label: string; value: string;
-  sub?: string; trend?: number; accent: string; accentLight?: string; spark: number[];
+  sub?: string; delta?: number | null; accent: string; accentBg?: string;
+  spark: number[]; rawVal?: number; compact?: boolean;
 }) {
-  const sparkData = spark.map((v) => ({ v }));
-  const isUp = (trend ?? 0) >= 0;
-  const aLight = accentLight ?? `${accent}18`;
+  const sparkD  = spark.map(v => ({ v }));
+  const bg      = accentBg ?? `${accent}12`;
+  const gid     = `kspk${label.replace(/\s+/g,"")}`;
+  const counted = useCounter(rawVal ?? 0, 950);
+  const display = rawVal !== undefined ? value.replace(/[\d,]+/, formatNumber(counted, 0)) : value;
+
   return (
-    <motion.div variants={fadeUp} transition={tran}
-      whileHover={{ y: -3, boxShadow: "0 12px 40px rgba(0,0,0,0.10)", transition: { duration: 0.2 } }}
-      style={{
-        position:"relative", overflow:"hidden", borderRadius:22,
-        padding:"22px 20px 16px",
-        display:"flex", flexDirection:"column", gap:16,
-        background: P.card,
-        border: `1px solid ${P.border}`,
-        boxShadow:"0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.04)",
-      }}>
-
-      {/* Header */}
+    <motion.div variants={fadeUp}
+      whileHover={{ y:-3, boxShadow:"0 14px 36px rgba(15,23,42,0.10)", transition:fast }}
+      className="jk-stat" style={{ gap: compact ? 10 : 14, padding: compact ? "18px 20px" : "22px" }}>
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
-        <div style={{
-          width:42, height:42, borderRadius:13, flexShrink:0,
-          display:"flex", alignItems:"center", justifyContent:"center",
-          background: aLight, color: accent,
-        }}>{icon}</div>
-        {trend != null && (
-          <span style={{
-            display:"flex", alignItems:"center", gap:3,
-            borderRadius:999, padding:"4px 10px", fontSize:11, fontWeight:700,
-            background: isUp ? "rgba(34,197,94,0.09)" : "rgba(239,68,68,0.09)",
-            color: isUp ? P.success : P.danger,
-          }}>
-            <ArrowUpRight size={10} style={{ transform: isUp ? "none" : "rotate(90deg)" }}/>
-            {isUp ? "+" : ""}{trend.toFixed(2)}%
-          </span>
-        )}
+        <div style={{ width:42, height:42, borderRadius:14, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:bg, color:accent }}>
+          {icon}
+        </div>
+        <Delta v={delta} />
       </div>
-
-      {/* Text */}
       <div>
-        <p style={{ fontSize:11, fontWeight:500, color: P.textMuted, marginBottom:6 }}>{lbl}</p>
-        <p style={{ fontSize:28, fontWeight:900, color: P.textMain,
-          letterSpacing:"-0.03em", lineHeight:1, fontVariantNumeric:"tabular-nums" }}>{value}</p>
-        {sub && <p style={{ fontSize:11.5, color: P.textMuted, marginTop:5, fontWeight:400 }}>{sub}</p>}
+        <p style={{ fontSize:11.5, fontWeight:500, color:"var(--jk-muted)", marginBottom:6, letterSpacing:"0.01em" }}>{label}</p>
+        <p style={{ fontSize:compact ? 26 : 30, fontWeight:800, color:"var(--jk-text)", letterSpacing:"-0.03em", lineHeight:1, fontVariantNumeric:"tabular-nums" }}>{display}</p>
+        {sub && <p style={{ fontSize:11, color:"var(--jk-subtle)", marginTop:5 }}>{sub}</p>}
       </div>
-
-      {/* Mini spark */}
-      <div style={{ height:38 }} dir="ltr">
+      <div style={{ height: compact ? 28 : 34 }} dir="ltr">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={sparkData} margin={{ top:0, bottom:0, left:0, right:0 }}>
+          <AreaChart data={sparkD} margin={{ top:0, bottom:0, left:0, right:0 }}>
             <defs>
-              <linearGradient id={`spk${lbl.replace(/\s/g,"")}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={accent} stopOpacity={0.18}/>
-                <stop offset="100%" stopColor={accent} stopOpacity={0}/>
+              <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={accent} stopOpacity={0.20} />
+                <stop offset="100%" stopColor={accent} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <Area type="monotoneX" dataKey="v" stroke={accent} strokeWidth={1.75}
-              fill={`url(#spk${lbl.replace(/\s/g,"")})`} dot={false} isAnimationActive={false}/>
+            <Area type="monotone" dataKey="v" stroke={accent} strokeWidth={2} fill={`url(#${gid})`} dot={false} isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -283,390 +301,605 @@ function StatCard({ icon, label: lbl, value, sub, trend, accent, spark, accentLi
   );
 }
 
-// ── Chart Shell ───────────────────────────────────────────────────────────────
-function Shell({
-  title, subtitle, right, height = 300, children, noPad,
-}: {
-  title: string; subtitle?: string; right?: React.ReactNode;
-  height?: number; children: React.ReactNode; noPad?: boolean;
+/* ─────────────────────────────────────────────────────────────────────
+   MINI STAT CARD
+   ───────────────────────────────────────────────────────────────────── */
+function Mini({ label, value, sub, color, icon, rawVal }: { label:string; value:string; sub:string; color:string; icon?:React.ReactNode; rawVal?:number }) {
+  const counted = useCounter(rawVal ?? 0, 900);
+  const display = rawVal !== undefined ? value.replace(/[\d,]+/, formatNumber(counted, 0)) : value;
+  return (
+    <motion.div variants={fadeUp} whileHover={{ y:-1, transition:fast }}
+      style={{ background:"var(--jk-surface)", borderRadius:18, padding:"18px 20px", border:"1px solid var(--jk-divider)", boxShadow:"var(--jk-shadow-card)" }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:9 }}>
+        <p style={{ fontSize:11.5, color:"var(--jk-muted)", fontWeight:500 }}>{label}</p>
+        {icon && <span style={{ color, opacity:0.65 }}>{icon}</span>}
+      </div>
+      <p style={{ fontSize:24, fontWeight:800, color, letterSpacing:"-0.026em", fontVariantNumeric:"tabular-nums", lineHeight:1 }}>{display}</p>
+      <p style={{ fontSize:11, color:"var(--jk-subtle)", marginTop:5 }}>{sub}</p>
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   CHART SHELL
+   ───────────────────────────────────────────────────────────────────── */
+function Shell({ title, sub, right, height = 300, children, noPad, bar }: {
+  title:string; sub?:string; right?:React.ReactNode;
+  height?: number | "auto"; children:React.ReactNode; noPad?:boolean; bar?:string;
 }) {
   return (
-    <motion.div variants={fadeUp} transition={tran}
-      style={{
-        overflow:"hidden", borderRadius:22,
-        background: P.card, border:`1px solid ${P.border}`,
-        boxShadow:"0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.04)",
-      }}>
-      <div style={{
-        display:"flex", alignItems:"center", justifyContent:"space-between",
-        padding:"16px 22px 14px",
-        borderBottom:`1px solid ${P.divider}`,
-      }}>
+    <motion.div variants={fadeUp}
+      style={{ overflow:"hidden", borderRadius:22, background:"var(--jk-surface)", border:"1px solid var(--jk-divider)", boxShadow:"var(--jk-shadow-card)", position:"relative" }}>
+      {bar && <div style={{ position:"absolute", top:0, insetInline:0, height:3, background:`linear-gradient(90deg, ${bar}, ${bar}70)`, borderRadius:"22px 22px 0 0" }} />}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding: bar ? "20px 22px 14px" : "16px 22px 14px", borderBottom:"1px solid var(--jk-divider)" }}>
         <div>
-          <p style={{ fontSize:15, fontWeight:800, color: P.textMain, letterSpacing:"-0.015em" }}>{title}</p>
-          {subtitle && <p style={{ fontSize:12, color: P.textMuted, marginTop:2, fontWeight:400 }}>{subtitle}</p>}
+          <p style={{ fontSize:14.5, fontWeight:800, color:"var(--jk-text)", letterSpacing:"-0.018em" }}>{title}</p>
+          {sub && <p style={{ fontSize:11.5, color:"var(--jk-subtle)", marginTop:3 }}>{sub}</p>}
         </div>
         {right}
       </div>
-      <div style={{ padding: noPad ? 0 : 22, height }} dir="ltr">
+      <div style={{ padding:noPad?0:22, height:height==="auto"?undefined:height }} dir="ltr">
         {children}
       </div>
     </motion.div>
   );
 }
 
-// ── Legend Pill ───────────────────────────────────────────────────────────────
-function LegendPill({ color, label: lbl, value }: { color: string; label: string; value: number }) {
+/* ─────────────────────────────────────────────────────────────────────
+   INSIGHT STRIP CARD  (horizontal, always-visible AI insights)
+   ───────────────────────────────────────────────────────────────────── */
+function InsightChip({ icon, text, value, color, bg, border }: { icon:React.ReactNode; text:string; value?:string; color:string; bg:string; border:string }) {
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-      <span style={{ width:8, height:8, borderRadius:"50%", flexShrink:0, background: color }} />
-      <span style={{ fontSize:12, color: P.textMuted, flex:1 }}>{lbl}</span>
-      <span style={{ fontSize:12, fontWeight:700, fontVariantNumeric:"tabular-nums", color: P.textMain }}>{value}</span>
-    </div>
-  );
-}
-
-// ── Insight card ─────────────────────────────────────────────────────────────
-function InsightCard({ insight }: { insight: Insight }) {
-  const cfg: Record<string, { icon: React.ReactNode; bg: string; border: string; color: string }> = {
-    info:     { icon:<Info size={14}/>,          bg:"rgba(91,95,239,0.06)",  border:"rgba(91,95,239,0.15)",  color: P.primary  },
-    warning:  { icon:<AlertTriangle size={14}/>, bg:"rgba(245,158,11,0.07)", border:"rgba(245,158,11,0.18)", color: P.warning  },
-    critical: { icon:<XCircle size={14}/>,       bg:"rgba(239,68,68,0.06)",  border:"rgba(239,68,68,0.16)",  color: P.danger   },
-    success:  { icon:<CheckCircle2 size={14}/>,  bg:"rgba(34,197,94,0.06)",  border:"rgba(34,197,94,0.16)",  color: P.success  },
-  };
-  const c = cfg[insight.level] ?? cfg.info;
-  return (
-    <div style={{ display:"flex", alignItems:"flex-start", gap:12, borderRadius:16, padding:"14px 16px",
-      background: c.bg, border:`1px solid ${c.border}` }}>
-      <div style={{ marginTop:1, flexShrink:0, color: c.color }}>{c.icon}</div>
+    <motion.div variants={fadeUp}
+      whileHover={{ y:-2, transition:fast }}
+      style={{ display:"flex", alignItems:"flex-start", gap:10, borderRadius:16, padding:"13px 15px", background:bg, border:`1px solid ${border}`, flex:1, minWidth:220, position:"relative", overflow:"hidden" }}>
+      <div style={{ position:"absolute", insetInlineStart:0, top:0, bottom:0, width:3, background:color, borderRadius:"0 99px 99px 0" }} />
+      <div style={{ color, marginInlineStart:4, marginTop:1, flexShrink:0 }}>{icon}</div>
       <div style={{ flex:1, minWidth:0 }}>
-        <p style={{ fontSize:13.5, fontWeight:700, color: P.textMain }}>{insight.title}</p>
-        <p style={{ fontSize:12, marginTop:3, lineHeight:1.6, color: P.textMuted }}>{insight.description}</p>
+        <p style={{ fontSize:12.5, fontWeight:600, color:"var(--jk-text)", lineHeight:1.5 }}>{text}</p>
       </div>
-      {insight.value && (
-        <span style={{ flexShrink:0, fontSize:13, fontWeight:800, fontVariantNumeric:"tabular-nums", color: c.color }}>{insight.value}</span>
-      )}
+      {value && <span style={{ fontSize:13, fontWeight:800, color, flexShrink:0, fontVariantNumeric:"tabular-nums" }}>{value}</span>}
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   FULL INSIGHT CARD  (insights tab)
+   ───────────────────────────────────────────────────────────────────── */
+function InsightCard({ insight }: { insight: Insight }) {
+  const map = {
+    info:     { icon:<Info size={14}/>,          bg:"rgba(91,95,239,0.05)",  border:"rgba(91,95,239,0.12)",  color:C.primary },
+    warning:  { icon:<AlertTriangle size={14}/>, bg:"rgba(245,158,11,0.05)", border:"rgba(245,158,11,0.15)", color:C.warning },
+    critical: { icon:<XCircle size={14}/>,       bg:"rgba(239,68,68,0.05)",  border:"rgba(239,68,68,0.13)",  color:C.danger  },
+    success:  { icon:<CheckCircle2 size={14}/>,  bg:"rgba(34,197,94,0.05)",  border:"rgba(34,197,94,0.13)",  color:C.success },
+  };
+  const c = map[insight.level] ?? map.info;
+  return (
+    <motion.div variants={fadeUp} whileHover={{ x:-3, transition:fast }}
+      style={{ display:"flex", alignItems:"flex-start", gap:13, borderRadius:16, padding:"14px 16px", background:c.bg, border:`1px solid ${c.border}`, position:"relative", overflow:"hidden" }}>
+      <div style={{ position:"absolute", insetInlineStart:0, top:0, bottom:0, width:3, background:c.color, borderRadius:"0 99px 99px 0" }} />
+      <div style={{ color:c.color, marginInlineStart:4, flexShrink:0 }}>{c.icon}</div>
+      <div style={{ flex:1 }}>
+        <p style={{ fontSize:13.5, fontWeight:700, color:"var(--jk-text)", letterSpacing:"-0.01em" }}>{insight.title}</p>
+        <p style={{ fontSize:12, marginTop:3, lineHeight:1.65, color:"var(--jk-muted)" }}>{insight.description}</p>
+      </div>
+      {insight.value && <span style={{ fontSize:13, fontWeight:800, color:c.color, flexShrink:0, fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap" }}>{insight.value}</span>}
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   LEGEND DOT
+   ───────────────────────────────────────────────────────────────────── */
+function Leg({ color, label }: { color:string; label:string }) {
+  return (
+    <span style={{ display:"flex", alignItems:"center", gap:6, fontSize:11.5, color:"var(--jk-muted)", fontWeight:500 }}>
+      <span style={{ width:8, height:8, borderRadius:3, background:color, flexShrink:0 }} />{label}
+    </span>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   RANK BADGE
+   ───────────────────────────────────────────────────────────────────── */
+function Rank({ n }: { n: number }) {
+  const gold   = { bg:"rgba(251,191,36,0.16)", color:"#D97706" };
+  const silver = { bg:"rgba(156,163,175,0.16)", color:"#6B7280" };
+  const bronze = { bg:"rgba(180,107,60,0.14)", color:"#92400E" };
+  const other  = { bg:"var(--jk-panel)", color:"var(--jk-muted)" };
+  const s      = n === 1 ? gold : n === 2 ? silver : n === 3 ? bronze : other;
+  return (
+    <div style={{ width:30, height:30, borderRadius:9, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", background:s.bg, color:s.color, fontWeight:800, fontSize:12 }}>
+      {n === 1 ? <Crown size={13}/> : n}
     </div>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-type TabKey = "overview" | "employees" | "insights";
-
+/* ═════════════════════════════════════════════════════════════════════
+   PAGE
+   ═════════════════════════════════════════════════════════════════════ */
 export default function AnalyticsPage() {
   const { can, user } = useAuthStore();
-  const canRev        = can("canViewRevenue");
-  const canExport     = canExportReports(user);
-  // t kept for any remaining legacy refs
-  const t = { textPri: P.textMain, textSec: P.textMuted, divider: P.border, grid: P.divider, tick: P.tick };
-  const [tab, setTab]               = useState<TabKey>("overview");
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const canRev    = can("canViewRevenue");
+  const canExport = canExportReports(user);
+
+  const [tab, setTab]     = useState<TabKey>("overview");
+  const [range, setRange] = useState<Range>("30d");
+  const [selMonth, setSelMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   const { subscribers, loading } = useSubscribers();
   const { payments }             = usePayments();
   const { refunds }              = useRefunds();
-  const { data: _rawTeams = [] } = useTeams(false);
-  const allTeams                 = _rawTeams.filter(t => t.active !== false);
+  const { data: rawTeams = [] }  = useTeams(false);
+  const allTeams                 = rawTeams.filter(t => t.active !== false);
   const { performance: empPerf, loading: empLoading } = useEmployeePerformance();
-  const { insights, loading: metricsLoading }         = useDashboardMetrics();
+  const { insights, loading: insightsLoading }        = useDashboardMetrics();
 
-  const TICK = { fontFamily: "inherit", fontSize: 10.5, fill: P.tick, fontWeight: 500 };
+  const TICK = { fontFamily:"inherit", fontSize:10.5, fill:C.tick, fontWeight:500 };
 
-  // ── Data ────────────────────────────────────────────────────────────────────
+  /* ── Monthly series (12 months) ───────────────────────────────── */
   const monthly = useMemo(() => {
-    const revMap: Record<string, number> = {};
-    const cntMap: Record<string, number> = {};
-    payments.forEach((p) => {
-      const key = toDateStr(p.date).slice(0, 7);
-      if (key) {
-        revMap[key] = (revMap[key] || 0) + (p.amountUSD || 0);
-        cntMap[key] = (cntMap[key] || 0) + 1;
-      }
+    const revM: Record<string,number> = {};
+    const cntM: Record<string,number> = {};
+    payments.forEach(p => {
+      const k = toDateStr(p.date).slice(0,7);
+      if (k) { revM[k] = (revM[k]||0) + (p.amountUSD||0); cntM[k] = (cntM[k]||0) + 1; }
     });
-    // طرح الاسترداد من الإيراد الشهري الصافي
-    refunds.forEach((r) => {
-      const key = toDateStr(r.refundDate).slice(0, 7);
-      if (key) revMap[key] = (revMap[key] || 0) - (r.refundAmountUSD || 0);
+    refunds.forEach(r => {
+      const k = toDateStr(r.refundDate).slice(0,7);
+      if (k) revM[k] = (revM[k]||0) - (r.refundAmountUSD||0);
     });
     const now = new Date();
-    return Array.from({ length: 12 }, (_, i) => {
-      const d   = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return Array.from({ length:12 }, (_, i) => {
+      const d   = new Date(now.getFullYear(), now.getMonth()-(11-i), 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
       return {
-        label:   ARABIC_MONTHS[d.getMonth()].slice(0, 3),
-        revenue: +(Math.max(0, revMap[key] || 0)).toFixed(2),
-        count:   cntMap[key] || 0,
+        label:   ARABIC_MONTHS[d.getMonth()].slice(0,3),
+        revenue: Math.max(0, +(revM[key]||0).toFixed(2)),
+        count:   cntM[key]||0,
       };
     });
   }, [payments, refunds]);
 
-  const kpi = useMemo(() => ({
-    total:     subscribers.length,
-    net:       subscribers.reduce((s, x) => s + (x.netAmountUSD || 0), 0),
-    paid:      subscribers.reduce((s, x) => s + (x.paidAmountUSD || 0), 0),
-    rem:       subscribers.filter((s) => s.subscriptionState !== "withdrawn")
-                          .reduce((s, x) => s + (x.remainingAmountUSD || 0), 0),
-    active:    subscribers.filter((s) => s.subscriptionState !== "withdrawn" && s.subscriptionStatus !== "paused").length,
-    withdrawn: subscribers.filter((s) => s.subscriptionState === "withdrawn").length,
-  }), [subscribers]);
+  /* ── Core KPIs ────────────────────────────────────────────────── */
+  const kpi = useMemo(() => {
+    const total     = subscribers.length;
+    const net       = subscribers.reduce((s,x) => s+(x.netAmountUSD||0), 0);
+    const paid      = subscribers.reduce((s,x) => s+(x.paidAmountUSD||0), 0);
+    const rem       = subscribers.filter(s=>s.subscriptionState!=="withdrawn").reduce((s,x) => s+(x.remainingAmountUSD||0), 0);
+    const active    = subscribers.filter(s=>s.subscriptionState!=="withdrawn"&&s.subscriptionStatus!=="paused").length;
+    const withdrawn = subscribers.filter(s=>s.subscriptionState==="withdrawn").length;
+    const arpu      = total>0 ? net/total : 0;
+    const retention = retentionRate(subscribers)*100;
+    const churn     = calculateChurnRate(subscribers)*100;
+    const conv      = total>0 ? (active/total)*100 : 0;
+    return { total, net, paid, rem, active, withdrawn, arpu, retention, churn, conv };
+  }, [subscribers]);
 
+  /* ── Month-over-month ─────────────────────────────────────────── */
+  const mom = useMemo(() => {
+    const now   = new Date();
+    const curYM = now.toISOString().slice(0,7);
+    const prvYM = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().slice(0,7);
+    const revFor = (ym:string) => {
+      const g = payments.filter(p=>toDateStr(p.date).slice(0,7)===ym).reduce((s,p)=>s+(p.amountUSD||0),0);
+      const r = refunds.filter(r=>toDateStr(r.refundDate).slice(0,7)===ym).reduce((s,r)=>s+(r.refundAmountUSD||0),0);
+      return Math.max(0, g-r);
+    };
+    const curRev  = revFor(curYM), prvRev  = revFor(prvYM);
+    const curCnt  = subscribers.filter(s=>toDateStr(s.date).slice(0,7)===curYM).length;
+    const prvCnt  = subscribers.filter(s=>toDateStr(s.date).slice(0,7)===prvYM).length;
+    const revD    = prvRev>0 ? ((curRev-prvRev)/prvRev)*100 : null;
+    const cntD    = prvCnt>0 ? ((curCnt-prvCnt)/prvCnt)*100 : null;
+    const growPct = prvCnt>0 ? +((curCnt-prvCnt)/prvCnt*100).toFixed(1) : null;
+    return { revD, cntD, curRev, curCnt, growPct };
+  }, [payments, refunds, subscribers]);
+
+  /* ── Acquisition trend ────────────────────────────────────────── */
+  const acqData = useMemo(() =>
+    monthlyAcquisitionTrend(subscribers, 7).map(m => ({
+      label: ARABIC_MONTHS[parseInt(m.month.slice(5,7))-1].slice(0,3),
+      مشتركون: m.subscribers,
+      إيراد: m.revenue,
+    })),
+    [subscribers]
+  );
+
+  /* ── Distribution data ────────────────────────────────────────── */
   const countryData = useMemo(() => {
-    const map: Record<string, number> = {};
-    subscribers.forEach((s) => { const k = resLabel(s.residence); map[k] = (map[k] || 0) + 1; });
-    return topN(Object.entries(map).map(([name, value]) => ({ name, value })), 8);
+    const m: Record<string,number> = {};
+    subscribers.forEach(s => { const k=resLabel(s.residence); m[k]=(m[k]||0)+1; });
+    return topN(Object.entries(m).map(([name,value])=>({name,value})), 8);
   }, [subscribers]);
 
   const methodData = useMemo(() => {
-    const map: Record<string, number> = {};
-    payments.forEach((p) => { const k = p.paymentMethod || "غير محدد"; map[k] = (map[k] || 0) + 1; });
-    return Object.entries(map).map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value).slice(0, 8);
+    const m: Record<string,number> = {};
+    payments.forEach(p => { const k=p.paymentMethod||"غير محدد"; m[k]=(m[k]||0)+1; });
+    return Object.entries(m).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value).slice(0,8);
   }, [payments]);
 
   const sourceData = useMemo(() => {
-    const map: Record<string, number> = {};
-    subscribers.forEach((s) => { const k = s.source || "غير محدد"; map[k] = (map[k] || 0) + 1; });
-    return topN(Object.entries(map).map(([name, value]) => ({ name, value })), 6);
+    const m: Record<string,number> = {};
+    subscribers.forEach(s => { const k=s.source||"غير محدد"; m[k]=(m[k]||0)+1; });
+    return topN(Object.entries(m).map(([name,value])=>({name,value})), 6);
   }, [subscribers]);
 
   const packageData = useMemo(() => [
-    { name: "فضية",  value: subscribers.filter((s) => s.package === "فضية").length,  color: "#9ca3af" },
-    { name: "ذهبية", value: subscribers.filter((s) => s.package === "ذهبية").length, color: ACC.amber },
+    { name:"فضية",  value:subscribers.filter(s=>s.package==="فضية").length,  color:"#9ca3af" },
+    { name:"ذهبية", value:subscribers.filter(s=>s.package==="ذهبية").length, color:C.warning },
   ], [subscribers]);
 
   const teamData = useMemo(() => {
-    // Group by subscriber.team field — works even without Firestore team docs
-    const map: Record<string, { مشتركون: number; نشطون: number; إيراد: number; id: string }> = {};
-    subscribers.forEach((s) => {
-      const key = s.team?.trim();
-      if (!key) return;
-      if (!map[key]) {
-        const firestoreTeam = allTeams.find((t) => t.name === key);
-        map[key] = { مشتركون: 0, نشطون: 0, إيراد: 0, id: firestoreTeam?.id ?? "" };
-      }
-      map[key].مشتركون++;
-      if (s.subscriptionState !== "withdrawn") map[key].نشطون++;
-      map[key].إيراد = +(map[key].إيراد + (s.netAmountUSD || 0)).toFixed(0);
+    const m: Record<string,{مشتركون:number;نشطون:number;إيراد:number;id:string}> = {};
+    subscribers.forEach(s => {
+      const k = s.team?.trim();
+      if (!k) return;
+      if (!m[k]) { const ft=allTeams.find(t=>t.name===k); m[k]={مشتركون:0,نشطون:0,إيراد:0,id:ft?.id??""}; }
+      m[k].مشتركون++;
+      if (s.subscriptionState!=="withdrawn") m[k].نشطون++;
+      m[k].إيراد = +(m[k].إيراد+(s.netAmountUSD||0)).toFixed(0);
     });
-    return Object.entries(map)
-      .map(([name, v]) => ({ name, ...v }))
-      .sort((a, b) => b.مشتركون - a.مشتركون);
+    return Object.entries(m).map(([name,v])=>({name,...v})).sort((a,b)=>b.مشتركون-a.مشتركون);
   }, [subscribers, allTeams]);
 
-  const recentPayments = useMemo(() =>
-    [...payments]
-      .sort((a, b) => (toDateStr(b.date) > toDateStr(a.date) ? 1 : -1))
-      .slice(0, 8),
-  [payments]);
-  const sparkRevenue   = monthly.map((m) => m.revenue);
-  const sparkCount     = monthly.map((m) => m.count);
+  const recentPay = useMemo(() =>
+    [...payments].sort((a,b)=>(toDateStr(b.date)>toDateStr(a.date)?1:-1)).slice(0,8),
+    [payments]
+  );
 
-  const now = new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+  const sparkRev = monthly.map(m=>m.revenue);
+  const sparkCnt = monthly.map(m=>m.count);
 
+  /* ── AI insight strip (always visible in overview) ───────────── */
+  const aiChips = useMemo(() => {
+    const chips: { icon:React.ReactNode; text:string; value?:string; color:string; bg:string; border:string }[] = [];
+    if (mom.revD != null) {
+      const up = mom.revD >= 0;
+      chips.push({
+        icon: up ? <TrendingUp size={14}/> : <TrendingDown size={14}/>,
+        text: up ? `الإيراد ارتفع ${mom.revD.toFixed(1)}% مقارنة بالشهر الماضي` : `الإيراد انخفض ${Math.abs(mom.revD).toFixed(1)}% مقارنة بالشهر الماضي`,
+        value: canRev ? `$${formatNumber(mom.curRev,0)}` : undefined,
+        color: up ? C.success : C.danger,
+        bg:    up ? "rgba(34,197,94,0.06)"  : "rgba(239,68,68,0.06)",
+        border:up ? "rgba(34,197,94,0.14)"  : "rgba(239,68,68,0.13)",
+      });
+    }
+    if (kpi.retention >= 70) {
+      chips.push({ icon:<CheckCircle2 size={14}/>, text:"معدل الاحتفاظ ممتاز — المشتركون راضون", value:`${kpi.retention.toFixed(0)}%`, color:C.success, bg:"rgba(34,197,94,0.06)", border:"rgba(34,197,94,0.14)" });
+    } else if (kpi.retention < 50) {
+      chips.push({ icon:<AlertTriangle size={14}/>, text:"معدل الاحتفاظ منخفض — يحتاج تدخل عاجل", value:`${kpi.retention.toFixed(0)}%`, color:C.danger, bg:"rgba(239,68,68,0.06)", border:"rgba(239,68,68,0.13)" });
+    }
+    if (sourceData.length > 0) {
+      chips.push({ icon:<Globe size={14}/>, text:`أعلى مصدر اشتراك: ${sourceData[0].name}`, value:`${sourceData[0].value} مشترك`, color:C.primary, bg:"rgba(91,95,239,0.06)", border:"rgba(91,95,239,0.13)" });
+    }
+    if (kpi.churn > 5) {
+      chips.push({ icon:<AlertTriangle size={14}/>, text:"معدل الانسحاب مرتفع — راجع المشتركين المعرضين للخطر", value:`${kpi.churn.toFixed(1)}%`, color:C.warning, bg:"rgba(245,158,11,0.06)", border:"rgba(245,158,11,0.14)" });
+    } else {
+      chips.push({ icon:<Zap size={14}/>, text:"معدل الانسحاب تحت السيطرة — استمر في المتابعة", value:`${kpi.churn.toFixed(1)}%`, color:C.cyan, bg:"rgba(6,182,212,0.06)", border:"rgba(6,182,212,0.14)" });
+    }
+    return chips.slice(0,4);
+  }, [kpi, mom, sourceData, canRev]);
+
+  /* ── Health score ─────────────────────────────────────────────── */
+  const health = useMemo(() => {
+    let s = 50;
+    if (kpi.retention>=70) s+=20; else if (kpi.retention>=50) s+=10;
+    if (kpi.churn<=2) s+=20; else if (kpi.churn<=5) s+=10; else s-=10;
+    if (kpi.active/(kpi.total||1)>0.7) s+=10;
+    return { score: Math.max(0,Math.min(100,s)), color: s>=75?C.success:s>=50?C.warning:C.danger, label: s>=75?"ممتاز":s>=50?"متوسط":"يحتاج تحسين" };
+  }, [kpi]);
+
+  const RANGE_LABELS: Record<Range,string> = { "7d":"7 أيام","30d":"30 يوم","90d":"90 يوم","12m":"12 شهر" };
+
+  /* ═══════════════════════════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════════════════════════ */
   return (
     <ProtectedLayout>
-      <div className="min-h-full" style={{ background: P.bg }}>
-        <div className="mx-auto max-w-screen-2xl p-5 md:p-7 lg:p-8">
+      <div className="min-h-full" style={{ background:"var(--jk-bg)" }}>
+        <div className="mx-auto max-w-screen-2xl p-5 md:p-7 lg:p-8" style={{ display:"flex", flexDirection:"column", gap:20 }}>
 
           {/* ── Header ── */}
           <PageHeader
             title="التحليلات"
             subtitle={
-              <span className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                مباشر · {formatNumber(kpi.total)} مشترك
+              <span style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <span className="status-dot-live" style={{ width:7, height:7 }} />
+                <span style={{ fontSize:13, color:"var(--jk-muted)" }}>
+                  مباشر · {formatNumber(kpi.total)} مشترك · {formatNumber(kpi.active)} نشط
+                </span>
               </span>
             }
             actions={canExport ? (
-              <div className="flex flex-wrap justify-end gap-2 items-center">
-                <div className="flex items-center gap-1.5 rounded-xl border overflow-hidden"
-                  style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
-                  <input
-                    type="month"
-                    value={selectedMonth}
-                    max={new Date().toISOString().slice(0, 7)}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="px-3 py-2 text-xs bg-transparent outline-none"
-                    style={{ color: "var(--text-primary)" }}
-                  />
-                  <button
-                    onClick={() => exportSubscribersByMonthCSV(subscribers, selectedMonth)}
-                    disabled={!selectedMonth}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white disabled:opacity-50 transition-opacity"
-                    style={{ background: "linear-gradient(135deg,#F59E0B,#F59E0B)" }}>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:8, alignItems:"center", justifyContent:"flex-end" }}>
+                <div style={{ display:"flex", alignItems:"center", overflow:"hidden", borderRadius:14, border:"1px solid var(--jk-border)", background:"var(--jk-surface)" }}>
+                  <input type="month" value={selMonth} max={new Date().toISOString().slice(0,7)}
+                    onChange={e=>setSelMonth(e.target.value)}
+                    className="px-3 py-2 text-xs bg-transparent outline-none" style={{ color:"var(--jk-text)" }} />
+                  <button onClick={()=>exportSubscribersByMonthCSV(subscribers,selMonth)} disabled={!selMonth} className="jk-btn sm" style={{ borderRadius:0 }}>
                     <Download size={12}/> تصدير الشهر
                   </button>
                 </div>
-                <button onClick={() => exportSubscribersCSV(subscribers)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-                  style={{ background: "linear-gradient(135deg,#5B5FEF,#5B5FEF)" }}>
-                  <Download size={12}/> تصدير الكل
-                </button>
-                <button onClick={() => exportPaymentsCSV(payments, refunds)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
-                  style={{ background: "linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
-                  <Download size={12}/> تصدير الدفعات
-                </button>
+                <button onClick={()=>exportSubscribersCSV(subscribers)} className="jk-btn sm"><Download size={12}/> تصدير الكل</button>
+                <button onClick={()=>exportPaymentsCSV(payments,refunds)} className="jk-btn sm secondary"><Download size={12}/> الدفعات</button>
               </div>
             ) : undefined}
           />
 
-          {/* ── Tab navigation ── */}
-          <div style={{
-            display:"flex", gap:4, padding:6, borderRadius:999, width:"fit-content", marginBottom:28,
-            background: P.card, border:`1px solid ${P.border}`,
-            boxShadow:"0 1px 3px rgba(0,0,0,0.04)",
-          }}>
-            {([
-              { key:"overview",   label:"نظرة عامة",       icon:<Activity size={13}/> },
-              { key:"employees",  label:"الموظفون",         icon:<Medal size={13}/> },
-              { key:"insights",   label:"التنبيهات الذكية", icon:<Lightbulb size={13}/> },
-            ] as { key: TabKey; label: string; icon: React.ReactNode }[]).map((tb) => (
-              <button key={tb.key} onClick={() => setTab(tb.key)}
-                style={{
-                  display:"flex", alignItems:"center", gap:6,
-                  padding:"8px 18px", borderRadius:999, border:"none",
-                  fontSize:12.5, fontWeight:600, cursor:"pointer",
-                  transition:"all .18s ease",
-                  background: tab === tb.key ? P.primary : "transparent",
-                  color:      tab === tb.key ? "#FFFFFF" : P.textMuted,
-                  boxShadow:  tab === tb.key ? `0 4px 14px rgba(91,95,239,0.35)` : "none",
-                }}>
-                {tb.icon}{tb.label}
-              </button>
-            ))}
+          {/* ── Controls ── */}
+          <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+            <div className="jk-date-strip">
+              {(["7d","30d","90d","12m"] as Range[]).map(r=>(
+                <button key={r} className={range===r?"active":""} onClick={()=>setRange(r)}>{RANGE_LABELS[r]}</button>
+              ))}
+            </div>
+            <div className="jk-tabs">
+              {([
+                { key:"overview",  label:"نظرة عامة",       icon:<Activity size={13}/> },
+                { key:"employees", label:"الموظفون",         icon:<Medal size={13}/> },
+                { key:"insights",  label:"التنبيهات الذكية", icon:<Lightbulb size={13}/> },
+              ] as {key:TabKey;label:string;icon:React.ReactNode}[]).map(tb=>(
+                <button key={tb.key} className={`jk-tab ${tab===tb.key?"active":""}`} onClick={()=>setTab(tb.key)}>
+                  {tb.icon}{tb.label}
+                  {tb.key==="insights" && insights.filter(i=>i.level==="critical").length>0 && (
+                    <span className="badge">{insights.filter(i=>i.level==="critical").length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* ── Loading ── */}
           {loading ? (
-            <div className="flex items-center justify-center py-40">
-              <div className="flex flex-col items-center gap-3">
-                <RefreshCw size={22} className="animate-spin" style={{ color: P.primary }} />
-                <p className="text-sm" style={{ color: t.textSec }}>جاري تحميل البيانات…</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              <Bone h={220} r={26}/>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
+                {Array(4).fill(0).map((_,i)=><Bone key={i} h={78} r={18}/>)}
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 340px", gap:14 }}>
+                <Bone h={300} r={22}/><Bone h={300} r={22}/>
               </div>
             </div>
           ) : (
-            <motion.div initial="hidden" animate="show" variants={stagger} className="space-y-5">
+            <AnimatePresence mode="wait">
 
-            {/* ════════════════ OVERVIEW TAB ════════════════ */}
-            {tab === "overview" && <>
+              {/* ══════════════════ OVERVIEW ══════════════════ */}
+              {tab==="overview" && (
+                <motion.div key="ov" initial="hidden" animate="show" exit={{ opacity:0 }} variants={stagger} style={{ display:"flex", flexDirection:"column", gap:18 }}>
 
-              {/* ── 2-column layout: left (stats+chart) / right (donut+teams) ── */}
-              <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 items-start">
+                  {/* ── AI Insights strip ── */}
+                  <motion.div variants={stagger2} style={{ display:"grid", gap:10, gridTemplateColumns:"repeat(2,1fr)" }}
+                    className="an-insights-strip">
+                    {aiChips.map((c,i)=>(
+                      <InsightChip key={i} {...c} />
+                    ))}
+                  </motion.div>
 
-                {/* ═══ LEFT COLUMN ═══ */}
-                <div className="flex flex-col gap-5">
+                  {/* ── Hero KPIs ── */}
+                  {/* Row 1: dark hero (left, 2 cols) + 2 stacked (right, 1 col) */}
+                  <div className="an-hero-grid">
+                    <div className="an-hero-featured">
+                      <HeroKPI
+                        icon={<TrendingUp size={22}/>}
+                        eyebrow="المقياس الرئيسي"
+                        label="صافي الإيراد الكلي"
+                        value={canRev ? `$${formatNumber(kpi.net,0)}` : "—"}
+                        sub={canRev ? "USD · صافي بعد الاسترداد · كامل الفترة" : undefined}
+                        delta={canRev ? mom.revD : undefined}
+                        spark={sparkRev}
+                        rawVal={canRev ? Math.round(kpi.net) : undefined}
+                      />
+                    </div>
+                    <div className="an-hero-stacked">
+                      <KPI
+                        icon={<Users size={17}/>} accent={C.primary}
+                        label="المشتركون النشطون"
+                        value={formatNumber(kpi.active)}
+                        sub={`من ${formatNumber(kpi.total)} إجمالاً`}
+                        delta={mom.cntD} spark={sparkCnt} rawVal={kpi.active} compact
+                      />
+                      <KPI
+                        icon={<DollarSign size={17}/>} accent={C.success} accentBg="rgba(34,197,94,0.10)"
+                        label="إيراد هذا الشهر"
+                        value={canRev ? `$${formatNumber(mom.curRev,0)}` : "—"}
+                        sub={canRev ? "USD · الشهر الحالي فقط" : undefined}
+                        delta={canRev ? mom.revD : undefined}
+                        spark={sparkRev}
+                        rawVal={canRev ? Math.round(mom.curRev) : undefined}
+                        compact
+                      />
+                    </div>
+                  </div>
 
-                  {/* 2×2 stat cards */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <FeaturedStatCard
-                      icon={<TrendingUp size={20}/>}
-                      label="صافي الإيراد"
-                      value={canRev ? `$${formatNumber(kpi.net,0)}` : "—"}
-                      sub={canRev ? "USD · إجمالي محصّل" : undefined}
-                      spark={sparkRevenue}
+                  {/* Row 2: 4 secondary KPIs */}
+                  <div className="an-secondary-grid">
+                    <KPI
+                      icon={<Activity size={17}/>} accent={C.purple} accentBg="rgba(139,92,246,0.10)"
+                      label="نمو المشتركين"
+                      value={mom.growPct!=null ? `${mom.growPct>0?"+":""}${mom.growPct}%` : "—"}
+                      sub={`${mom.curCnt} مشترك هذا الشهر`}
+                      delta={mom.growPct} spark={sparkCnt}
                     />
-                    <StatCard
-                      icon={<Users size={18}/>}
-                      accent={P.primary} accentLight="rgba(91,95,239,0.10)"
-                      label="المشتركون النشطون"
-                      value={formatNumber(kpi.active)}
-                      sub={`من ${formatNumber(kpi.total)} مشترك`}
-                      spark={sparkCount}
+                    <KPI
+                      icon={<Target size={17}/>} accent={C.cyan} accentBg="rgba(6,182,212,0.10)"
+                      label="معدل التحويل"
+                      value={`${kpi.conv.toFixed(1)}%`}
+                      sub="نشط من إجمالي المشتركين"
+                      spark={sparkCnt}
                     />
-                    <StatCard
-                      icon={<DollarSign size={18}/>}
-                      accent={P.success} accentLight="rgba(34,197,94,0.10)"
-                      label="إجمالي المحصّل"
-                      value={canRev ? `$${formatNumber(kpi.paid,0)}` : "—"}
-                      sub={canRev ? "قبل الاسترداد" : undefined}
-                      spark={sparkRevenue}
+                    <KPI
+                      icon={<CheckCircle2 size={17}/>} accent={C.success} accentBg="rgba(34,197,94,0.09)"
+                      label="معدل الاحتفاظ"
+                      value={`${kpi.retention.toFixed(1)}%`}
+                      sub="من غير المنسحبين نشطون"
+                      spark={sparkCnt}
                     />
-                    <StatCard
-                      icon={<CreditCard size={18}/>}
-                      accent={P.warning} accentLight="rgba(245,158,11,0.10)"
-                      label="متبقي أقساط"
-                      value={canRev ? `$${formatNumber(kpi.rem,0)}` : "—"}
-                      sub={canRev ? "أقساط مستحقة" : undefined}
-                      spark={sparkCount}
+                    <KPI
+                      icon={<UserMinus size={17}/>}
+                      accent={kpi.churn>5?C.danger:kpi.churn>2?C.warning:C.success}
+                      accentBg={kpi.churn>5?"rgba(239,68,68,0.08)":kpi.churn>2?"rgba(245,158,11,0.08)":"rgba(34,197,94,0.08)"}
+                      label="معدل الانسحاب"
+                      value={`${kpi.churn.toFixed(1)}%`}
+                      sub="هذا الشهر"
+                      spark={sparkCnt}
                     />
                   </div>
 
-                  {/* Monthly trend chart — smooth area with glow */}
-                  <Shell
-                    title={canRev ? "الإيرادات الشهرية" : "الدفعات الشهرية"}
-                    subtitle="آخر 12 شهراً"
-                    right={
-                      <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                        <span style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color: P.textMuted, fontWeight:500 }}>
-                          <span style={{ width:10, height:10, borderRadius:3, background: P.primary, display:"inline-block" }}/>
-                          {canRev ? "الإيراد" : "الدفعات"}
-                        </span>
-                        <span style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color: P.textMuted, fontWeight:500 }}>
-                          <span style={{ width:10, height:10, borderRadius:3, background: P.warning, display:"inline-block" }}/>
-                          العدد
-                        </span>
+                  {/* Row 3: 4 mini stats */}
+                  <div className="an-secondary-grid">
+                    <Mini label="إجمالي المحصّل"    value={canRev?`$${formatNumber(kpi.paid,0)}`:"—"}    sub="قبل الاسترداد"   color={C.success} icon={<DollarSign size={13}/>} rawVal={canRev?Math.round(kpi.paid):undefined} />
+                    <Mini label="متبقي أقساط"        value={canRev?`$${formatNumber(kpi.rem,0)}`:"—"}     sub="أقساط مستحقة"   color={C.warning} icon={<CreditCard size={13}/>} rawVal={canRev?Math.round(kpi.rem):undefined} />
+                    <Mini label="المنسحبون"           value={formatNumber(kpi.withdrawn)}                  sub="إجمالي منسحب"   color={C.danger}  icon={<UserMinus size={13}/>} rawVal={kpi.withdrawn} />
+                    <Mini label="ARPU"                value={canRev?`$${formatNumber(kpi.arpu,0)}`:"—"}   sub="متوسط الإيراد"   color={C.primary} icon={<Star size={13}/>} />
+                  </div>
+
+                  {/* ── Revenue Trend + Country ── */}
+                  <div className="an-rev-grid">
+                    <Shell
+                      title={canRev?"الإيرادات الشهرية":"الدفعات الشهرية"}
+                      sub="آخر 12 شهراً · صافي بعد الاسترداد"
+                      bar={C.primary}
+                      right={
+                        <div style={{ display:"flex", gap:14 }}>
+                          <Leg color={C.primary} label={canRev?"الإيراد":"الدفعات"} />
+                          <Leg color={C.warning} label="العدد" />
+                        </div>
+                      }
+                      height={290}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={monthly} margin={{ top:12, right:4, left:-14, bottom:0 }}>
+                          <defs>
+                            <linearGradient id="rG" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%"   stopColor={C.primary} stopOpacity={0.30} />
+                              <stop offset="80%"  stopColor={C.primary} stopOpacity={0.04} />
+                              <stop offset="100%" stopColor={C.primary} stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="cG" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%"   stopColor={C.warning} stopOpacity={0.20} />
+                              <stop offset="100%" stopColor={C.warning} stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="0" stroke={C.grid} vertical={false} opacity={0.8} />
+                          <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false} />
+                          <YAxis tick={TICK} axisLine={false} tickLine={false} width={42} />
+                          <Tooltip content={p=><DarkTip {...p} prefix={canRev?"$":""} />} cursor={{ stroke:`${C.primary}18`, strokeWidth:1, strokeDasharray:"4 4" }} />
+                          <Area type="monotone" dataKey={canRev?"revenue":"count"} name={canRev?"الإيراد":"الدفعات"} stroke={C.primary} strokeWidth={3} fill="url(#rG)" dot={false} activeDot={{ r:6, fill:C.primary, strokeWidth:3, stroke:"#fff" }} />
+                          <Area type="monotone" dataKey="count" name="العدد" stroke={C.warning} strokeWidth={2} fill="url(#cG)" dot={false} activeDot={{ r:5, fill:C.warning, strokeWidth:2, stroke:"#fff" }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </Shell>
+
+                    <Shell title="توزيع الدول" sub="حسب بلد الإقامة" height={290}>
+                      <div style={{ display:"flex", height:"100%", gap:12 }}>
+                        <ResponsiveContainer width="50%" height="100%">
+                          <PieChart>
+                            <Pie data={countryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={54} outerRadius={86} paddingAngle={2} isAnimationActive>
+                              {countryData.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]} strokeWidth={0}/>)}
+                            </Pie>
+                            <Tooltip content={<PieTip/>}/>
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", gap:8, overflow:"hidden" }} dir="rtl">
+                          {countryData.slice(0,6).map((d,i)=>(
+                            <div key={d.name} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <span style={{ width:7, height:7, borderRadius:"50%", flexShrink:0, background:PALETTE[i%PALETTE.length] }} />
+                              <span style={{ fontSize:11.5, color:"var(--jk-muted)", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.name}</span>
+                              <span style={{ fontSize:12, fontWeight:800, color:"var(--jk-text)", fontVariantNumeric:"tabular-nums" }}>{d.value}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    }
-                    height={260}
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={monthly} margin={{ top:12, right:4, left:-16, bottom:0 }}>
-                        <defs>
-                          <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={P.primary} stopOpacity={0.22}/>
-                            <stop offset="100%" stopColor={P.primary} stopOpacity={0}/>
-                          </linearGradient>
-                          <linearGradient id="cntGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={P.warning} stopOpacity={0.18}/>
-                            <stop offset="100%" stopColor={P.warning} stopOpacity={0}/>
-                          </linearGradient>
-                          <filter id="glow">
-                            <feGaussianBlur stdDeviation="3" result="blur"/>
-                            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                          </filter>
-                        </defs>
-                        <CartesianGrid strokeDasharray="0" stroke={P.divider} vertical={false}/>
-                        <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false}/>
-                        <YAxis tick={TICK} axisLine={false} tickLine={false}/>
-                        <Tooltip content={(p) => <DarkTip {...p} prefix={canRev ? "$" : ""}/>}
-                          cursor={{ stroke:`${P.primary}30`, strokeWidth:1 }}/>
-                        <Area type="monotone" dataKey={canRev ? "revenue" : "count"}
-                          name={canRev ? "الإيراد" : "الدفعات"}
-                          stroke={P.primary} strokeWidth={2.5} fill="url(#revGrad)"
-                          dot={false} activeDot={{ r:5, fill:P.primary, strokeWidth:2, stroke:"#fff" }}/>
-                        <Area type="monotone" dataKey="count" name="العدد"
-                          stroke={P.warning} strokeWidth={2} fill="url(#cntGrad)"
-                          dot={false} activeDot={{ r:4, fill:P.warning, strokeWidth:2, stroke:"#fff" }}/>
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </Shell>
+                    </Shell>
+                  </div>
 
-                  {/* Sources + Payment Methods row */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  {/* ── Acquisition + Package ── */}
+                  <div className="an-acq-grid">
+                    <Shell title="اكتساب المشتركين الجدد" sub="آخر 7 أشهر" bar={C.success} height={256}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={acqData} margin={{ top:10, right:4, left:-16, bottom:0 }}>
+                          <defs>
+                            <linearGradient id="acqG" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={C.primary} stopOpacity={1}/>
+                              <stop offset="100%" stopColor={C.purple} stopOpacity={0.7}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="0" stroke={C.grid} vertical={false} opacity={0.8}/>
+                          <XAxis dataKey="label" tick={TICK} axisLine={false} tickLine={false}/>
+                          <YAxis tick={TICK} axisLine={false} tickLine={false} width={28}/>
+                          <Tooltip content={<DarkTip/>} cursor={{ fill:`${C.primary}07` }}/>
+                          <Bar dataKey="مشتركون" fill="url(#acqG)" radius={[7,7,0,0]} maxBarSize={44}/>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Shell>
 
-                    {/* Subscription sources */}
-                    <Shell title="مصادر الاشتراك" subtitle="من أين جاء المشتركون">
-                      <div className="flex flex-col gap-3 pb-1">
-                        {sourceData.length === 0 ? (
-                          <p className="py-6 text-center text-sm" style={{ color: "var(--jk-muted)" }}>لا بيانات</p>
-                        ) : sourceData.map((d, i) => {
-                          const pct = sourceData[0]?.value
-                            ? Math.round((d.value / sourceData[0].value) * 100) : 0;
+                    <Shell title="توزيع الباقات" sub="فضية مقابل ذهبية" height={256}>
+                      <div style={{ display:"flex", height:"100%", alignItems:"center", gap:18 }}>
+                        <ResponsiveContainer width="44%" height="100%">
+                          <PieChart>
+                            <Pie data={packageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={82} paddingAngle={5} isAnimationActive>
+                              {packageData.map(d=><Cell key={d.name} fill={d.color} strokeWidth={0}/>)}
+                            </Pie>
+                            <Tooltip content={<PieTip/>}/>
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div style={{ flex:1, display:"flex", flexDirection:"column", gap:18 }}>
+                          {packageData.map(d=>{
+                            const pct = kpi.total ? Math.round((d.value/kpi.total)*100) : 0;
+                            return (
+                              <div key={d.name}>
+                                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                                  <span style={{ color:d.color, fontWeight:700, fontSize:13 }}>{d.name}</span>
+                                  <div style={{ display:"flex", gap:6, alignItems:"baseline" }}>
+                                    <span style={{ fontSize:20, fontWeight:800, color:"var(--jk-text)", fontVariantNumeric:"tabular-nums", letterSpacing:"-0.02em" }}>{d.value}</span>
+                                    <span style={{ fontSize:11, color:"var(--jk-muted)" }}>{pct}%</span>
+                                  </div>
+                                </div>
+                                <div className="jk-progress" style={{ height:5 }}>
+                                  <motion.div className="fill"
+                                    initial={{ width:0 }} animate={{ width:`${pct}%` }}
+                                    transition={{ duration:0.8, delay:0.2, ease:"easeOut" }}
+                                    style={{ background:d.color }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </Shell>
+                  </div>
+
+                  {/* ── Source Funnel + Live Feed + Payment Methods ── */}
+                  <div className="an-sources-grid">
+
+                    {/* Source conversion funnel */}
+                    <Shell title="مصادر الاشتراك" sub="أداء كل قناة اكتساب" bar={C.purple} height="auto">
+                      <div style={{ display:"flex", flexDirection:"column", gap:12 }} dir="rtl">
+                        {sourceData.length===0 ? (
+                          <div className="jk-empty py-8"><div className="jk-empty-icon"><BarChart2 size={20}/></div><p className="jk-empty-title">لا بيانات</p></div>
+                        ) : sourceData.map((d,i)=>{
+                          const total  = sourceData.reduce((s,x)=>s+x.value,0);
+                          const pct    = total?Math.round((d.value/total)*100):0;
+                          const relPct = sourceData[0]?.value?Math.round((d.value/sourceData[0].value)*100):0;
+                          const color  = PALETTE[i%PALETTE.length];
                           return (
                             <div key={d.name}>
-                              <div className="mb-1.5 flex justify-between text-xs">
-                                <span style={{ color: "var(--jk-muted)", fontWeight: 500 }}>{d.name}</span>
-                                <span className="font-bold tabular-nums" style={{ color: "var(--jk-text)" }}>{d.value}</span>
+                              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:7 }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                  <div style={{ width:26, height:26, borderRadius:8, background:`${color}15`, border:`1.5px solid ${color}28`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                    <span style={{ fontSize:9, fontWeight:800, color }}>{i+1}</span>
+                                  </div>
+                                  <span style={{ fontSize:13, color:"var(--jk-text)", fontWeight:600 }}>{d.name}</span>
+                                </div>
+                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                  <span style={{ fontSize:11, color:"var(--jk-subtle)", fontWeight:500 }}>{pct}%</span>
+                                  <span style={{ fontSize:14, fontWeight:800, color:"var(--jk-text)", fontVariantNumeric:"tabular-nums" }}>{d.value}</span>
+                                </div>
                               </div>
-                              <div className="h-2 overflow-hidden rounded-full"
-                                style={{ background: "rgba(16,20,26,0.06)" }}>
-                                <motion.div
-                                  initial={{ width: 0 }} animate={{ width: `${pct}%` }}
-                                  transition={{ duration: 0.7, delay: i * 0.07, ease: "easeOut" }}
-                                  className="h-full rounded-full"
-                                  style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
-                                />
+                              <div className="jk-progress" style={{ height:6 }}>
+                                <motion.div className="fill"
+                                  initial={{ width:0 }} animate={{ width:`${relPct}%` }}
+                                  transition={{ duration:0.75, delay:i*0.08, ease:"easeOut" }}
+                                  style={{ background:color }}/>
                               </div>
                             </div>
                           );
@@ -674,45 +907,36 @@ export default function AnalyticsPage() {
                       </div>
                     </Shell>
 
-                    {/* Recent payments */}
-                    <Shell
-                      title="آخر الدفعات"
-                      subtitle={`أحدث ${recentPayments.length} دفعة`}
-                      right={<Zap size={14} style={{ color: ACC.amber }} />}
-                      noPad
-                    >
-                      <div>
-                        {recentPayments.length === 0 ? (
-                          <p className="py-10 text-center text-sm" style={{ color: "var(--jk-muted)" }}>لا توجد دفعات</p>
-                        ) : recentPayments.slice(0, 6).map((p, i) => (
+                    {/* Live payments feed */}
+                    <Shell title="النشاط المباشر" sub={`أحدث ${recentPay.length} دفعة`}
+                      right={
+                        <div style={{ display:"flex", alignItems:"center", gap:5, padding:"3px 10px", borderRadius:999, background:"rgba(34,197,94,0.10)", border:"1px solid rgba(34,197,94,0.20)" }}>
+                          <span className="status-dot-live" style={{ width:6, height:6 }}/>
+                          <span style={{ fontSize:10, fontWeight:700, color:C.success }}>مباشر</span>
+                        </div>
+                      }
+                      noPad height="auto">
+                      <div dir="rtl">
+                        {recentPay.length===0 ? (
+                          <div className="jk-empty py-10"><p className="jk-empty-title">لا توجد دفعات</p></div>
+                        ) : recentPay.map((p,i)=>(
                           <div key={p.id}
-                            className="flex items-center justify-between px-5 py-3"
-                            style={{
-                              borderTop: i > 0 ? "1px solid rgba(16,20,26,0.05)" : "none",
-                              transition: "background .1s",
-                            }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "#FAFBFC")}
-                            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                          >
-                            <div className="min-w-0">
-                              {p.subscriberId
-                                ? <Link href={`/subscribers/${p.subscriberId}`}
-                                    className="text-sm font-semibold block hover:underline truncate"
-                                    style={{ color: "var(--jk-text)" }}>
-                                    {p.subscriberName || "—"}
-                                  </Link>
-                                : <p className="text-sm font-semibold truncate" style={{ color: "var(--jk-text)" }}>
-                                    {p.subscriberName || "—"}
-                                  </p>
-                              }
-                              <p className="text-xs" style={{ color: "var(--jk-muted)" }}>
-                                {p.paymentMethod || "—"} · {toDateStr(p.date).slice(0, 10) || "—"}
-                              </p>
+                            style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 20px", borderTop:i>0?"1px solid var(--jk-divider)":"none", transition:"background 0.12s" }}
+                            onMouseEnter={e=>(e.currentTarget.style.background="var(--jk-surface-hover)")}
+                            onMouseLeave={e=>(e.currentTarget.style.background="transparent")}>
+                            <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+                              <div style={{ width:8, height:8, borderRadius:"50%", background:i===0?C.success:C.grid, flexShrink:0, boxShadow:i===0?`0 0 0 3px rgba(34,197,94,0.18)`:"none" }}/>
+                              <div style={{ minWidth:0 }}>
+                                {p.subscriberId
+                                  ? <Link href={`/subscribers/${p.subscriberId}`} style={{ fontSize:13, fontWeight:600, color:"var(--jk-text)", display:"block", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textDecoration:"none" }} className="hover:underline">{p.subscriberName||"—"}</Link>
+                                  : <p style={{ fontSize:13, fontWeight:600, color:"var(--jk-text)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.subscriberName||"—"}</p>
+                                }
+                                <p style={{ fontSize:11, color:"var(--jk-subtle)", marginTop:1 }}>{p.paymentMethod||"—"} · {toDateStr(p.date).slice(0,10)||"—"}</p>
+                              </div>
                             </div>
                             {canRev && (
-                              <span className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold tabular-nums"
-                                style={{ background: "rgba(34,197,94,0.10)", color: "#22C55E" }}>
-                                ${formatNumber(p.amountUSD || 0, 2)}
+                              <span style={{ flexShrink:0, padding:"3px 9px", borderRadius:9, fontSize:12, fontWeight:800, fontVariantNumeric:"tabular-nums", background:"rgba(34,197,94,0.09)", color:C.success, border:"1px solid rgba(34,197,94,0.18)" }}>
+                                ${formatNumber(p.amountUSD||0,2)}
                               </span>
                             )}
                           </div>
@@ -720,302 +944,314 @@ export default function AnalyticsPage() {
                       </div>
                     </Shell>
 
+                    {/* Payment methods */}
+                    <Shell title="طرق الدفع" sub="توزيع الدفعات حسب الطريقة" height={300}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={methodData} layout="vertical" margin={{ top:4, right:4, left:4, bottom:0 }}>
+                          <CartesianGrid strokeDasharray="0" stroke={C.grid} horizontal={false} opacity={0.8}/>
+                          <XAxis type="number" tick={TICK} axisLine={false} tickLine={false} allowDecimals={false}/>
+                          <YAxis type="category" dataKey="name" tick={{ ...TICK, fontSize:10 }} axisLine={false} tickLine={false} width={82}/>
+                          <Tooltip content={<DarkTip/>} cursor={{ fill:`${C.primary}05` }}/>
+                          <Bar dataKey="value" name="الدفعات" radius={[0,7,7,0]} maxBarSize={13}>
+                            {methodData.map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]}/>)}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Shell>
                   </div>
-                </div>
-                {/* ═══ END LEFT COLUMN ═══ */}
 
-                {/* ═══ RIGHT COLUMN ═══ */}
-                <div className="flex flex-col gap-5">
-
-                  {/* Country distribution donut */}
-                  <Shell title="توزيع المشتركين" subtitle="حسب الدولة" height={290}>
-                    <div className="flex h-full gap-4">
-                      <ResponsiveContainer width="50%" height="100%">
-                        <PieChart>
-                          <Pie data={countryData} dataKey="value" nameKey="name"
-                            cx="50%" cy="50%" innerRadius={52} outerRadius={88}
-                            paddingAngle={2} isAnimationActive>
-                            {countryData.map((_, i) => (
-                              <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={0} />
-                            ))}
-                          </Pie>
-                          <Tooltip content={<PieTip />} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="flex flex-1 flex-col justify-center gap-2.5 overflow-hidden">
-                        {countryData.slice(0, 6).map((d, i) => (
-                          <div key={d.name} className="flex items-center gap-2">
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-                              background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                            <span className="text-xs truncate flex-1" style={{ color: "var(--jk-muted)" }}>{d.name}</span>
-                            <span className="text-xs font-bold tabular-nums" style={{ color: "var(--jk-text)" }}>{d.value}</span>
-                          </div>
-                        ))}
+                  {/* ── Team Performance Leaderboard ── */}
+                  <motion.div variants={fadeUp}
+                    style={{ overflow:"hidden", borderRadius:22, background:"var(--jk-surface)", border:"1px solid var(--jk-divider)", boxShadow:"var(--jk-shadow-card)", position:"relative" }}>
+                    <div style={{ position:"absolute", top:0, insetInline:0, height:3, background:`linear-gradient(90deg, ${C.warning}, ${C.warning}60)`, borderRadius:"22px 22px 0 0" }} />
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 22px 14px", borderBottom:"1px solid var(--jk-divider)" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:36, height:36, borderRadius:12, background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.22)", display:"flex", alignItems:"center", justifyContent:"center", color:C.warning }}>
+                          <Medal size={17}/>
+                        </div>
+                        <div>
+                          <p style={{ fontSize:15, fontWeight:800, color:"var(--jk-text)", letterSpacing:"-0.016em" }}>لوحة الفرق — الترتيب</p>
+                          <p style={{ fontSize:11.5, color:"var(--jk-subtle)", marginTop:2 }}>مرتبة حسب عدد المشتركين</p>
+                        </div>
                       </div>
-                    </div>
-                  </Shell>
-
-                  {/* Package distribution */}
-                  <Shell title="توزيع الباقات" subtitle="فضية مقابل ذهبية" height={200}>
-                    <div className="flex h-full items-center gap-5">
-                      <ResponsiveContainer width="45%" height="100%">
-                        <PieChart>
-                          <Pie data={packageData} dataKey="value" nameKey="name"
-                            cx="50%" cy="50%" innerRadius={42} outerRadius={72}
-                            paddingAngle={4} isAnimationActive>
-                            {packageData.map((d) => (
-                              <Cell key={d.name} fill={d.color} strokeWidth={0} />
-                            ))}
-                          </Pie>
-                          <Tooltip content={<PieTip />} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="flex flex-1 flex-col gap-4">
-                        {packageData.map((d) => {
-                          const pct = kpi.total ? Math.round((d.value / kpi.total) * 100) : 0;
-                          return (
-                            <div key={d.name}>
-                              <div className="mb-1.5 flex justify-between text-xs">
-                                <span style={{ color: d.color, fontWeight: 700 }}>{d.name}</span>
-                                <span className="font-bold tabular-nums" style={{ color: "var(--jk-text)" }}>
-                                  {d.value} · {pct}%
-                                </span>
-                              </div>
-                              <div className="h-2 overflow-hidden rounded-full"
-                                style={{ background: "rgba(16,20,26,0.06)" }}>
-                                <div className="h-full rounded-full transition-all duration-700"
-                                  style={{ width: `${pct}%`, background: d.color }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </Shell>
-
-                  {/* Team performance */}
-                  <motion.div variants={fadeUp} transition={tran}
-                    style={{ overflow:"hidden", borderRadius:22, background: P.card, border:`1px solid ${P.border}`,
-                      boxShadow:"0 1px 3px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.04)" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                      padding:"16px 22px 14px", borderBottom:`1px solid ${P.divider}` }}>
-                      <div>
-                        <p style={{ fontSize:15, fontWeight:800, color: P.textMain, letterSpacing:"-0.015em" }}>أداء الفرق</p>
-                        <p style={{ fontSize:12, color: P.textMuted, marginTop:2 }}>المشتركون حسب الفريق</p>
-                      </div>
-                      <Link href="/admin/teams" style={{
-                        fontSize:12, fontWeight:600, padding:"5px 12px", borderRadius:999,
-                        background:`rgba(91,95,239,0.08)`, color: P.primary, border:`1px solid rgba(91,95,239,0.18)`,
-                        textDecoration:"none", transition:"all .15s ease",
-                      }}>إدارة ←</Link>
+                      <Link href="/admin/teams" style={{ fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:999, background:"var(--jk-accent-bg)", color:"var(--jk-primary)", border:"1px solid var(--jk-accent-border)", textDecoration:"none" }}>
+                        إدارة ←
+                      </Link>
                     </div>
 
-                    {teamData.length === 0 ? (
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"40px 0" }}>
-                        <p style={{ fontSize:13, color: P.textMuted }}>لا توجد فرق</p>
-                      </div>
+                    {teamData.length===0 ? (
+                      <div className="jk-empty"><p className="jk-empty-title">لا توجد فرق</p></div>
                     ) : (
-                      <div style={{ padding:"12px 16px", display:"flex", flexDirection:"column", gap:6 }}>
-                        {teamData.slice(0,5).map((td, i) => {
-                          const colors = [P.primary,"#22C55E","#F59E0B","#EF4444","#8B5CF6"];
-                          const color = colors[i % colors.length];
-                          const maxSubs = teamData[0]?.["مشتركون"] || 1;
-                          const pct = Math.round((td["مشتركون"] / maxSubs) * 100);
-                          const inner = (
-                            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                  <div style={{ width:30, height:30, borderRadius:9, flexShrink:0,
-                                    background:`${color}14`, border:`1px solid ${color}24`,
-                                    display:"flex", alignItems:"center", justifyContent:"center",
-                                    fontSize:11, fontWeight:800, color }}>{td.name.charAt(0)}</div>
-                                  <span style={{ fontSize:13, fontWeight:700, color: P.textMain }}>{td.name}</span>
-                                </div>
-                                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                                  <span style={{ fontSize:11, color: P.textMuted }}>{td["مشتركون"]} م</span>
-                                  <span style={{ fontSize:11, fontWeight:700, color: P.success }}>{td["نشطون"]} ن</span>
-                                  {canRev && <span style={{ fontSize:12, fontWeight:800, color: P.textMain, fontVariantNumeric:"tabular-nums" }}>${formatNumber(td["إيراد"],0)}</span>}
-                                </div>
+                      <div style={{ padding:"14px 18px", display:"flex", flexDirection:"column", gap:4 }}>
+                        {teamData.slice(0,6).map((td,i)=>{
+                          const colors = [C.primary,C.success,C.warning,C.danger,C.purple,C.cyan];
+                          const color  = colors[i%colors.length];
+                          const pct    = Math.round((td.مشتركون/(teamData[0]?.مشتركون||1))*100);
+                          const actPct = td.مشتركون>0 ? Math.round((td.نشطون/td.مشتركون)*100) : 0;
+                          const inner  = (
+                            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                              <Rank n={i+1}/>
+                              <div style={{ width:38, height:38, borderRadius:13, flexShrink:0, background:`${color}14`, border:`1.5px solid ${color}28`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, fontWeight:800, color }}>
+                                {td.name.charAt(0)}
                               </div>
-                              <div style={{ height:4, background: P.divider, borderRadius:999, overflow:"hidden" }}>
-                                <div style={{ height:"100%", borderRadius:999, background: color,
-                                  width:`${pct}%`, transition:"width .7s ease" }}/>
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                                  <span style={{ fontSize:13.5, fontWeight:700, color:"var(--jk-text)" }}>{td.name}</span>
+                                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                    <span style={{ fontSize:11.5, color:"var(--jk-muted)" }}>{td.مشتركون} مشترك</span>
+                                    <span style={{ fontSize:11, padding:"2px 8px", borderRadius:999, background:"rgba(34,197,94,0.10)", color:C.success, border:"1px solid rgba(34,197,94,0.18)", fontWeight:700 }}>{td.نشطون} نشط</span>
+                                    {canRev && <span style={{ fontSize:13, fontWeight:800, color:"var(--jk-text)", fontVariantNumeric:"tabular-nums" }}>${formatNumber(td.إيراد,0)}</span>}
+                                  </div>
+                                </div>
+                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                  <div className="jk-progress" style={{ height:5, flex:1 }}>
+                                    <motion.div className="fill"
+                                      initial={{ width:0 }} animate={{ width:`${pct}%` }}
+                                      transition={{ duration:0.8, delay:i*0.09, ease:"easeOut" }}
+                                      style={{ background:color }}/>
+                                  </div>
+                                  <span style={{ fontSize:10.5, color:"var(--jk-subtle)", fontWeight:600, flexShrink:0, fontVariantNumeric:"tabular-nums" }}>{actPct}% نشط</span>
+                                </div>
                               </div>
                             </div>
                           );
-                          return td.id
-                            ? <Link key={td.name} href={`/admin/teams/${td.id}`}
-                                style={{ display:"block", padding:"10px 8px", borderRadius:14, border:"1px solid transparent",
-                                  textDecoration:"none", transition:"all .15s ease" }}
-                                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background="#F8F9FF"; el.style.borderColor=`rgba(91,95,239,0.10)`; }}
-                                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background="transparent"; el.style.borderColor="transparent"; }}>
-                                {inner}
-                              </Link>
-                            : <div key={td.name} style={{ padding:"10px 8px", borderRadius:14 }}>{inner}</div>;
+                          return td.id ? (
+                            <Link key={td.name} href={`/admin/teams/${td.id}`}
+                              style={{ display:"block", padding:"10px 10px", borderRadius:16, border:"1px solid transparent", textDecoration:"none", transition:"all 0.15s" }}
+                              onMouseEnter={e=>{ const el=e.currentTarget as HTMLElement; el.style.background="var(--jk-surface-hover)"; el.style.borderColor="var(--jk-divider)"; }}
+                              onMouseLeave={e=>{ const el=e.currentTarget as HTMLElement; el.style.background="transparent"; el.style.borderColor="transparent"; }}>
+                              {inner}
+                            </Link>
+                          ) : <div key={td.name} style={{ padding:"10px 10px", borderRadius:16 }}>{inner}</div>;
                         })}
                       </div>
                     )}
                   </motion.div>
 
-                  {/* Payment methods bar */}
-                  <Shell title="طرق الدفع" subtitle="عدد الدفعات" height={260}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={methodData} layout="vertical"
-                        margin={{ top:4, right:4, left:4, bottom:0 }}>
-                        <CartesianGrid strokeDasharray="0" stroke={P.divider} horizontal={false}/>
-                        <XAxis type="number" tick={TICK} axisLine={false} tickLine={false} allowDecimals={false}/>
-                        <YAxis type="category" dataKey="name" tick={{ ...TICK, fontSize:10 }} axisLine={false} tickLine={false} width={80}/>
-                        <Tooltip content={<DarkTip/>} cursor={{ fill:`${P.primary}06` }}/>
-                        <Bar dataKey="value" name="الدفعات" radius={[0,6,6,0]} maxBarSize={14}>
-                          {methodData.map((_, i) => (
-                            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]}/>
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </Shell>
+                </motion.div>
+              )}
 
-                </div>
-                {/* ═══ END RIGHT COLUMN ═══ */}
-
-              </div>
-
-            </> /* end overview tab */}
-
-            {/* ════════════════ EMPLOYEES TAB ════════════════ */}
-            {tab === "employees" && (
-              <motion.div variants={fadeUp} transition={tran} className="space-y-5">
-                {/* Export button */}
-                {canExport && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => exportEmployeePerformanceCSV(subscribers)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold"
-                      style={{ background: "linear-gradient(135deg,#5B5FEF,#3B82F6)" }}>
-                      <Download size={13}/> تصدير CSV
-                    </button>
-                  </div>
-                )}
-
-                {empLoading ? (
-                  <div className="flex justify-center py-20">
-                    <RefreshCw size={20} className="animate-spin" style={{ color: P.primary }}/>
-                  </div>
-                ) : empPerf.length === 0 ? (
-                  <div className="text-center py-20" style={{ color: t.textSec }}>
-                    لا توجد بيانات أداء موظفين
-                  </div>
-                ) : (
-                  <>
-                    {/* Leaderboard table */}
-                    <div className="rounded-[22px] overflow-hidden"
-                      style={{ background: "#FFFFFF", border: "1px solid rgba(16,20,26,0.07)", boxShadow: "0 1px 2px rgba(16,20,26,0.04), 0 8px 20px -8px rgba(16,20,26,0.07)" }}>
-                      <div className="px-5 py-4 flex items-center gap-2"
-                        style={{ borderBottom: "1px solid rgba(16,20,26,0.06)" }}>
-                        <Medal size={15} style={{ color: ACC.amber }}/>
-                        <p style={{ fontSize: 14.5, fontWeight: 800, color: "var(--jk-text)", letterSpacing: "-0.01em" }}>لوحة الأداء</p>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr style={{ background: "#F7F8FA", borderBottom: "1px solid rgba(16,20,26,0.06)" }}>
-                              {["#","الموظف","المشتركون","النشطون","الإيراد USD","التجديدات","الاسترداد","متوسط القيمة"].map((h) => (
-                                <th key={h} className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider"
-                                  style={{ color: "var(--jk-muted)" }}>{h}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y" style={{ borderColor: t.divider }}>
-                            {empPerf.map((emp, i) => {
-                              const medal = ["🥇","🥈","🥉"][i];
-                              return (
-                                <tr key={emp.name} className="transition-colors hover:bg-slate-50">
-                                  <td className="px-4 py-3 text-base text-center w-10">{medal ?? <span className="text-xs font-bold" style={{ color: t.textSec }}>{i+1}</span>}</td>
-                                  <td className="px-4 py-3">
-                                    <span className="font-bold text-sm" style={{ color: t.textPri }}>{emp.name}</span>
-                                  </td>
-                                  <td className="px-4 py-3 font-bold tabular-nums text-center" style={{ color: t.textPri }}>{emp.subscribers}</td>
-                                  <td className="px-4 py-3 text-center">
-                                    <span className="px-2 py-0.5 rounded-full text-xs font-bold"
-                                      style={{ background: `${ACC.emerald}15`, color: ACC.emerald }}>{emp.active}</span>
-                                  </td>
-                                  <td className="px-4 py-3 tabular-nums font-black" style={{ color: ACC.emerald }}>
-                                    {canRev ? `$${formatNumber(emp.revenue, 0)}` : "—"}
-                                  </td>
-                                  <td className="px-4 py-3 tabular-nums text-center" style={{ color: t.textPri }}>{emp.renewals}</td>
-                                  <td className="px-4 py-3 tabular-nums text-center" style={{ color: emp.refunds > 0 ? ACC.rose : t.textSec }}>{emp.refunds}</td>
-                                  <td className="px-4 py-3 tabular-nums" style={{ color: t.textSec }}>
-                                    {canRev ? `$${formatNumber(emp.avgValue, 0)}` : "—"}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+              {/* ══════════════════ EMPLOYEES ══════════════════ */}
+              {tab==="employees" && (
+                <motion.div key="emp" initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }} transition={{ duration:0.22 }} style={{ display:"flex", flexDirection:"column", gap:18 }}>
+                  {canExport && (
+                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                      <button onClick={()=>exportEmployeePerformanceCSV(subscribers)} className="jk-btn"><Download size={13}/> تصدير CSV</button>
                     </div>
-
-                    {/* Performance bar chart */}
-                    {canRev && (
-                      <Shell title="مقارنة الإيراد بين الموظفين" height={260}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={empPerf.slice(0,8)} margin={{ top:8, right:8, left:-8, bottom:0 }}>
-                            <CartesianGrid strokeDasharray="2 4" stroke="rgba(16,20,26,0.05)" vertical={false}/>
-                            <XAxis dataKey="name" tick={TICK} interval={0} angle={-15} textAnchor="end"/>
-                            <YAxis tick={TICK}/>
-                            <Tooltip content={<DarkTip prefix="$"/>}/>
-                            <Bar dataKey="revenue" name="الإيراد" fill={ACC.violet} radius={[4,4,0,0]}/>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </Shell>
-                    )}
-                  </>
-                )}
-              </motion.div>
-            )}
-
-            {/* ════════════════ INSIGHTS TAB ════════════════ */}
-            {tab === "insights" && (
-              <motion.div variants={fadeUp} transition={tran} className="space-y-4">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <Lightbulb size={16} style={{ color: ACC.amber }}/>
-                  <h3 className="text-base font-bold" style={{ color: t.textPri }}>التنبيهات الذكية</h3>
-                  <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                    style={{ background: `${ACC.amber}18`, color: ACC.amber }}>
-                    {insights.length} تنبيه
-                  </span>
-                </div>
-
-                {metricsLoading ? (
-                  <div className="flex justify-center py-20">
-                    <RefreshCw size={20} className="animate-spin" style={{ color: P.primary }}/>
-                  </div>
-                ) : insights.length === 0 ? (
-                  <div className="flex flex-col items-center gap-3 py-20">
-                    <CheckCircle2 size={40} className="text-emerald-400 opacity-60"/>
-                    <p className="font-bold text-sm" style={{ color: t.textPri }}>كل شيء يسير بشكل جيد!</p>
-                    <p className="text-xs" style={{ color: t.textSec }}>لا توجد تنبيهات حالياً</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {/* Critical first */}
-                    {(["critical","warning","info","success"] as const).map((level) => {
-                      const group = insights.filter((i) => i.level === level);
-                      if (!group.length) return null;
-                      return (
-                        <div key={level} className="space-y-2">
-                          {group.map((insight) => (
-                            <InsightCard key={insight.id} insight={insight}/>
-                          ))}
+                  )}
+                  {empLoading ? (
+                    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                      {Array(5).fill(0).map((_,i)=><Bone key={i} h={54} r={14}/>)}
+                    </div>
+                  ) : empPerf.length===0 ? (
+                    <div className="jk-empty py-20">
+                      <div className="jk-empty-icon"><Medal size={22}/></div>
+                      <p className="jk-empty-title">لا توجد بيانات أداء موظفين</p>
+                      <p className="jk-empty-sub">سيظهر هنا الأداء بعد إضافة مشتركين</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Top 3 leaderboard cards */}
+                      {empPerf.length>=1 && (
+                        <div className="an-leader-grid">
+                          {empPerf.slice(0,3).map((emp,i)=>{
+                            const medals   = ["rgba(251,191,36,0.14)","rgba(156,163,175,0.14)","rgba(180,107,60,0.12)"];
+                            const colors   = ["#D97706","#6B7280","#92400E"];
+                            const borders  = ["rgba(251,191,36,0.28)","rgba(156,163,175,0.22)","rgba(180,107,60,0.22)"];
+                            return (
+                              <motion.div key={emp.name} variants={fadeUp} whileHover={{ y:-3, transition:fast }}
+                                style={{ background:"var(--jk-surface)", borderRadius:20, padding:"22px", border:`1.5px solid ${borders[i]}`, boxShadow:i===0?"0 8px 32px rgba(251,191,36,0.10)":"var(--jk-shadow-card)", position:"relative", overflow:"hidden" }}>
+                                {i===0 && <div style={{ position:"absolute", top:-40, right:-40, width:120, height:120, borderRadius:"50%", background:"radial-gradient(circle, rgba(251,191,36,0.16) 0%, transparent 70%)", pointerEvents:"none" }}/>}
+                                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
+                                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                    <div style={{ width:40, height:40, borderRadius:13, background:medals[i], display:"flex", alignItems:"center", justifyContent:"center", color:colors[i] }}>
+                                      {i===0?<Crown size={17}/>:i===1?<Medal size={16}/>:<Medal size={14}/>}
+                                    </div>
+                                    <div>
+                                      <p style={{ fontSize:14, fontWeight:700, color:"var(--jk-text)" }}>{emp.name}</p>
+                                      <p style={{ fontSize:11, color:"var(--jk-muted)", marginTop:1 }}>المرتبة {i+1}</p>
+                                    </div>
+                                  </div>
+                                  <span style={{ fontSize:24 }}>{["🥇","🥈","🥉"][i]}</span>
+                                </div>
+                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                  <div style={{ background:"var(--jk-panel)", borderRadius:12, padding:"10px 12px" }}>
+                                    <p style={{ fontSize:10, color:"var(--jk-muted)", fontWeight:600, marginBottom:3 }}>المشتركون</p>
+                                    <p style={{ fontSize:22, fontWeight:800, color:"var(--jk-text)", fontVariantNumeric:"tabular-nums" }}>{emp.subscribers}</p>
+                                  </div>
+                                  <div style={{ background:"rgba(34,197,94,0.07)", borderRadius:12, padding:"10px 12px" }}>
+                                    <p style={{ fontSize:10, color:"var(--jk-muted)", fontWeight:600, marginBottom:3 }}>الإيراد</p>
+                                    <p style={{ fontSize:17, fontWeight:800, color:C.success, fontVariantNumeric:"tabular-nums" }}>{canRev?`$${formatNumber(emp.revenue,0)}`:"—"}</p>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
                         </div>
+                      )}
+
+                      {/* Full performance table */}
+                      <div className="jk-table-wrap">
+                        <div style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid var(--jk-divider)" }}>
+                          <Medal size={14} style={{ color:C.warning }}/>
+                          <p style={{ fontSize:14.5, fontWeight:800, color:"var(--jk-text)", letterSpacing:"-0.01em" }}>لوحة الأداء الكاملة</p>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="jk-table w-full">
+                            <thead>
+                              <tr>{["#","الموظف","المشتركون","النشطون","الإيراد USD","التجديدات","الاسترداد","متوسط القيمة"].map(h=><th key={h}>{h}</th>)}</tr>
+                            </thead>
+                            <tbody>
+                              {empPerf.map((emp,i)=>(
+                                <tr key={emp.name}>
+                                  <td className="text-center w-10">{["🥇","🥈","🥉"][i]??<span style={{ fontSize:11, fontWeight:700, color:"var(--jk-muted)" }}>{i+1}</span>}</td>
+                                  <td><span style={{ fontWeight:700, color:"var(--jk-text)" }}>{emp.name}</span></td>
+                                  <td className="text-center font-bold tabular-nums">{emp.subscribers}</td>
+                                  <td className="text-center"><span className="jk-chip active">{emp.active}</span></td>
+                                  <td className="tabular-nums font-black" style={{ color:C.success }}>{canRev?`$${formatNumber(emp.revenue,0)}`:"—"}</td>
+                                  <td className="tabular-nums text-center">{emp.renewals}</td>
+                                  <td className="tabular-nums text-center" style={{ color:emp.refunds>0?C.danger:"var(--jk-muted)" }}>{emp.refunds}</td>
+                                  <td className="tabular-nums" style={{ color:"var(--jk-muted)" }}>{canRev?`$${formatNumber(emp.avgValue,0)}`:"—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Charts */}
+                      <div className="an-emp-chart-grid">
+                        {canRev && (
+                          <Shell title="مقارنة الإيراد" sub="بين الموظفين" bar={C.success} height={280}>
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={empPerf.slice(0,8)} margin={{ top:10, right:8, left:-8, bottom:0 }}>
+                                <defs>
+                                  <linearGradient id="eRG" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor={C.success} stopOpacity={0.9}/>
+                                    <stop offset="100%" stopColor={C.cyan} stopOpacity={0.7}/>
+                                  </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="2 4" stroke={C.grid} vertical={false}/>
+                                <XAxis dataKey="name" tick={TICK} interval={0} angle={-15} textAnchor="end" height={42}/>
+                                <YAxis tick={TICK}/>
+                                <Tooltip content={<DarkTip prefix="$"/>}/>
+                                <Bar dataKey="revenue" name="الإيراد" radius={[5,5,0,0]} fill="url(#eRG)"/>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </Shell>
+                        )}
+                        <Shell title="مشتركو كل موظف" sub="عدد المشتركين" bar={C.primary} height={280}>
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={empPerf.slice(0,8)} margin={{ top:10, right:8, left:-8, bottom:0 }}>
+                              <CartesianGrid strokeDasharray="2 4" stroke={C.grid} vertical={false}/>
+                              <XAxis dataKey="name" tick={TICK} interval={0} angle={-15} textAnchor="end" height={42}/>
+                              <YAxis tick={TICK}/>
+                              <Tooltip content={<DarkTip/>}/>
+                              <Bar dataKey="subscribers" name="المشتركون" radius={[5,5,0,0]}>
+                                {empPerf.slice(0,8).map((_,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]}/>)}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </Shell>
+                      </div>
+                    </>
+                  )}
+                </motion.div>
+              )}
+
+              {/* ══════════════════ INSIGHTS ══════════════════ */}
+              {tab==="insights" && (
+                <motion.div key="ins" initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }} transition={{ duration:0.22 }} style={{ display:"flex", flexDirection:"column", gap:18 }}>
+
+                  {/* Health score banner */}
+                  <div className="an-health-grid">
+                    {/* Score dark card */}
+                    <motion.div variants={fadeUp}
+                      style={{ borderRadius:22, padding:"24px", background:`linear-gradient(145deg, ${C.dark1}, ${C.dark2})`, border:"1px solid rgba(255,255,255,0.07)", boxShadow:"0 12px 44px rgba(8,14,28,0.55)", position:"relative", overflow:"hidden", display:"flex", flexDirection:"column", justifyContent:"space-between", gap:16 }}>
+                      <div style={{ position:"absolute", top:-30, right:-30, width:120, height:120, borderRadius:"50%", background:`radial-gradient(circle, ${health.color}28 0%, transparent 70%)`, pointerEvents:"none" }}/>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:40, height:40, borderRadius:13, background:`${health.color}22`, border:`1px solid ${health.color}38`, display:"flex", alignItems:"center", justifyContent:"center", color:health.color }}>
+                          <Sparkles size={18}/>
+                        </div>
+                        <div>
+                          <p style={{ fontSize:9.5, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,0.35)" }}>مؤشر صحة المنصة</p>
+                          <p style={{ fontSize:12.5, fontWeight:600, color:"rgba(255,255,255,0.55)", marginTop:1 }}>Health Score</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ fontSize:56, fontWeight:900, color:"#fff", letterSpacing:"-0.045em", lineHeight:1, fontVariantNumeric:"tabular-nums" }}>{health.score}</p>
+                        <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:10 }}>
+                          <div style={{ flex:1, height:4, background:"rgba(255,255,255,0.10)", borderRadius:999, overflow:"hidden" }}>
+                            <motion.div initial={{ width:0 }} animate={{ width:`${health.score}%` }} transition={{ duration:1.1, ease:"easeOut" }} style={{ height:"100%", background:health.color, borderRadius:999 }}/>
+                          </div>
+                          <span style={{ fontSize:12, fontWeight:700, color:health.color, flexShrink:0 }}>{health.label}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* BI metric cards */}
+                    {[
+                      { title:"معدل الاحتفاظ", value:`${kpi.retention.toFixed(1)}%`, level:kpi.retention>=70?"success":kpi.retention>=50?"warning":"critical", desc:kpi.retention>=70?"ممتاز — معدل احتفاظ صحي":kpi.retention>=50?"متوسط — يحتاج تحسين":"منخفض — يجب التدخل" },
+                      { title:"معدل الانسحاب", value:`${kpi.churn.toFixed(1)}%`,    level:kpi.churn<=2?"success":kpi.churn<=5?"warning":"critical", desc:kpi.churn<=2?"ممتاز — انسحاب منخفض":kpi.churn<=5?"متوسط — متابعة مستمرة":"مرتفع — يحتاج مراجعة" },
+                    ].map(item=>{
+                      const cfgMap = { success:{bg:"var(--success-bg)",color:C.success,border:"rgba(34,197,94,0.22)"}, warning:{bg:"var(--warning-bg)",color:C.warning,border:"rgba(245,158,11,0.22)"}, critical:{bg:"var(--danger-bg)",color:C.danger,border:"rgba(239,68,68,0.22)"} } as const;
+                      const c = cfgMap[item.level as keyof typeof cfgMap];
+                      return (
+                        <motion.div key={item.title} variants={fadeUp}
+                          style={{ background:c.bg, borderRadius:22, padding:"22px 24px", border:`1.5px solid ${c.border}` }}>
+                          <p style={{ fontSize:10.5, color:c.color, fontWeight:700, marginBottom:10, textTransform:"uppercase", letterSpacing:"0.09em" }}>{item.title}</p>
+                          <p style={{ fontSize:44, fontWeight:900, color:c.color, fontVariantNumeric:"tabular-nums", lineHeight:1, letterSpacing:"-0.04em" }}>{item.value}</p>
+                          <p style={{ fontSize:12.5, color:"var(--jk-muted)", marginTop:12, lineHeight:1.55 }}>{item.desc}</p>
+                        </motion.div>
                       );
                     })}
                   </div>
-                )}
-              </motion.div>
-            )}
 
-            </motion.div>
+                  {/* Mini stats */}
+                  <div className="an-secondary-grid">
+                    <Mini label="ARPU"              value={canRev?`$${formatNumber(kpi.arpu,0)}`:"—"}     sub="متوسط إيراد المشترك"  color={C.primary}/>
+                    <Mini label="إجمالي المشتركين"  value={formatNumber(kpi.total)}                       sub="منذ البداية"           color={C.primary} rawVal={kpi.total}/>
+                    <Mini label="المنسحبون"         value={formatNumber(kpi.withdrawn)}                   sub="إجمالي منسحب"          color={C.danger}  rawVal={kpi.withdrawn}/>
+                    <Mini label="معدل التحويل"      value={`${kpi.conv.toFixed(1)}%`}                    sub="نشط من إجمالي"         color={C.cyan}/>
+                  </div>
+
+                  {/* Smart alerts */}
+                  <div>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+                      <div style={{ width:34, height:34, borderRadius:11, background:"rgba(245,158,11,0.12)", border:"1px solid rgba(245,158,11,0.22)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <Lightbulb size={15} style={{ color:C.warning }}/>
+                      </div>
+                      <h3 style={{ fontSize:15, fontWeight:800, color:"var(--jk-text)", margin:0, letterSpacing:"-0.01em" }}>التنبيهات الذكية</h3>
+                      {insights.length>0 && (
+                        <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:999, background:"rgba(245,158,11,0.12)", color:C.warning, border:"1px solid rgba(245,158,11,0.22)" }}>
+                          {insights.length} تنبيه
+                        </span>
+                      )}
+                    </div>
+                    {insightsLoading ? (
+                      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                        {Array(4).fill(0).map((_,i)=><Bone key={i} h={70} r={16}/>)}
+                      </div>
+                    ) : insights.length===0 ? (
+                      <div className="jk-empty py-16">
+                        <div className="jk-empty-icon"><CheckCircle2 size={24}/></div>
+                        <p className="jk-empty-title">كل شيء يسير بشكل جيد!</p>
+                        <p className="jk-empty-sub">لا توجد تنبيهات حالياً</p>
+                      </div>
+                    ) : (
+                      <motion.div variants={stagger} initial="hidden" animate="show" style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                        {(["critical","warning","info","success"] as const).map(level=>{
+                          const group = insights.filter(ins=>ins.level===level);
+                          if (!group.length) return null;
+                          return group.map(ins=><InsightCard key={ins.id} insight={ins}/>);
+                        })}
+                      </motion.div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+            </AnimatePresence>
           )}
         </div>
       </div>

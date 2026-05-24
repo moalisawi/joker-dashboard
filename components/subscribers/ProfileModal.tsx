@@ -1,17 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  collection, query, where, orderBy, getDocs,
-} from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firestore";
 import { useAuthStore } from "@/store/authStore";
 import {
-  formatNumber, formatDate, formatDateTime, getWhatsAppLink, RESIDENCE_COUNTRIES, PHONE_COUNTRIES,
+  formatNumber, formatDate, formatDateTime, getWhatsAppLink,
+  RESIDENCE_COUNTRIES, PHONE_COUNTRIES,
 } from "@/lib/utils";
 import type { Subscriber } from "@/types";
-import { X, ExternalLink, PauseCircle, Snowflake } from "lucide-react";
 import { freezeService } from "@/services";
+import {
+  X, ExternalLink, PauseCircle, Snowflake, Phone,
+  MapPin, Calendar, User, CreditCard, Clock, Hash,
+  TrendingUp, AlertTriangle, CheckCircle, RotateCcw,
+  Pencil, MessageCircle, Banknote,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Payment {
   id: string;
@@ -40,74 +45,67 @@ function getResidenceLabel(value: string): string {
   return (
     RESIDENCE_COUNTRIES.find((c) => c.value === value)?.name ||
     PHONE_COUNTRIES.find((c) => c.iso === value)?.name ||
-    value ||
-    "-"
+    value || "—"
   );
 }
 
-export default function ProfileModal({
-  subscriber: s,
-  onClose,
-  onEdit,
-  onRenew,
-  onAddPayment,
-}: Props) {
+function getInitials(name: string) {
+  return (name || "؟").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
+/* ── Thin info row ── */
+function InfoRow({ icon, label, value, mono }: { icon: React.ReactNode; label: string; value: string; mono?: boolean }) {
+  if (!value || value === "-" || value === "—") return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderRadius: 12, background: "var(--jk-surface-secondary, #F8FAFC)" }}>
+      <span style={{ color: "var(--jk-primary)", flexShrink: 0, opacity: 0.7 }}>{icon}</span>
+      <span style={{ fontSize: 11, color: "var(--jk-muted)", flexShrink: 0, minWidth: 72 }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--jk-text)", flex: 1, textAlign: "start", fontFamily: mono ? "monospace" : "inherit" }} dir={mono ? "ltr" : undefined}>{value}</span>
+    </div>
+  );
+}
+
+/* ── Stat mini card ── */
+function MiniStat({ label, value, color, sub }: { label: string; value: string; color: string; sub?: string }) {
+  return (
+    <div style={{ textAlign: "center", padding: "12px 8px", borderRadius: 14, background: `${color}12`, border: `1px solid ${color}28` }}>
+      <p style={{ fontSize: 18, fontWeight: 800, color, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{value}</p>
+      {sub && <p style={{ fontSize: 10, color, opacity: 0.7, marginTop: 2 }}>{sub}</p>}
+      <p style={{ fontSize: 11, color: "var(--jk-muted)", marginTop: 4 }}>{label}</p>
+    </div>
+  );
+}
+
+export default function ProfileModal({ subscriber: s, onClose, onEdit, onRenew, onAddPayment }: Props) {
   const { can } = useAuthStore();
-  const canRev = can("canViewRevenue");
+  const canRev  = can("canViewRevenue");
 
   const [payments, setPayments] = useState<Payment[]>([]);
   const [payLoading, setPayLoading] = useState(true);
-  const [payError, setPayError] = useState("");
+  const [activeTab, setActiveTab] = useState<"info" | "payments" | "history">("info");
 
   useEffect(() => {
+    let cancelled = false;
     async function loadPayments() {
       setPayLoading(true);
-      setPayError("");
       try {
-        const q = query(
-          collection(db, "payments"),
-          where("subscriberId", "==", s.id),
-          orderBy("createdAt", "desc")
-        );
+        const q = query(collection(db, "payments"), where("subscriberId", "==", s.id), orderBy("createdAt", "desc"));
         const snap = await getDocs(q);
-        setPayments(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Payment)));
-      } catch (err) {
-        setPayError(err instanceof Error ? err.message : "تعذر التحميل");
-      } finally {
-        setPayLoading(false);
-      }
+        if (!cancelled) setPayments(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Payment)));
+      } catch { /* silent */ }
+      finally { if (!cancelled) setPayLoading(false); }
     }
     loadPayments();
+    return () => { cancelled = true; };
   }, [s.id]);
 
-  const statusClass =
-    s.status === "نشط"           ? "status-active"
-    : s.status === "ينتهي قريباً" ? "status-expiring"
-    : s.status === "منسحب"        ? "status-withdrawn"
-    : s.status === "موقوف"        ? "status-paused"
-    : s.status === "متجمد"        ? "status-frozen"
-    : "status-expired";
-
-  // Days counter derived values
+  /* ── Urgency state ── */
   const isPaused    = s.subscriptionStatus === "paused";
   const isFrozen    = s.freezeData?.isFrozen === true;
-  const isWithdrawn = s.subscriptionState === "withdrawn";
-  const daysLeft    = isPaused
-    ? (s.remainingDaysAtPause ?? 0)
-    : isFrozen
-    ? (s.freezeData?.remainingDays ?? 0)
-    : s.daysRemaining;
+  const isWithdrawn = s.subscriptionState   === "withdrawn";
+  const daysLeft    = isPaused ? (s.remainingDaysAtPause ?? 0) : isFrozen ? (s.freezeData?.remainingDays ?? 0) : s.daysRemaining;
+  const displayDays = Math.abs(daysLeft);
 
-  // Progress bar: how much of the subscription period has elapsed
-  const startMs  = s.date ? new Date(s.date).getTime() : 0;
-  const endMs    = s.expiryDate ? new Date(s.expiryDate).getTime() : 0;
-  const totalMs  = endMs - startMs;
-  const elapsed  = totalMs > 0
-    ? Math.min(100, Math.max(0, ((Date.now() - startMs) / totalMs) * 100))
-    : 0;
-  const remaining = 100 - elapsed;
-
-  // Color scheme based on urgency
   const urgency =
     isWithdrawn ? "withdrawn"
     : isPaused  ? "paused"
@@ -117,629 +115,609 @@ export default function ProfileModal({
     : daysLeft <= 15 ? "warning"
     : "ok";
 
-  const urgencyConfig = {
-    ok:        { ring: "border-emerald-400", bg: "bg-emerald-50",  num: "text-emerald-700", bar: "bg-emerald-500",  label: "يوم متبقٍ",        sub: "" },
-    warning:   { ring: "border-amber-400",   bg: "bg-amber-50",    num: "text-amber-700",   bar: "bg-amber-400",    label: "يوم متبقٍ",        sub: "ينتهي قريباً" },
-    critical:  { ring: "border-red-400",     bg: "bg-red-50",      num: "text-red-700",     bar: "bg-red-500",      label: "يوم متبقٍ",        sub: "انتبه!" },
-    expired:   { ring: "border-slate-300",   bg: "bg-slate-50",    num: "text-slate-500",   bar: "bg-slate-300",    label: "يوم منذ الانتهاء", sub: "منتهٍ" },
-    paused:    { ring: "border-amber-300",   bg: "bg-amber-50",    num: "text-amber-700",   bar: "bg-amber-300",    label: "يوم مجمّد",        sub: "موقوف" },
-    frozen:    { ring: "border-blue-400",    bg: "bg-blue-50",     num: "text-blue-700",    bar: "bg-blue-400",     label: "يوم محفوظ",        sub: "متجمد" },
-    withdrawn: { ring: "border-slate-300",   bg: "bg-slate-50",    num: "text-slate-400",   bar: "bg-slate-200",    label: "",                 sub: "منسحب" },
+  const urgencyPalette = {
+    ok:        { color: "#22C55E", bg: "#ECFDF3", border: "rgba(34,197,94,.28)",  icon: <CheckCircle size={16} />, label: "يوم متبقٍ",        badge: "نشط" },
+    warning:   { color: "#F59E0B", bg: "#FFFBEB", border: "rgba(245,158,11,.28)", icon: <AlertTriangle size={16} />, label: "يوم متبقٍ",      badge: "ينتهي قريباً" },
+    critical:  { color: "#EF4444", bg: "#FEF2F2", border: "rgba(239,68,68,.28)",  icon: <AlertTriangle size={16} />, label: "يوم متبقٍ",      badge: "عاجل!" },
+    expired:   { color: "#9CA3AF", bg: "#F1F5F9", border: "rgba(156,163,175,.28)", icon: <X size={16} />, label: "يوم منذ الانتهاء",        badge: "منتهٍ" },
+    paused:    { color: "#F59E0B", bg: "#FFFBEB", border: "rgba(245,158,11,.28)", icon: <PauseCircle size={16} />, label: "يوم مجمّدة",       badge: "موقوف" },
+    frozen:    { color: "#3B82F6", bg: "#EFF6FF", border: "rgba(59,130,246,.28)", icon: <Snowflake size={16} />,   label: "يوم محفوظ",        badge: "متجمد" },
+    withdrawn: { color: "#9CA3AF", bg: "#F1F5F9", border: "rgba(156,163,175,.28)", icon: <User size={16} />,  label: "",                   badge: "منسحب" },
   }[urgency];
 
-  const displayDays = Math.abs(daysLeft);
+  /* ── Progress bar ── */
+  const startMs = s.date ? new Date(s.date).getTime() : 0;
+  const endMs   = s.expiryDate ? new Date(s.expiryDate).getTime() : 0;
+  const elapsed = (endMs - startMs) > 0
+    ? Math.min(100, Math.max(0, ((Date.now() - startMs) / (endMs - startMs)) * 100))
+    : 0;
 
-  const totalUSD  = s.totalPriceUSD || s.netAmountUSD || 0;
-  const paidUSD   = s.paidAmountUSD ?? 0;
-  const remUSD    = s.remainingAmountUSD ?? 0;
-  const payPct    = totalUSD > 0 ? Math.min(100, (paidUSD / totalUSD) * 100) : 100;
-  const isPartial = remUSD > 0.01;
+  /* ── Finance ── */
+  const totalUSD = s.totalPriceUSD || s.netAmountUSD || 0;
+  const paidUSD  = s.paidAmountUSD ?? 0;
+  const remUSD   = s.remainingAmountUSD ?? 0;
+  const payPct   = totalUSD > 0 ? Math.min(100, (paidUSD / totalUSD) * 100) : 100;
 
   const totalPriceOrig = s.totalPrice ?? (s.totalPriceUSD * s.lockedRate);
   const origCurrency   = s.currencyOriginal || "USD";
 
+  /* ── Avatar gradient seed ── */
+  const avatarColors = [
+    ["#5B5FEF","#4338CA"], ["#22C55E","#16A34A"], ["#F59E0B","#D97706"],
+    ["#EF4444","#DC2626"], ["#3B82F6","#2563EB"], ["#8B5CF6","#7C3AED"],
+  ];
+  const colorIdx = (s.name || "").charCodeAt(0) % avatarColors.length;
+  const [c1, c2] = avatarColors[colorIdx];
+
+  const tabs = [
+    { id: "info" as const,     label: "المعلومات" },
+    { id: "payments" as const, label: `الدفعات ${payLoading ? "" : `(${payments.length})`}` },
+    { id: "history" as const,  label: "التجديدات", show: (s.renewalCount > 0 || (s.renewals?.length ?? 0) > 0) },
+  ].filter((t) => t.show !== false);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-panel max-w-2xl w-full"
+      <motion.div
+        className="modal-panel"
         onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.98 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        style={{ maxWidth: 640, width: "100%", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90dvh" }}
       >
-        {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-slate-100">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
-            <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-black text-slate-800 truncate">{s.name || "-"}</h2>
-              <p className="text-sm text-slate-500 font-mono mt-0.5" dir="ltr">
-                {s.dialCode} {s.phone}
+
+        {/* ══ HEADER ══════════════════════════════════════════════════ */}
+        <div style={{
+          background: `linear-gradient(135deg, ${c1}18 0%, ${c2}0a 100%)`,
+          borderBottom: "1px solid var(--jk-border)",
+          padding: "20px 20px 0",
+          flexShrink: 0,
+        }}>
+          {/* Top row: avatar + name + close */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16 }}>
+            {/* Avatar */}
+            <div style={{
+              width: 56, height: 56, borderRadius: 18, flexShrink: 0,
+              background: `linear-gradient(135deg, ${c1}, ${c2})`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#fff", fontSize: 20, fontWeight: 800,
+              boxShadow: `0 6px 20px ${c1}40`,
+              letterSpacing: "0.04em",
+            }}>
+              {getInitials(s.name)}
+            </div>
+
+            {/* Name + phone */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--jk-text)", lineHeight: 1.1, marginBottom: 4, letterSpacing: "-0.01em" }}>
+                {s.name || "—"}
+              </h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Phone size={12} style={{ color: "var(--jk-muted)", flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: "var(--jk-muted)", fontFamily: "monospace" }} dir="ltr">
+                  {s.dialCode} {s.phone}
+                </span>
+                {s.residence && (
+                  <>
+                    <span style={{ color: "var(--jk-border)" }}>·</span>
+                    <MapPin size={11} style={{ color: "var(--jk-muted)" }} />
+                    <span style={{ fontSize: 12, color: "var(--jk-muted)" }}>{getResidenceLabel(s.residence)}</span>
+                  </>
+                )}
+              </div>
+              {/* Badges */}
+              <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                <span className={`${s.package === "فضية" ? "pkg-silver" : "pkg-gold"}`} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999 }}>
+                  {s.package}
+                  {s.isRenewal && (s.isUpgrade ? " ⬆" : s.isDowngrade ? " ⬇" : " ↺")}
+                </span>
+                <span style={{
+                  fontSize: 11, padding: "3px 10px", borderRadius: 999,
+                  background: urgencyPalette.bg, color: urgencyPalette.color,
+                  border: `1px solid ${urgencyPalette.border}`, fontWeight: 700,
+                  display: "flex", alignItems: "center", gap: 4,
+                }}>
+                  {urgencyPalette.icon} {urgencyPalette.badge}
+                </span>
+                {s.renewalCount > 0 && (
+                  <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, background: "#EFF6FF", color: "#3B82F6", border: "1px solid rgba(59,130,246,.25)", fontWeight: 700 }}>
+                    جُدِّد {s.renewalCount}×
+                  </span>
+                )}
+                {canRev && s.lifetimeValueUSD > 0 && (
+                  <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, background: "#ECFDF3", color: "#16A34A", border: "1px solid rgba(34,197,94,.25)", fontWeight: 700 }}>
+                    LTV ${formatNumber(s.lifetimeValueUSD, 0)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={onClose}
+              style={{
+                width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                background: "var(--jk-surface-secondary, #F8FAFC)",
+                border: "1px solid var(--jk-border)",
+                color: "var(--jk-muted)", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all .15s",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--jk-danger-bg, #FEF2F2)"; (e.currentTarget as HTMLElement).style.color = "var(--jk-danger, #EF4444)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--jk-surface-secondary, #F8FAFC)"; (e.currentTarget as HTMLElement).style.color = "var(--jk-muted)"; }}
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          {/* ── Days counter hero strip ── */}
+          <div style={{
+            background: urgencyPalette.bg,
+            border: `1px solid ${urgencyPalette.border}`,
+            borderRadius: "14px 14px 0 0",
+            padding: "12px 16px",
+            display: "flex", alignItems: "center", gap: 16,
+          }}>
+            {/* Big number */}
+            <div style={{ textAlign: "center", flexShrink: 0, minWidth: 56 }}>
+              <p style={{ fontSize: 40, fontWeight: 900, color: urgencyPalette.color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                {isWithdrawn ? "—" : displayDays}
               </p>
-            </div>
-            <div className="flex gap-2 flex-wrap shrink-0">
-              <span className={`text-sm px-3 py-1 rounded-lg font-bold ${s.package === "فضية" ? "pkg-silver" : "pkg-gold"}`}>
-                {s.package}
-                {s.isRenewal
-                  ? s.isUpgrade   ? " ⬆️"
-                  : s.isDowngrade ? " ⬇️"
-                  : " 🔄"
-                  : ""}
-              </span>
-              <span className={`text-xs px-3 py-1 rounded-full font-semibold ${statusClass}`}>
-                {s.status}
-              </span>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition mr-2">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-5 overflow-y-auto">
-
-          {/* ── Days Remaining Counter ─────────────────────────────── */}
-          <div className={`${urgencyConfig.bg} border-2 ${urgencyConfig.ring} rounded-2xl p-4`}>
-            <div className="flex items-center gap-5">
-
-              {/* Big number */}
-              <div className="text-center shrink-0">
-                {isPaused && (
-                  <PauseCircle size={14} className="text-amber-500 mx-auto mb-1" />
-                )}
-                <p className={`text-5xl font-black leading-none ${urgencyConfig.num}`}>
-                  {isWithdrawn ? "—" : displayDays}
+              {!isWithdrawn && (
+                <p style={{ fontSize: 10, fontWeight: 600, color: urgencyPalette.color, opacity: 0.8 }}>
+                  {urgencyPalette.label}
                 </p>
-                <p className={`text-xs font-semibold mt-1 ${urgencyConfig.num} opacity-80`}>
-                  {urgencyConfig.label}
-                </p>
-                {urgencyConfig.sub && (
-                  <span className={`text-[10px] font-bold mt-1 inline-block px-1.5 py-0.5 rounded-full ${
-                    urgency === "ok"       ? "bg-emerald-200 text-emerald-800"
-                    : urgency === "paused" ? "bg-amber-200 text-amber-800"
-                    : urgency === "warning"? "bg-amber-200 text-amber-800"
-                    : "bg-red-200 text-red-800"
-                  }`}>
-                    {urgencyConfig.sub}
-                  </span>
-                )}
+              )}
+            </div>
+
+            {/* Progress + dates */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--jk-muted)", marginBottom: 5 }}>
+                <span>بداية: {formatDate(s.date)}</span>
+                <span>نهاية: {formatDate(s.expiryDate)}</span>
               </div>
-
-              {/* Progress bar + dates */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1.5">
-                  <span>بداية: {formatDate(s.date)}</span>
-                  <span>نهاية: {formatDate(s.expiryDate)}</span>
-                </div>
-
-                {/* Timeline bar */}
-                <div className="relative h-3 bg-slate-200 rounded-full overflow-hidden">
-                  {/* Elapsed (consumed) */}
-                  <div
-                    className={`absolute right-0 h-full ${urgencyConfig.bar} opacity-30 transition-all duration-700`}
-                    style={{ width: `${elapsed}%` }}
-                  />
-                  {/* Remaining */}
-                  <div
-                    className={`absolute left-0 h-full ${urgencyConfig.bar} transition-all duration-700`}
-                    style={{ width: `${isPaused ? remaining : remaining}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
-                  <span>
-                    {isPaused ? (
-                      <span className="text-amber-600 font-semibold">⏸ مجمّد منذ {urgency === "paused" ? "" : ""}</span>
-                    ) : isFrozen ? (
-                      <span className="text-blue-600 font-semibold">❄️ متجمد</span>
-                    ) : (
-                      <span>{Math.round(elapsed)}% مضى</span>
-                    )}
-                  </span>
-                  <span className={`font-semibold ${urgencyConfig.num}`}>
-                    {isWithdrawn
-                      ? "اشتراك منتهٍ بانسحاب"
-                      : isPaused
-                      ? `${displayDays} يوم مجمّدة`
-                      : isFrozen
-                      ? `${displayDays} يوم محفوظة`
-                      : daysLeft >= 0
-                      ? `${displayDays} يوم متبقٍ`
-                      : `انتهى منذ ${displayDays} يوم`}
-                  </span>
-                </div>
-
-                {/* Duration info */}
-                <p className="text-[10px] text-slate-400 mt-1.5">
-                  مدة الاشتراك: {s.duration} يوم
-                  {s.renewalCount > 0 && ` · جُدِّد ${s.renewalCount} مرة`}
-                  {s.totalPausedDays ? ` · موقوف سابقاً ${s.totalPausedDays} يوم` : ""}
-                  {isFrozen && s.freezeData?.frozenAt
-                    ? ` · متجمد منذ ${freezeService.getFreezeDuration(s.freezeData)} يوم`
-                    : ""}
-                </p>
+              <div style={{ height: 8, background: "rgba(0,0,0,0.08)", borderRadius: 999, overflow: "hidden", position: "relative" }}>
+                <div style={{
+                  position: "absolute", right: 0, top: 0, height: "100%",
+                  width: `${elapsed}%`,
+                  background: urgencyPalette.color,
+                  opacity: 0.25, transition: "width .8s ease",
+                }} />
+                <div style={{
+                  position: "absolute", left: 0, top: 0, height: "100%",
+                  width: `${100 - elapsed}%`,
+                  background: urgencyPalette.color,
+                  borderRadius: 999, transition: "width .8s ease",
+                }} />
               </div>
-            </div>
-          </div>
-
-          {/* Pause notice */}
-          {isPaused && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
-              <PauseCircle size={15} className="text-amber-600 mt-0.5 shrink-0" />
-              <div className="text-xs text-amber-800">
-                <p className="font-bold mb-0.5">الاشتراك موقوف</p>
-                {s.pauseReason && <p>السبب: {s.pauseReason}</p>}
-                <p className="text-amber-600 mt-0.5">
-                  عند الاستئناف ستُمنح المشترك {s.remainingDaysAtPause} يوم كاملة من تاريخ العودة.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Freeze notice */}
-          {isFrozen && s.freezeData && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Snowflake size={15} className="text-blue-600 shrink-0" />
-                <p className="font-bold text-blue-800 text-sm">الاشتراك متجمد</p>
-                <span className="mr-auto text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">
-                  {freezeService.getFreezeDuration(s.freezeData)} يوم متجمد
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginTop: 4 }}>
+                <span style={{ color: "var(--jk-muted)" }}>
+                  {isPaused ? "⏸ موقوف" : isFrozen ? "❄ متجمد" : `${Math.round(elapsed)}% مضى`}
+                </span>
+                <span style={{ color: urgencyPalette.color, fontWeight: 700 }}>
+                  {isWithdrawn ? "انسحب"
+                    : isPaused ? `${displayDays} يوم مجمّدة`
+                    : isFrozen ? `${displayDays} يوم محفوظ`
+                    : daysLeft >= 0 ? `${displayDays} يوم متبقٍ`
+                    : `انتهى منذ ${displayDays} يوم`}
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <p className="text-blue-500 mb-0.5">تاريخ التجميد</p>
-                  <p className="font-semibold text-blue-900">
-                    {s.freezeData.frozenAt
-                      ? formatDate(
-                          ((s.freezeData.frozenAt as any)?.toDate?.() || new Date(s.freezeData.frozenAt as any))
-                            .toISOString()
-                            .split("T")[0]
-                        )
-                      : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-blue-500 mb-0.5">الأيام المحفوظة</p>
-                  <p className="font-bold text-blue-700 text-base">{s.freezeData.remainingDays} يوم</p>
-                </div>
-                <div>
-                  <p className="text-blue-500 mb-0.5">تاريخ الانتهاء الأصلي</p>
-                  <p className="font-semibold text-blue-900">
-                    {s.freezeData.originalExpiryDate ? formatDate(s.freezeData.originalExpiryDate) : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-blue-500 mb-0.5">سبب التجميد</p>
-                  <p className="font-semibold text-blue-900">{s.freezeData.freezeReason || "—"}</p>
-                </div>
-                {s.freezeData.freezeNotes && (
-                  <div className="col-span-2">
-                    <p className="text-blue-500 mb-0.5">ملاحظات</p>
-                    <p className="font-semibold text-blue-900">{s.freezeData.freezeNotes}</p>
-                  </div>
-                )}
-              </div>
-              <p className="text-xs text-blue-600 mt-3 border-t border-blue-100 pt-2">
-                عند الاستئناف سيُضاف {s.freezeData.remainingDays} يوم محفوظ من تاريخ الاستئناف.
+              {/* Duration meta */}
+              <p style={{ fontSize: 10, color: "var(--jk-subtle, #9CA3AF)", marginTop: 3 }}>
+                مدة الاشتراك {s.duration} يوم
+                {s.totalPausedDays ? ` · موقوف سابقاً ${s.totalPausedDays} يوم` : ""}
+                {isFrozen && s.freezeData?.frozenAt ? ` · متجمد منذ ${freezeService.getFreezeDuration(s.freezeData)} يوم` : ""}
               </p>
             </div>
-          )}
-
-          {/* Freeze resume history */}
-          {!isFrozen && s.freezeData?.resumedAt && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Snowflake size={13} className="text-slate-400" />
-                <p className="text-xs font-bold text-slate-600">سجل التجميد</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                <div>
-                  <p className="text-slate-400 mb-0.5">تاريخ الاستئناف</p>
-                  <p className="font-semibold">
-                    {formatDate(
-                      ((s.freezeData.resumedAt as any)?.toDate?.() || new Date(s.freezeData.resumedAt as any))
-                        .toISOString()
-                        .split("T")[0]
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-slate-400 mb-0.5">الأيام التي استُعيدت</p>
-                  <p className="font-semibold">{s.freezeData.remainingDays} يوم</p>
-                </div>
-                {s.freezeData.freezeReason && (
-                  <div className="col-span-2">
-                    <p className="text-slate-400 mb-0.5">سبب التجميد السابق</p>
-                    <p className="font-semibold">{s.freezeData.freezeReason}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Renewal info */}
-          {s.isRenewal && (
-            <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-4">
-              <h4 className="text-sm font-bold text-cyan-700 mb-3">
-                {s.isUpgrade ? "⬆️ ترقية" : s.isDowngrade ? "⬇️ تخفيض" : "🔄 تجديد"}
-              </h4>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-cyan-600 text-xs">الفريق الأصلي</p>
-                  <p className="font-semibold text-cyan-900">{s.originalTeam || s.team || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-cyan-600 text-xs">المقنع الأصلي</p>
-                  <p className="font-semibold text-cyan-900">{s.originalConvincedBy || s.convincedBy || "-"}</p>
-                </div>
-                {s.renewedBy && s.renewedBy !== s.convincedBy && (
-                  <div>
-                    <p className="text-cyan-600 text-xs">من قام بالتجديد</p>
-                    <p className="font-semibold text-cyan-900">{s.renewedBy}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Info grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {[
-              { label: "الإقامة",        value: getResidenceLabel(s.residence) },
-              { label: "تاريخ الاشتراك", value: formatDate(s.date) },
-              { label: "تاريخ الانتهاء", value: formatDate(s.expiryDate) },
-              { label: "المسؤول",         value: s.convincedBy || "-" },
-              { label: "مصدر الاشتراك",  value: s.source || "-" },
-              { label: "طريقة الدفع",    value: s.payment || "-" },
-              { label: "مدة الاشتراك",   value: s.duration ? `${s.duration} يوم` : "-" },
-              { label: "من قبض",          value: s.paidShift || "-" },
-              { label: "العمر",            value: s.age ? `${s.age} سنة` : "-" },
-            ].map((item) => (
-              <div key={item.label} className="bg-slate-50 rounded-xl p-3">
-                <p className="text-xs text-slate-400 mb-1">{item.label}</p>
-                <p className="font-semibold text-slate-800 text-sm">{item.value}</p>
-              </div>
-            ))}
           </div>
 
-          {/* Withdrawal info */}
-          {s.subscriptionState === "withdrawn" && (
-            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
-              <h4 className="text-sm font-bold text-rose-700 mb-3">معلومات الانسحاب</h4>
-
-              {s.withdrawalData ? (
-                // ── New structured withdrawalData ──────────────────────────
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <p className="text-rose-400 mb-0.5">تاريخ الانسحاب</p>
-                      <p className="font-semibold text-rose-800">
-                        {formatDateTime(s.withdrawalData.withdrawnAt)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-rose-400 mb-0.5">نفّذه</p>
-                      <p className="font-semibold text-rose-800">
-                        {s.withdrawalData.withdrawnByName || "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-rose-400 mb-0.5">أيام استُخدمت</p>
-                      <p className="font-semibold text-rose-800">{s.withdrawalData.activeDaysUsed} يوم</p>
-                    </div>
-                    <div>
-                      <p className="text-rose-400 mb-0.5">أيام ضائعة</p>
-                      <p className="font-semibold text-rose-800">{s.withdrawalData.remainingDays} يوم</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-rose-400 mb-0.5">سبب الانسحاب</p>
-                      <p className="font-semibold text-rose-800">{s.withdrawalData.withdrawalReason || "—"}</p>
-                    </div>
-                    {s.withdrawalData.notes && (
-                      <div className="col-span-2">
-                        <p className="text-rose-400 mb-0.5">ملاحظات</p>
-                        <p className="font-semibold text-rose-800">{s.withdrawalData.notes}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Refund summary inside withdrawal */}
-                  <div className={`rounded-lg p-3 text-xs ${
-                    s.withdrawalData.refundIssued
-                      ? "bg-white border border-rose-100"
-                      : "bg-rose-100/50"
-                  }`}>
-                    {s.withdrawalData.refundIssued ? (
-                      <div className="space-y-1">
-                        <p className="font-bold text-rose-700 mb-1">✓ تم إصدار استرداد</p>
-                        <div className="flex justify-between text-rose-700">
-                          <span>المبلغ المسترد:</span>
-                          <span className="font-bold">
-                            ${formatNumber(s.withdrawalData.refundAmountUSD ?? 0, 2)}
-                          </span>
-                        </div>
-                        {s.withdrawalData.refundCurrency !== "USD" && (
-                          <div className="flex justify-between text-rose-600">
-                            <span>بالعملة الأصلية:</span>
-                            <span className="font-semibold">
-                              {formatNumber(s.withdrawalData.refundAmount ?? 0, 2)} {s.withdrawalData.refundCurrency}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-rose-600 font-semibold">لا يوجد استرداد</p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                // ── Legacy fallback (old records without withdrawalData) ────
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs text-rose-500">تاريخ الانسحاب</p>
-                    <p className="font-semibold text-rose-800">{formatDate(s.withdrawnAt)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-rose-500">المسترد</p>
-                    <p className="font-semibold text-rose-800">
-                      {(s.refundAmountUSD ?? 0) > 0
-                        ? `$${formatNumber(s.refundAmountUSD ?? 0, 2)}`
-                        : "لا يوجد استرداد"}
-                    </p>
-                  </div>
-                  {s.withdrawalReason && (
-                    <div className="col-span-2">
-                      <p className="text-xs text-rose-500">السبب</p>
-                      <p className="font-semibold text-rose-800">{s.withdrawalReason}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Financial summary */}
-          {canRev && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <h4 className="text-sm font-bold text-slate-700 mb-3">الملخص المالي</h4>
-              <div className="grid grid-cols-3 gap-3 text-center text-xs mb-3">
-                <div className="bg-slate-50 rounded-lg p-2.5">
-                  <p className="text-slate-500 mb-1">السعر الكلي</p>
-                  <p className="text-base font-bold text-slate-800">${formatNumber(totalUSD, 2)}</p>
-                  {origCurrency !== "USD" && totalPriceOrig && (
-                    <p className="text-slate-400 text-[10px] mt-0.5">
-                      {formatNumber(totalPriceOrig, 2)} {origCurrency}
-                    </p>
-                  )}
-                </div>
-                <div className="bg-emerald-50 rounded-lg p-2.5">
-                  <p className="text-emerald-600 mb-1">محصّل</p>
-                  <p className="text-base font-bold text-emerald-700">${formatNumber(paidUSD, 2)}</p>
-                </div>
-                <div className="bg-amber-50 rounded-lg p-2.5">
-                  <p className="text-amber-600 mb-1">متبقي</p>
-                  <p className="text-base font-bold text-amber-700">${formatNumber(remUSD, 2)}</p>
-                </div>
-              </div>
-              <div className="pay-bar" style={{ height: 8 }}>
-                <div
-                  className={`pay-bar-fill ${isPartial ? "partial" : ""}`}
-                  style={{ width: `${payPct}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                {isPartial
-                  ? `${Math.round(payPct)}% مدفوع`
-                  : "✓ مدفوع بالكامل"}
-              </p>
-              {(s.refundAmountUSD ?? 0) > 0 && (
-                <p className="text-xs text-rose-500 mt-1">
-                  مسترد: ${formatNumber(s.refundAmountUSD ?? 0, 2)} — الصافي: ${formatNumber(s.netAmountUSD, 2)}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Notes */}
-          {s.notes && (
-            <div className="bg-slate-50 rounded-xl p-3">
-              <p className="text-xs text-slate-400 mb-1">ملاحظات</p>
-              <p className="text-sm text-slate-700">{s.notes}</p>
-            </div>
-          )}
-
-          {/* Renewal history */}
-          {(s.renewalCount > 0 || s.renewals?.length > 0) && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-slate-700">تاريخ التجديدات</h4>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full font-semibold">
-                    {s.renewalCount} تجديد
-                  </span>
-                  {canRev && (
-                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
-                      LTV: ${formatNumber(s.lifetimeValueUSD, 2)}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-2">
-                {(s.renewals || []).map((r, i) => (
-                  <div key={i} className="border border-slate-200 rounded-xl p-3 bg-slate-50/50">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-400">#{i + 1}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded font-bold ${r.package === "فضية" ? "pkg-silver" : "pkg-gold"}`}>
-                          {r.package}
-                        </span>
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                          r.snapshotStatus === "active" ? "bg-emerald-100 text-emerald-700"
-                          : r.snapshotStatus === "withdrawn" ? "bg-slate-100 text-slate-600"
-                          : "bg-red-100 text-red-600"
-                        }`}>
-                          {r.snapshotStatus === "active" ? "كان نشطاً" : r.snapshotStatus === "withdrawn" ? "انسحب" : "انتهى"}
-                        </span>
-                      </div>
-                      {canRev && (
-                        <span className="text-xs font-bold text-emerald-700">
-                          ${formatNumber(r.netAmountUSD, 2)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                      <span>{formatDate(r.startDate)} ← {formatDate(r.endDate)}</span>
-                      <span className="text-slate-300">·</span>
-                      <span>{r.duration} يوم</span>
-                      {canRev && r.remainingAmountUSD > 0.01 && (
-                        <>
-                          <span className="text-slate-300">·</span>
-                          <span className="text-amber-600">متبقٍ ${formatNumber(r.remainingAmountUSD, 2)}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {/* Current active subscription */}
-                <div className="border border-blue-200 rounded-xl p-3 bg-blue-50/50">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">الحالي</span>
-                      <span className={`text-xs px-2 py-0.5 rounded font-bold ${s.package === "فضية" ? "pkg-silver" : "pkg-gold"}`}>
-                        {s.package}
-                      </span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                        s.status === "نشط" ? "bg-emerald-100 text-emerald-700"
-                        : s.status === "منسحب" ? "bg-slate-100 text-slate-600"
-                        : "bg-red-100 text-red-600"
-                      }`}>
-                        {s.status}
-                      </span>
-                    </div>
-                    {canRev && (
-                      <span className="text-xs font-bold text-emerald-700">
-                        ${formatNumber(s.netAmountUSD, 2)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-500">
-                    <span>{formatDate(s.date)} ← {formatDate(s.expiryDate)}</span>
-                    <span className="text-slate-300">·</span>
-                    <span>{s.duration} يوم</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Payment history */}
-          <div>
-            <h4 className="text-sm font-bold text-slate-700 mb-3">سجل الدفعات</h4>
-            {payLoading ? (
-              <p className="text-center text-slate-400 text-sm py-4">جاري التحميل...</p>
-            ) : payError ? (
-              <p className="text-center text-rose-400 text-sm py-4">{payError}</p>
-            ) : payments.length === 0 ? (
-              <p className="text-center text-slate-400 text-sm py-4">لا توجد دفعات مسجلة</p>
-            ) : (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-500 font-semibold">
-                      <th className="px-3 py-2 text-right">التاريخ</th>
-                      <th className="px-3 py-2 text-right">المبلغ</th>
-                      <th className="px-3 py-2 text-right">العملة</th>
-                      {canRev && <th className="px-3 py-2 text-right">USD</th>}
-                      <th className="px-3 py-2 text-right">طريقة الدفع</th>
-                      <th className="px-3 py-2 text-right">وصل</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {payments.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50">
-                        <td className="px-3 py-2 text-slate-600">{formatDate(p.date)}</td>
-                        <td className="px-3 py-2 font-bold text-emerald-700">
-                          {formatNumber(p.amountOriginal, 2)}
-                          {p.isInitialPayment && (
-                            <span className="text-indigo-500 text-[10px] mr-1">(أولية)</span>
-                          )}
-                          {p.isRenewalPayment && (
-                            <span className="text-cyan-500 text-[10px] mr-1">(تجديد)</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-slate-500">{p.currencyOriginal}</td>
-                        {canRev && (
-                          <td className="px-3 py-2 text-slate-600">${formatNumber(p.amountUSD, 2)}</td>
-                        )}
-                        <td className="px-3 py-2 text-slate-500">{p.paymentMethod || "-"}</td>
-                        <td className="px-3 py-2">
-                          {p.receiptUrl ? (
-                            <a
-                              href={p.receiptUrl}
-                              target="_blank"
-                              rel="noopener"
-                              className="flex items-center gap-1 text-indigo-600 hover:underline"
-                            >
-                              {p.receiptType === "image" ? "🖼️" : "📄"}
-                              <ExternalLink size={10} />
-                            </a>
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {canRev && payments.length > 0 && (
-                  <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 flex justify-between text-xs text-slate-500">
-                    <span>{payments.length} دفعة</span>
-                    <span className="font-bold text-emerald-700">
-                      المجموع: ${formatNumber(
-                        payments.reduce((s, p) => s + p.amountUSD, 0),
-                        2
-                      )}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 flex-wrap pt-2 border-t border-slate-100">
-            <a
-              href={getWhatsAppLink(s.dialCode, s.phone)}
-              target="_blank"
-              rel="noopener"
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold transition"
-            >
-              📱 واتساب
-            </a>
-            {can("canCreate") && s.subscriptionState !== "withdrawn" && (
-              <button
-                onClick={() => { onClose(); onRenew(); }}
-                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-bold transition"
-              >
-                🔄 تجديد
-              </button>
-            )}
-            {can("canEdit") && (
-              <button
-                onClick={() => { onClose(); onEdit(); }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition"
-              >
-                تعديل
-              </button>
-            )}
-            {can("canCreate") && s.subscriptionState !== "withdrawn" && (
-              <button
-                onClick={() => { onClose(); onAddPayment(); }}
-                className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-bold transition"
-              >
-                إضافة دفعة
-              </button>
-            )}
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: 0, marginTop: 0, borderTop: `1px solid ${urgencyPalette.border}` }}>
+            {tabs.map((tab) => {
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    flex: 1, padding: "10px 8px", border: "none", cursor: "pointer",
+                    fontSize: 12, fontWeight: active ? 700 : 500,
+                    color: active ? "var(--jk-primary)" : "var(--jk-muted)",
+                    background: active ? "var(--jk-surface)" : "transparent",
+                    borderBottom: active ? "2px solid var(--jk-primary)" : "2px solid transparent",
+                    transition: "all .15s", fontFamily: "inherit",
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
-      </div>
+
+        {/* ══ BODY ════════════════════════════════════════════════════ */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px 20px" }}>
+
+          {/* ── TAB: المعلومات ── */}
+          {activeTab === "info" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+              {/* Pause notice */}
+              {isPaused && (
+                <div style={{ background: "#FFFBEB", border: "1px solid rgba(245,158,11,.3)", borderRadius: 14, padding: "12px 14px", display: "flex", gap: 10 }}>
+                  <PauseCircle size={16} style={{ color: "#F59E0B", flexShrink: 0, marginTop: 1 }} />
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: 13, color: "#92400E" }}>الاشتراك موقوف</p>
+                    {s.pauseReason && <p style={{ fontSize: 12, color: "#B45309", marginTop: 2 }}>السبب: {s.pauseReason}</p>}
+                    <p style={{ fontSize: 11, color: "#D97706", marginTop: 3 }}>عند الاستئناف ستُمنح {s.remainingDaysAtPause} يوم كاملة.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Freeze notice */}
+              {isFrozen && s.freezeData && (
+                <div style={{ background: "#EFF6FF", border: "1px solid rgba(59,130,246,.3)", borderRadius: 14, padding: "12px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <Snowflake size={15} style={{ color: "#3B82F6" }} />
+                    <p style={{ fontWeight: 700, fontSize: 13, color: "#1E40AF" }}>الاشتراك متجمد</p>
+                    <span style={{ marginInlineStart: "auto", fontSize: 11, background: "#DBEAFE", color: "#1D4ED8", padding: "2px 10px", borderRadius: 999, fontWeight: 700 }}>
+                      {freezeService.getFreezeDuration(s.freezeData)} يوم متجمد
+                    </span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {[
+                      { label: "تاريخ التجميد", value: s.freezeData.frozenAt ? formatDate(((s.freezeData.frozenAt as any)?.toDate?.() || new Date(s.freezeData.frozenAt as any)).toISOString().split("T")[0]) : "—" },
+                      { label: "الأيام المحفوظة", value: `${s.freezeData.remainingDays} يوم` },
+                      { label: "الانتهاء الأصلي", value: s.freezeData.originalExpiryDate ? formatDate(s.freezeData.originalExpiryDate) : "—" },
+                      { label: "سبب التجميد", value: s.freezeData.freezeReason || "—" },
+                    ].map((item) => (
+                      <div key={item.label}>
+                        <p style={{ fontSize: 10, color: "#60A5FA", marginBottom: 2 }}>{item.label}</p>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "#1E3A8A" }}>{item.value}</p>
+                      </div>
+                    ))}
+                    {s.freezeData.freezeNotes && (
+                      <div style={{ gridColumn: "span 2" }}>
+                        <p style={{ fontSize: 10, color: "#60A5FA", marginBottom: 2 }}>ملاحظات</p>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "#1E3A8A" }}>{s.freezeData.freezeNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                  <p style={{ fontSize: 10, color: "#3B82F6", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(59,130,246,.15)" }}>
+                    عند الاستئناف سيُضاف {s.freezeData.remainingDays} يوم محفوظ من تاريخ الاستئناف.
+                  </p>
+                </div>
+              )}
+
+              {/* Freeze resume history */}
+              {!isFrozen && s.freezeData?.resumedAt && (
+                <div style={{ background: "var(--jk-surface-secondary, #F8FAFC)", border: "1px solid var(--jk-border)", borderRadius: 14, padding: "12px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                    <Snowflake size={13} style={{ color: "var(--jk-muted)" }} />
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "var(--jk-muted)" }}>سجل التجميد</p>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
+                    <div>
+                      <p style={{ fontSize: 10, color: "var(--jk-subtle)" }}>تاريخ الاستئناف</p>
+                      <p style={{ fontWeight: 600, color: "var(--jk-text)" }}>
+                        {formatDate(((s.freezeData.resumedAt as any)?.toDate?.() || new Date(s.freezeData.resumedAt as any)).toISOString().split("T")[0])}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 10, color: "var(--jk-subtle)" }}>أيام استُعيدت</p>
+                      <p style={{ fontWeight: 600, color: "var(--jk-text)" }}>{s.freezeData.remainingDays} يوم</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Withdrawal */}
+              {isWithdrawn && (
+                <div style={{ background: "#FEF2F2", border: "1px solid rgba(239,68,68,.28)", borderRadius: 14, padding: "12px 14px" }}>
+                  <p style={{ fontWeight: 700, fontSize: 13, color: "#991B1B", marginBottom: 10 }}>معلومات الانسحاب</p>
+                  {s.withdrawalData ? (
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        {[
+                          { label: "تاريخ الانسحاب", value: formatDateTime(s.withdrawalData.withdrawnAt) },
+                          { label: "نفّذه", value: s.withdrawalData.withdrawnByName || "—" },
+                          { label: "أيام استُخدمت", value: `${s.withdrawalData.activeDaysUsed} يوم` },
+                          { label: "أيام ضائعة", value: `${s.withdrawalData.remainingDays} يوم` },
+                          { label: "سبب الانسحاب", value: s.withdrawalData.withdrawalReason || "—" },
+                        ].map((item) => (
+                          <div key={item.label} style={{ gridColumn: item.label === "سبب الانسحاب" ? "span 2" : undefined }}>
+                            <p style={{ fontSize: 10, color: "#F87171", marginBottom: 2 }}>{item.label}</p>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: "#7F1D1D" }}>{item.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Refund pill */}
+                      <div style={{ marginTop: 10, padding: "8px 12px", borderRadius: 10, background: s.withdrawalData.refundIssued ? "#ECFDF3" : "#FEE2E2", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        {s.withdrawalData.refundIssued ? (
+                          <>
+                            <span style={{ fontSize: 12, color: "#166534", fontWeight: 600 }}>✓ تم الاسترداد</span>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: "#166534" }}>${formatNumber(s.withdrawalData.refundAmountUSD ?? 0, 2)}</span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 12, color: "#991B1B", fontWeight: 600 }}>لا يوجد استرداد</span>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
+                      <div><p style={{ fontSize: 10, color: "#F87171" }}>تاريخ الانسحاب</p><p style={{ fontWeight: 600, color: "#7F1D1D" }}>{formatDate(s.withdrawnAt)}</p></div>
+                      <div><p style={{ fontSize: 10, color: "#F87171" }}>المسترد</p><p style={{ fontWeight: 600, color: "#7F1D1D" }}>{(s.refundAmountUSD ?? 0) > 0 ? `$${formatNumber(s.refundAmountUSD ?? 0, 2)}` : "لا يوجد"}</p></div>
+                      {s.withdrawalReason && <div style={{ gridColumn: "span 2" }}><p style={{ fontSize: 10, color: "#F87171" }}>السبب</p><p style={{ fontWeight: 600, color: "#7F1D1D" }}>{s.withdrawalReason}</p></div>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Renewal info banner */}
+              {s.isRenewal && (
+                <div style={{ background: "#ECFEFF", border: "1px solid rgba(6,182,212,.28)", borderRadius: 14, padding: "10px 14px" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#0E7490", marginBottom: 6 }}>
+                    {s.isUpgrade ? "⬆️ ترقية" : s.isDowngrade ? "⬇️ تخفيض" : "↺ تجديد"}
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
+                    <div><p style={{ fontSize: 10, color: "#67E8F9" }}>الفريق الأصلي</p><p style={{ fontWeight: 600, color: "#164E63" }}>{s.originalTeam || s.team || "—"}</p></div>
+                    <div><p style={{ fontSize: 10, color: "#67E8F9" }}>المقنع الأصلي</p><p style={{ fontWeight: 600, color: "#164E63" }}>{s.originalConvincedBy || s.convincedBy || "—"}</p></div>
+                    {s.renewedBy && s.renewedBy !== s.convincedBy && (
+                      <div><p style={{ fontSize: 10, color: "#67E8F9" }}>من جدّد</p><p style={{ fontWeight: 600, color: "#164E63" }}>{s.renewedBy}</p></div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Info grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <InfoRow icon={<Calendar size={13} />} label="تاريخ الاشتراك" value={formatDate(s.date)} />
+                <InfoRow icon={<Calendar size={13} />} label="تاريخ الانتهاء" value={formatDate(s.expiryDate)} />
+                <InfoRow icon={<Clock size={13} />}    label="المدة"          value={s.duration ? `${s.duration} يوم` : ""} />
+                <InfoRow icon={<MapPin size={13} />}   label="الإقامة"        value={getResidenceLabel(s.residence)} />
+                <InfoRow icon={<User size={13} />}     label="المسؤول"        value={s.convincedBy || ""} />
+                <InfoRow icon={<Hash size={13} />}     label="مصدر الاشتراك" value={s.source || ""} />
+                <InfoRow icon={<CreditCard size={13} />} label="طريقة الدفع"  value={s.payment || ""} />
+                <InfoRow icon={<User size={13} />}     label="من قبض"         value={s.paidShift || ""} />
+                <InfoRow icon={<TrendingUp size={13} />} label="العمر"        value={s.age ? `${s.age} سنة` : ""} />
+                {s.team && <InfoRow icon={<User size={13} />} label="الفريق" value={s.team} />}
+              </div>
+
+              {/* Notes */}
+              {s.notes && (
+                <div style={{ background: "var(--jk-surface-secondary, #F8FAFC)", border: "1px solid var(--jk-border)", borderRadius: 14, padding: "12px 14px" }}>
+                  <p style={{ fontSize: 10, color: "var(--jk-subtle)", marginBottom: 4 }}>ملاحظات</p>
+                  <p style={{ fontSize: 13, color: "var(--jk-text)" }}>{s.notes}</p>
+                </div>
+              )}
+
+              {/* Financial summary */}
+              {canRev && (
+                <div style={{ background: "var(--jk-surface)", border: "1px solid var(--jk-border)", borderRadius: 16, padding: "14px 16px" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "var(--jk-text)", marginBottom: 12 }}>الملخص المالي</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+                    <MiniStat label="السعر الكلي" value={`$${formatNumber(totalUSD, 2)}`} color="#5B5FEF"
+                      sub={origCurrency !== "USD" && totalPriceOrig ? `${formatNumber(totalPriceOrig, 0)} ${origCurrency}` : undefined} />
+                    <MiniStat label="محصّل" value={`$${formatNumber(paidUSD, 2)}`} color="#22C55E" />
+                    <MiniStat label="متبقي" value={`$${formatNumber(remUSD, 2)}`} color={remUSD > 0.01 ? "#F59E0B" : "#22C55E"} />
+                  </div>
+                  {/* Pay progress */}
+                  <div style={{ height: 8, background: "#F1F5F9", borderRadius: 999, overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%", width: `${payPct}%`,
+                      background: remUSD > 0.01
+                        ? "linear-gradient(90deg, #22C55E, #F59E0B)"
+                        : "#22C55E",
+                      borderRadius: 999, transition: "width .7s ease",
+                    }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--jk-muted)", marginTop: 4 }}>
+                    <span>{Math.round(payPct)}% مدفوع</span>
+                    {(s.refundAmountUSD ?? 0) > 0 && (
+                      <span style={{ color: "#EF4444" }}>مسترد ${formatNumber(s.refundAmountUSD ?? 0, 2)} · صافي ${formatNumber(s.netAmountUSD, 2)}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── TAB: الدفعات ── */}
+          {activeTab === "payments" && (
+            <div>
+              {payLoading ? (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--jk-muted)", fontSize: 13 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", border: "3px solid var(--jk-border)", borderTopColor: "var(--jk-primary)", animation: "spin .7s linear infinite", margin: "0 auto 8px" }} />
+                  جاري التحميل...
+                </div>
+              ) : payments.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "48px 0", color: "var(--jk-muted)" }}>
+                  <Banknote size={36} style={{ margin: "0 auto 8px", opacity: 0.25 }} />
+                  <p style={{ fontSize: 13 }}>لا توجد دفعات مسجلة</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ border: "1px solid var(--jk-border)", borderRadius: 14, overflow: "hidden" }}>
+                    <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ background: "var(--jk-surface-secondary, #F8FAFC)", color: "var(--jk-muted)", fontWeight: 600 }}>
+                          <th style={{ padding: "10px 12px", textAlign: "right", borderBottom: "1px solid var(--jk-border)" }}>التاريخ</th>
+                          <th style={{ padding: "10px 12px", textAlign: "right", borderBottom: "1px solid var(--jk-border)" }}>المبلغ</th>
+                          <th style={{ padding: "10px 12px", textAlign: "right", borderBottom: "1px solid var(--jk-border)" }}>العملة</th>
+                          {canRev && <th style={{ padding: "10px 12px", textAlign: "right", borderBottom: "1px solid var(--jk-border)" }}>USD</th>}
+                          <th style={{ padding: "10px 12px", textAlign: "right", borderBottom: "1px solid var(--jk-border)" }}>طريقة الدفع</th>
+                          <th style={{ padding: "10px 12px", textAlign: "center", borderBottom: "1px solid var(--jk-border)" }}>وصل</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.map((p, i) => (
+                          <tr key={p.id} style={{ borderBottom: i < payments.length - 1 ? "1px solid var(--jk-divider, #EEF2F7)" : "none" }}
+                            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--jk-surface-secondary, #F8FAFC)"; }}
+                            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ""; }}
+                          >
+                            <td style={{ padding: "9px 12px", color: "var(--jk-muted)" }}>{formatDate(p.date)}</td>
+                            <td style={{ padding: "9px 12px", fontWeight: 700, color: "#22C55E" }}>
+                              {formatNumber(p.amountOriginal, 2)}
+                              {p.isInitialPayment && <span style={{ color: "#5B5FEF", fontSize: 10, marginInlineStart: 4 }}>أولية</span>}
+                              {p.isRenewalPayment && <span style={{ color: "#06B6D4", fontSize: 10, marginInlineStart: 4 }}>تجديد</span>}
+                            </td>
+                            <td style={{ padding: "9px 12px", color: "var(--jk-muted)" }}>{p.currencyOriginal}</td>
+                            {canRev && <td style={{ padding: "9px 12px", color: "var(--jk-text)" }}>${formatNumber(p.amountUSD, 2)}</td>}
+                            <td style={{ padding: "9px 12px", color: "var(--jk-muted)" }}>{p.paymentMethod || "—"}</td>
+                            <td style={{ padding: "9px 12px", textAlign: "center" }}>
+                              {p.receiptUrl ? (
+                                <a href={p.receiptUrl} target="_blank" rel="noopener"
+                                  style={{ color: "var(--jk-primary)", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                                  {p.receiptType === "image" ? "🖼" : "📄"} <ExternalLink size={10} />
+                                </a>
+                              ) : <span style={{ color: "var(--jk-border)" }}>—</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {canRev && (
+                      <div style={{ padding: "8px 12px", background: "var(--jk-surface-secondary, #F8FAFC)", borderTop: "1px solid var(--jk-border)", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                        <span style={{ color: "var(--jk-muted)" }}>{payments.length} دفعة</span>
+                        <span style={{ fontWeight: 700, color: "#22C55E" }}>
+                          المجموع: ${formatNumber(payments.reduce((acc, p) => acc + p.amountUSD, 0), 2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── TAB: التجديدات ── */}
+          {activeTab === "history" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {(s.renewals || []).map((r, i) => (
+                <div key={i} style={{
+                  border: "1px solid var(--jk-border)", borderRadius: 14,
+                  padding: "12px 14px",
+                  background: "var(--jk-surface-secondary, #F8FAFC)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 10, color: "var(--jk-muted)", background: "var(--jk-border)", padding: "1px 6px", borderRadius: 999 }}>#{i + 1}</span>
+                      <span className={`${r.package === "فضية" ? "pkg-silver" : "pkg-gold"}`} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999 }}>{r.package}</span>
+                      <span style={{
+                        fontSize: 10, padding: "2px 8px", borderRadius: 999, fontWeight: 600,
+                        background: r.snapshotStatus === "active" ? "#ECFDF3" : r.snapshotStatus === "withdrawn" ? "#F1F5F9" : "#FEF2F2",
+                        color:      r.snapshotStatus === "active" ? "#16A34A" : r.snapshotStatus === "withdrawn" ? "#6B7280"  : "#EF4444",
+                      }}>
+                        {r.snapshotStatus === "active" ? "كان نشطاً" : r.snapshotStatus === "withdrawn" ? "انسحب" : "انتهى"}
+                      </span>
+                    </div>
+                    {canRev && <span style={{ fontSize: 12, fontWeight: 700, color: "#22C55E" }}>${formatNumber(r.netAmountUSD, 2)}</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--jk-muted)", display: "flex", gap: 10 }}>
+                    <span>{formatDate(r.startDate)} ← {formatDate(r.endDate)}</span>
+                    <span>·</span>
+                    <span>{r.duration} يوم</span>
+                    {canRev && r.remainingAmountUSD > 0.01 && (
+                      <><span>·</span><span style={{ color: "#F59E0B" }}>متبقٍ ${formatNumber(r.remainingAmountUSD, 2)}</span></>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {/* Current */}
+              <div style={{
+                border: "1px solid rgba(91,95,239,.25)", borderRadius: 14,
+                padding: "12px 14px",
+                background: "rgba(91,95,239,.04)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 10, color: "var(--jk-primary)", background: "rgba(91,95,239,.12)", padding: "1px 6px", borderRadius: 999, fontWeight: 700 }}>الحالي</span>
+                    <span className={`${s.package === "فضية" ? "pkg-silver" : "pkg-gold"}`} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999 }}>{s.package}</span>
+                    <span style={{
+                      fontSize: 10, padding: "2px 8px", borderRadius: 999, fontWeight: 600,
+                      background: s.status === "نشط" ? "#ECFDF3" : s.status === "منسحب" ? "#F1F5F9" : "#FEF2F2",
+                      color:      s.status === "نشط" ? "#16A34A" : s.status === "منسحب" ? "#6B7280"  : "#EF4444",
+                    }}>{s.status}</span>
+                  </div>
+                  {canRev && <span style={{ fontSize: 12, fontWeight: 700, color: "#22C55E" }}>${formatNumber(s.netAmountUSD, 2)}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--jk-muted)", display: "flex", gap: 10 }}>
+                  <span>{formatDate(s.date)} ← {formatDate(s.expiryDate)}</span>
+                  <span>·</span>
+                  <span>{s.duration} يوم</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ══ FOOTER ACTIONS ══════════════════════════════════════════ */}
+        <div style={{
+          padding: "12px 20px",
+          borderTop: "1px solid var(--jk-border)",
+          display: "flex", gap: 8, flexWrap: "wrap",
+          background: "var(--jk-surface)", flexShrink: 0,
+        }}>
+          <a
+            href={getWhatsAppLink(s.dialCode, s.phone)}
+            target="_blank" rel="noopener"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "9px 16px", borderRadius: 999,
+              background: "#22C55E", color: "#fff",
+              fontSize: 12, fontWeight: 700, textDecoration: "none",
+              boxShadow: "0 4px 12px rgba(34,197,94,.28)",
+              transition: "all .15s",
+            }}
+          >
+            <MessageCircle size={14} /> واتساب
+          </a>
+
+          {can("canCreate") && !isWithdrawn && (
+            <button
+              onClick={() => { onClose(); onRenew(); }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "9px 16px", borderRadius: 999, border: "none", cursor: "pointer",
+                background: "#06B6D4", color: "#fff",
+                fontSize: 12, fontWeight: 700,
+                boxShadow: "0 4px 12px rgba(6,182,212,.28)",
+              }}
+            >
+              <RotateCcw size={14} /> تجديد
+            </button>
+          )}
+
+          {can("canEdit") && (
+            <button
+              onClick={() => { onClose(); onEdit(); }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "9px 16px", borderRadius: 999, border: "none", cursor: "pointer",
+                background: "var(--jk-primary, #5B5FEF)", color: "#fff",
+                fontSize: 12, fontWeight: 700,
+                boxShadow: "0 4px 12px rgba(91,95,239,.28)",
+              }}
+            >
+              <Pencil size={13} /> تعديل
+            </button>
+          )}
+
+          {can("canCreate") && !isWithdrawn && (
+            <button
+              onClick={() => { onClose(); onAddPayment(); }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "9px 16px", borderRadius: 999, border: "1px solid var(--jk-border)",
+                cursor: "pointer", background: "var(--jk-surface)",
+                color: "var(--jk-text)", fontSize: 12, fontWeight: 600,
+              }}
+            >
+              <CreditCard size={13} /> إضافة دفعة
+            </button>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }

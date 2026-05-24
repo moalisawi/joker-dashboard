@@ -50,8 +50,8 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen" style={{ background: "var(--page-bg)" }}>
       <Sidebar />
       <main className="flex-1 overflow-auto min-w-0 flex flex-col">
-        <div className="sticky top-0 z-30 px-5 pt-3" style={{
-          background: "rgba(245,247,251,0.80)",
+        <div className="sticky top-0 z-30 px-3 md:px-5 pt-2 md:pt-3" style={{
+          background: "rgba(245,247,251,0.85)",
           backdropFilter: "blur(14px)",
           WebkitBackdropFilter: "blur(14px)",
           borderBottom: "1px solid rgba(229,231,235,0.60)",

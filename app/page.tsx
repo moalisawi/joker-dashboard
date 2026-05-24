@@ -18,6 +18,8 @@ import Alerts from "@/components/stats/Alerts";
 import AlertsPanel from "@/components/stats/AlertsPanel";
 import Expiry15Days from "@/components/stats/Expiry15Days";
 import AdvancedStats from "@/components/stats/AdvancedStats";
+import SmartInsights from "@/components/stats/SmartInsights";
+import SubscriptionChart from "@/components/stats/SubscriptionChart";
 import MonthlyCalendar from "@/components/calendar/MonthlyCalendar";
 import SubscribersTable from "@/components/subscribers/SubscribersTable";
 import SubscriberModal from "@/components/subscribers/SubscriberModal";
@@ -34,6 +36,8 @@ import ExchangeRatesModal from "@/components/stats/ExchangeRatesModal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/Tabs";
 import TableSkeleton from "@/components/ui/TableSkeleton";
+import FadeIn from "@/components/ui/FadeIn";
+import StatsCardsSkeleton from "@/components/stats/StatsCardsSkeleton";
 import type { Subscriber, Payment, RefundTransaction } from "@/types";
 import { Plus, DollarSign } from "lucide-react";
 import { Button, Skeleton } from "@heroui/react";
@@ -200,7 +204,7 @@ export default function HomePage() {
           buttonSkip: { borderRadius: 9999 },
         }}
       />
-      <div className="p-5 md:p-8 max-w-screen-2xl mx-auto">
+      <div className="p-3 sm:p-5 md:p-8 max-w-screen-2xl mx-auto">
 
         {/* Page header */}
         <div id="tour-header">
@@ -259,17 +263,7 @@ export default function HomePage() {
 
         {loading ? (
           <div className="space-y-6">
-            {/* Stats skeleton — @heroui Skeleton */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="panel p-5 space-y-3">
-                  <Skeleton className="w-10 h-10 rounded-xl" />
-                  <Skeleton className="h-8 w-16 rounded-lg" />
-                  <Skeleton className="h-3 w-24 rounded" />
-                </div>
-              ))}
-            </div>
-            {/* Table skeleton */}
+            <StatsCardsSkeleton count={8} />
             <div className="panel overflow-hidden">
               <div className="p-4" style={{ borderBottom: "1px solid var(--border)" }}>
                 <Skeleton className="h-9 w-52 rounded-xl" />
@@ -288,6 +282,11 @@ export default function HomePage() {
               />
             </div>
             <CurrencyCounters payments={payments} />
+
+            {/* ─── Smart Insights (always visible) ─────────────────── */}
+            <FadeIn delay={0.05}>
+              <SmartInsights subscribers={subscribers} payments={payments} />
+            </FadeIn>
 
             {/* ─── Tabbed content ───────────────────────────────────────── */}
             <Tabs defaultValue="overview" className="mt-2">
@@ -313,16 +312,29 @@ export default function HomePage() {
 
               {/* ── Tab: Overview ────────────────────────────────────── */}
               <TabPanel value="overview">
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-6">
-                  <div className="xl:col-span-2">
-                    <MonthlyCalendar subscribers={subscribers} />
-                  </div>
-                  <div className="space-y-4">
+                {/* Subscription chart + team performance row */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-5">
+                  <FadeIn className="xl:col-span-2">
+                    <SubscriptionChart subscribers={subscribers} payments={payments} />
+                  </FadeIn>
+                  <FadeIn delay={0.08}>
                     <TeamPerformance subscribers={subscribers} />
-                    <Alerts subscribers={subscribers} />
-                  </div>
+                  </FadeIn>
                 </div>
-                <AdvancedStats subscribers={subscribers} />
+
+                {/* Calendar + alerts row */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-5">
+                  <FadeIn className="xl:col-span-2">
+                    <MonthlyCalendar subscribers={subscribers} />
+                  </FadeIn>
+                  <FadeIn delay={0.1}>
+                    <Alerts subscribers={subscribers} />
+                  </FadeIn>
+                </div>
+
+                <FadeIn delay={0.15}>
+                  <AdvancedStats subscribers={subscribers} />
+                </FadeIn>
               </TabPanel>
 
               {/* ── Tab: Subscribers ─────────────────────────────────── */}

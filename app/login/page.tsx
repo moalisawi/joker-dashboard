@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/auth";
 import { logFailedLogin } from "@/lib/sessionLogger";
 import { useAuthStore } from "@/store/authStore";
+import { staggerContainer, fadeUpVariants } from "@/lib/animations";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -62,11 +64,19 @@ export default function LoginPage() {
       className="min-h-screen flex items-center justify-center p-4"
       style={{ background: "var(--page-bg)" }}
     >
-      <div className="w-full max-w-sm">
+      <motion.div
+        className="w-full max-w-sm"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+      >
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div
+        <motion.div variants={fadeUpVariants} className="text-center mb-8">
+          <motion.div
             className="inline-flex items-center justify-center w-16 h-16 mb-4"
+            initial={{ scale: 0.5, opacity: 0, rotate: -12 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 280, damping: 18, delay: 0.05 }}
             style={{
               background: "#5B5FEF",
               borderRadius: 18,
@@ -74,13 +84,14 @@ export default function LoginPage() {
             }}
           >
             <span className="text-white font-black text-2xl">ج</span>
-          </div>
+          </motion.div>
           <h1 className="text-2xl font-black" style={{ color: "var(--text-primary)", letterSpacing: "-0.02em" }}>نظام الجوكر</h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>إدارة مشتركي الأكاديمية</p>
-        </div>
+        </motion.div>
 
         {/* Card */}
-        <div
+        <motion.div
+          variants={fadeUpVariants}
           className="p-8"
           style={{
             background: "#FFFFFF",
@@ -91,19 +102,30 @@ export default function LoginPage() {
         >
           <h2 className="text-lg font-bold mb-6 text-center" style={{ color: "var(--text-primary)" }}>تسجيل الدخول</h2>
 
-          {error && (
-            <div
-              className="mb-4 p-3 text-sm font-medium"
-              style={{
-                background: "rgba(239,68,68,.10)",
-                border: "1px solid rgba(239,68,68,.25)",
-                borderRadius: "var(--radius-md)",
-                color: "#EF4444",
-              }}
-            >
-              {error}
-            </div>
-          )}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                key="login-error"
+                initial={{ opacity: 0, y: -10, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: -10, height: 0 }}
+                transition={{ duration: 0.22 }}
+                className="mb-4 overflow-hidden"
+              >
+                <div
+                  className="p-3 text-sm font-medium"
+                  style={{
+                    background: "rgba(239,68,68,.10)",
+                    border: "1px solid rgba(239,68,68,.25)",
+                    borderRadius: "var(--radius-md)",
+                    color: "#EF4444",
+                  }}
+                >
+                  {error}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -137,21 +159,24 @@ export default function LoginPage() {
               />
             </div>
 
-            <button
+            <motion.button
               type="submit"
               disabled={submitting}
               className="btn-primary w-full mt-2"
               style={{ padding: "13px 20px", fontSize: 14.5, justifyContent: "center" }}
+              whileHover={{ scale: submitting ? 1 : 1.02 }}
+              whileTap={{ scale: submitting ? 1 : 0.97 }}
+              transition={{ duration: 0.15 }}
             >
               {submitting ? "جاري الدخول..." : "دخول"}
-            </button>
+            </motion.button>
           </form>
-        </div>
+        </motion.div>
 
-        <p className="text-center text-xs mt-6" style={{ color: "var(--text-muted)" }}>
+        <motion.p variants={fadeUpVariants} className="text-center text-xs mt-6" style={{ color: "var(--text-muted)" }}>
           نظام إدارة أكاديمية التغذية © 2026
-        </p>
-      </div>
+        </motion.p>
+      </motion.div>
     </div>
   );
 }
