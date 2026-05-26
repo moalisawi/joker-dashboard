@@ -26,7 +26,7 @@ type Body = z.infer<typeof bodySchema>;
 
 export async function POST(request: Request): Promise<NextResponse> {
   const ip = getClientIp(request);
-  if (!checkRateLimit(`emp-update:${ip}`, 30, 60 * 1000)) return jsonError("Too many requests", 429);
+  if (!(await checkRateLimit(`emp-update:${ip}`, 30, 60 * 1000))) return jsonError("Too many requests", 429);
 
   // ── 1. Auth ──────────────────────────────────────────────────────────────────
   let actor;

@@ -10,8 +10,9 @@ import { usePresence }  from "@/hooks/usePresence";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import Sidebar           from "./Sidebar";
 import TopNav            from "./TopNav";
-import GlobalSearch      from "@/components/search/GlobalSearch";
-import EmployeeQuickCard from "@/components/employees/EmployeeQuickCard";
+import GlobalSearch        from "@/components/search/GlobalSearch";
+import EmployeeQuickCard   from "@/components/employees/EmployeeQuickCard";
+import SubscriberQuickCard from "@/components/subscribers/SubscriberQuickCard";
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   useNotificationsListener();
@@ -73,6 +74,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       </main>
       <GlobalSearch />
       <EmployeeQuickCard />
+      <SubscriberQuickCard />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, startTransition } from "react
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ChevronDown, X, CheckCircle2, AlertTriangle, Paperclip, Trash2 } from "lucide-react";
+import { ChevronDown, X, CheckCircle2, AlertTriangle, Paperclip, Trash2, User, CreditCard, Wallet, Users2, FileText, UserPlus, Edit3 } from "lucide-react";
 
 import type { Subscriber, Currency } from "@/types";
 import { storage } from "@/lib/storage";
@@ -85,15 +85,21 @@ const AD_SOURCE_OPTIONS = [
 const DRAFT_KEY = "subscriber-draft";
 const DRAFT_TTL = 24 * 60 * 60 * 1000;
 
-const SECTIONS = [
-  { key: "info",      icon: "👤", title: "بيانات المشترك",  color: "#5B5FEF",  colorAlpha: "rgba(59,130,246,0.1)" },
-  { key: "package",   icon: "💳", title: "تفاصيل الباقة",  color: "#3B82F6",  colorAlpha: "rgba(139,92,246,0.1)" },
-  { key: "payment",   icon: "💰", title: "الدفعة والدفع",  color: "#5B5FEF",  colorAlpha: "rgba(16,185,129,0.1)" },
-  { key: "assign",    icon: "👥", title: "التعيين والمصدر", color: "#F59E0B",  colorAlpha: "rgba(245,158,11,0.1)" },
-  { key: "notes",     icon: "📎", title: "ملاحظات ومرفقات", color: "#6b7280",  colorAlpha: "rgba(100,116,139,0.1)" },
-] as const;
+type SectionKey = "info" | "package" | "payment" | "assign" | "notes";
 
-type SectionKey = typeof SECTIONS[number]["key"];
+const SECTIONS: ReadonlyArray<{
+  readonly key:        SectionKey;
+  readonly icon:       React.ReactNode;
+  readonly title:      string;
+  readonly color:      string;
+  readonly colorAlpha: string;
+}> = [
+  { key: "info",    icon: <User size={16} />,       title: "بيانات المشترك",   color: "#5B5FEF", colorAlpha: "rgba(91,95,239,0.08)"   },
+  { key: "package", icon: <CreditCard size={16} />,  title: "تفاصيل الباقة",   color: "#3B82F6", colorAlpha: "rgba(59,130,246,0.08)"  },
+  { key: "payment", icon: <Wallet size={16} />,      title: "الدفعة والدفع",   color: "#10B981", colorAlpha: "rgba(16,185,129,0.08)"  },
+  { key: "assign",  icon: <Users2 size={16} />,      title: "التعيين والمصدر", color: "#F59E0B", colorAlpha: "rgba(245,158,11,0.08)"  },
+  { key: "notes",   icon: <FileText size={16} />,    title: "ملاحظات ومرفقات", color: "#6B7280", colorAlpha: "rgba(107,114,128,0.08)" },
+];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -352,6 +358,12 @@ export default function SubscriberModal({
       const refundAmountUSD = subscriber?.refundAmountUSD || 0;
       const netAmountUSD    = Math.max(0, paidAmountUSD - refundAmountUSD);
 
+      // Resolve the Firebase UID for the convincedBy employee.
+      // useEmployees maps docs as { uid: d.id, ... } so the UID is .uid.
+      const convincedByEmp    = salesEmployees.find(e => e.name === data.convincedBy);
+      const convincedByUid    = convincedByEmp?.uid
+                                  ?? (isEdit ? (subscriber?.convincedByUid ?? undefined) : undefined);
+
       const payload = {
         date:               data.date,
         name:               data.name.trim(),
@@ -381,6 +393,7 @@ export default function SubscriberModal({
         sourceDetail:       data.sourceDetail  || null,
         referrer:           data.referrer?.trim() || null,
         convincedBy:        data.convincedBy,
+        convincedByUid:     convincedByUid ?? null,
         paidShift:          data.paidShift,
         team:               data.team || null,
         notes:              data.notes?.trim() || null,
@@ -436,33 +449,41 @@ export default function SubscriberModal({
 
         {/* ── Header ── */}
         <div
-          className="flex items-center justify-between px-5 py-3.5"
-          style={{ borderBottom: "1px solid var(--border)" }}
+          className="flex items-center justify-between"
+          style={{ borderBottom: "1px solid #E5E7EB", padding: "20px 24px 18px" }}
         >
-          <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-base font-bold shrink-0"
-              style={{ background: "var(--accent-glow)", color: "var(--accent)" }}
-            >
-              {isEdit ? "✏️" : "＋"}
+          <div className="flex items-center gap-3.5">
+            <div style={{
+              width: 42, height: 42, borderRadius: 14, flexShrink: 0,
+              background: isEdit ? "#F5F3FF" : "#EEF0FF",
+              color: "#5B5FEF",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              border: "1px solid rgba(91,95,239,0.18)",
+            }}>
+              {isEdit ? <Edit3 size={18} /> : <UserPlus size={18} />}
             </div>
             <div>
-              <h3 className="font-bold text-sm leading-tight" style={{ color: "var(--text-primary)" }}>
+              <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0, letterSpacing: "-0.01em" }}>
                 {isEdit ? "تعديل بيانات المشترك" : "إضافة مشترك جديد"}
               </h3>
               {!isEdit && (
-                <div className="flex items-center gap-2 mt-0.5">
-                  <div className="flex gap-0.5">
+                <div className="flex items-center gap-2.5" style={{ marginTop: 6 }}>
+                  <div className="flex gap-1">
                     {SECTIONS.map(s => (
                       <div
                         key={s.key}
-                        className="h-1 w-5 rounded-full transition-all duration-300"
-                        style={{ background: sectionDone[s.key] ? s.color : "var(--border)" }}
+                        style={{
+                          height: 4,
+                          width: sectionDone[s.key] ? 22 : 14,
+                          borderRadius: 999,
+                          background: sectionDone[s.key] ? s.color : "#E5E7EB",
+                          transition: "all 0.3s ease",
+                        }}
                       />
                     ))}
                   </div>
-                  <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                    {doneCount}/{SECTIONS.length}
+                  <span style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 500 }}>
+                    {doneCount} / {SECTIONS.length} مكتمل
                   </span>
                 </div>
               )}
@@ -471,10 +492,23 @@ export default function SubscriberModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors opacity-40 hover:opacity-80"
-            style={{ color: "var(--text-secondary)" }}
+            style={{
+              width: 32, height: 32, borderRadius: 10,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "transparent", border: "none",
+              color: "#9CA3AF", cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLButtonElement;
+              el.style.background = "#F1F5F9"; el.style.color = "#6B7280";
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLButtonElement;
+              el.style.background = "transparent"; el.style.color = "#9CA3AF";
+            }}
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
 
@@ -515,7 +549,7 @@ export default function SubscriberModal({
               </div>
             )}
 
-            <div className="px-4 py-3 space-y-2">
+            <div className="px-5 py-4 space-y-3">
 
               {/* ══════════════════════════════════════════════════════════════
                   SECTION 1 — بيانات المشترك
@@ -627,7 +661,7 @@ export default function SubscriberModal({
                                   pf.onChange(value);
                                   if (value !== "custom") df.onChange(value, { shouldValidate: true });
                                 }}
-                                className="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                                className="px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all"
                                 style={{
                                   borderColor: pf.value === value ? "var(--accent)" : "var(--border)",
                                   background:  pf.value === value ? "var(--accent-glow)" : "var(--surface-2)",
@@ -883,14 +917,18 @@ export default function SubscriberModal({
 
         {/* ── Footer ── */}
         <div
-          className="px-4 py-3 flex items-center gap-2"
-          style={{ borderTop: "1px solid var(--border)" }}
+          className="flex items-center gap-2.5"
+          style={{ borderTop: "1px solid #E5E7EB", padding: "16px 20px" }}
         >
           <button
             type="button"
             onClick={handleCancel}
-            className="flex-1 h-9 rounded-xl text-sm font-semibold border transition-colors"
-            style={{ borderColor: "var(--border)", color: "var(--text-secondary)", background: "transparent" }}
+            style={{
+              flex: 1, height: 44, borderRadius: 14,
+              background: "transparent", border: "1px solid #E5E7EB",
+              color: "#6B7280", fontSize: 14, fontWeight: 600,
+              cursor: "pointer", transition: "all 0.15s ease",
+            }}
           >
             إلغاء
           </button>
@@ -902,8 +940,17 @@ export default function SubscriberModal({
               form="sub-form"
               disabled={loading || !isValid}
               onClick={() => setOpenPaymentAfterSave(true)}
-              className="h-9 px-3 rounded-xl text-xs font-semibold border transition-all disabled:opacity-40"
-              style={{ borderColor: "var(--accent)", color: "var(--accent)", background: "var(--accent-glow)" }}
+              style={{
+                height: 44, padding: "0 18px", borderRadius: 14,
+                background: loading || !isValid ? "#F1F5F9" : "#EEF0FF",
+                border: `1px solid ${loading || !isValid ? "#E5E7EB" : "rgba(91,95,239,0.25)"}`,
+                color: loading || !isValid ? "#9CA3AF" : "#5B5FEF",
+                fontSize: 13, fontWeight: 600,
+                cursor: loading || !isValid ? "not-allowed" : "pointer",
+                opacity: loading || !isValid ? 0.5 : 1,
+                transition: "all 0.15s ease",
+                whiteSpace: "nowrap",
+              }}
             >
               حفظ + دفعة
             </button>
@@ -915,8 +962,17 @@ export default function SubscriberModal({
             form="sub-form"
             disabled={loading || !isValid}
             onClick={() => setOpenPaymentAfterSave(false)}
-            className="flex-2 h-9 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-40"
-            style={{ flex: 2, background: loading || !isValid ? "var(--surface-2)" : "var(--accent)", color: loading || !isValid ? "var(--text-secondary)" : "#fff" }}
+            style={{
+              flex: 2, height: 44, borderRadius: 14,
+              background: loading || !isValid ? "#F1F5F9" : "#5B5FEF",
+              color: loading || !isValid ? "#9CA3AF" : "#fff",
+              fontSize: 14, fontWeight: 700,
+              border: "none",
+              cursor: loading || !isValid ? "not-allowed" : "pointer",
+              opacity: loading || !isValid ? 0.5 : 1,
+              transition: "all 0.15s ease",
+              boxShadow: loading || !isValid ? "none" : "0 4px 14px rgba(91,95,239,0.30)",
+            }}
           >
             {loading ? "جاري الحفظ..." : isEdit ? "حفظ التعديلات" : "حفظ المشترك"}
           </button>
@@ -939,39 +995,84 @@ function Section({
   children:   React.ReactNode;
 }) {
   const meta = SECTIONS.find(s => s.key === sectionKey)!;
-  const idx  = SECTIONS.findIndex(s => s.key === sectionKey) + 1;
 
   return (
     <div
-      className="rounded-xl overflow-hidden transition-all"
-      style={{ border: `1px solid ${open ? meta.color + "40" : "var(--border)"}` }}
+      style={{
+        borderRadius: 18,
+        overflow: "hidden",
+        border: `1px solid ${open ? meta.color + "28" : "#E5E7EB"}`,
+        background: "#FFFFFF",
+        boxShadow: open
+          ? `0 4px 20px ${meta.color}12`
+          : "0 2px 6px rgba(15,23,42,0.04)",
+        transition: "all 0.2s ease",
+      }}
     >
       {/* Header */}
       <button
         type="button"
         onClick={() => onToggle(sectionKey)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-right transition-colors"
-        style={{ background: open ? meta.colorAlpha : "var(--surface-2)" }}
+        className="w-full flex items-center gap-3.5 text-right"
+        style={{
+          background: open ? meta.colorAlpha : "transparent",
+          padding: "14px 18px",
+          border: "none", cursor: "pointer",
+          transition: "background 0.15s ease",
+        }}
       >
-        <div
-          className="w-6 h-6 rounded-lg text-xs font-black flex items-center justify-center shrink-0"
-          style={{ background: done ? meta.color : "var(--border)", color: done ? "#fff" : "var(--text-secondary)" }}
-        >
-          {done ? "✓" : idx}
+        {/* Icon */}
+        <div style={{
+          width: 36, height: 36, borderRadius: 12, flexShrink: 0,
+          background: done ? meta.color : open ? meta.colorAlpha : "#F8FAFC",
+          color: done ? "#fff" : open ? meta.color : "#9CA3AF",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: `1px solid ${done ? "transparent" : open ? meta.color + "22" : "#E5E7EB"}`,
+          transition: "all 0.2s ease",
+        }}>
+          {done ? <CheckCircle2 size={16} /> : meta.icon}
         </div>
-        <span className="text-sm font-semibold flex-1" style={{ color: open ? meta.color : "var(--text-primary)" }}>
-          {meta.icon} {meta.title}
-        </span>
+
+        {/* Title */}
+        <div style={{ flex: 1, textAlign: "right" }}>
+          <p style={{
+            fontSize: 14, fontWeight: 700, margin: 0,
+            color: open ? meta.color : "#111827",
+            transition: "color 0.15s ease",
+          }}>
+            {meta.title}
+          </p>
+          {!open && (
+            <p style={{ fontSize: 11.5, color: "#9CA3AF", margin: "2px 0 0 0" }}>
+              {done ? "مكتمل ✓" : "اضغط للتوسيع"}
+            </p>
+          )}
+        </div>
+
+        {/* Done badge */}
+        {done && !open && (
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999,
+            background: "#ECFDF3", color: "#22C55E", flexShrink: 0,
+          }}>
+            مكتمل
+          </span>
+        )}
+
         <ChevronDown
-          size={15}
-          className="shrink-0 transition-transform duration-200"
-          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", color: "var(--text-secondary)" }}
+          size={16}
+          style={{
+            flexShrink: 0,
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            color: "#9CA3AF",
+            transition: "transform 0.2s ease",
+          }}
         />
       </button>
 
       {/* Body */}
       {open && (
-        <div className="px-4 pb-4 pt-3" style={{ borderTop: `1px solid ${meta.color}20` }}>
+        <div style={{ padding: "16px 20px 20px", borderTop: `1px solid ${meta.color}18` }}>
           {children}
         </div>
       )}
@@ -990,18 +1091,18 @@ function Field({
   hint?:    string;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline gap-2">
-        <label className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#374151" }}>
           {label}
         </label>
         {hint && (
-          <span className="text-xs opacity-60" style={{ color: "var(--text-secondary)" }}>{hint}</span>
+          <span style={{ fontSize: 11.5, color: "#9CA3AF" }}>{hint}</span>
         )}
       </div>
       {children}
       {error && (
-        <span className="text-xs" style={{ color: "#EF4444" }}>{error}</span>
+        <span style={{ fontSize: 12, color: "#EF4444" }}>{error}</span>
       )}
     </div>
   );

@@ -100,7 +100,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // Rate limit: 5 session log requests per IP per minute (one per login)
   const ip = getClientIp(request);
-  if (!checkRateLimit(`session-log:${ip}`, 5, 60 * 1000)) {
+  if (!(await checkRateLimit(`session-log:${ip}`, 5, 60 * 1000))) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 

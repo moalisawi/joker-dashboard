@@ -29,6 +29,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className={cairo.variable} data-scroll-behavior="smooth">
       <body className="min-h-screen">
+        <div className="jk-bg-orb-c" aria-hidden="true" />
         <QueryProvider>
           <NavigationProgress />
           <AuthProvider />

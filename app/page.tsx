@@ -9,14 +9,12 @@ import { callSubscriberOperation } from "@/lib/clientOperations";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { usePayments } from "@/hooks/usePayments";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
-import PageHeader from "@/components/layout/PageHeader";
 import StatsCards from "@/components/stats/StatsCards";
 import StatsDateFilter, { type StatsPeriod, getPeriodLabel } from "@/components/stats/StatsDateFilter";
 import CurrencyCounters from "@/components/stats/CurrencyCounters";
 import TeamPerformance from "@/components/stats/TeamPerformance";
 import Alerts from "@/components/stats/Alerts";
 import AlertsPanel from "@/components/stats/AlertsPanel";
-import Expiry15Days from "@/components/stats/Expiry15Days";
 import AdvancedStats from "@/components/stats/AdvancedStats";
 import SmartInsights from "@/components/stats/SmartInsights";
 import SubscriptionChart from "@/components/stats/SubscriptionChart";
@@ -30,29 +28,26 @@ import RenewalModal from "@/components/subscribers/RenewalModal";
 import PauseModal from "@/components/subscribers/PauseModal";
 import FreezeModal from "@/components/subscribers/FreezeModal";
 import ResumeModal from "@/components/subscribers/ResumeModal";
-import PausedSubscribersSection from "@/components/subscribers/PausedSubscribersSection";
-import FrozenSubscribersSection from "@/components/subscribers/FrozenSubscribersSection";
 import ExchangeRatesModal from "@/components/stats/ExchangeRatesModal";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { Tabs, TabList, Tab, TabPanel } from "@/components/ui/Tabs";
 import TableSkeleton from "@/components/ui/TableSkeleton";
 import FadeIn from "@/components/ui/FadeIn";
 import StatsCardsSkeleton from "@/components/stats/StatsCardsSkeleton";
+import DashboardHero from "@/components/dashboard/DashboardHero";
+import ActivityTimeline from "@/components/dashboard/ActivityTimeline";
 import type { Subscriber, Payment, RefundTransaction } from "@/types";
-import { Plus, DollarSign } from "lucide-react";
+import { Plus, DollarSign, BarChart2, Users, Bell } from "lucide-react";
 import { Button, Skeleton } from "@heroui/react";
 import { useRefunds } from "@/hooks/useRefunds";
 import { toast } from "@/lib/toast";
+import { motion } from "framer-motion";
 
 const Joyride = dynamicImport(
   () => import("react-joyride").then((m) => ({ default: m.Joyride })),
   { ssr: false }
 );
 
-// Static — defined at module level so the array reference never changes
-// between renders. A new array on every render causes Joyride to treat
-// steps as "changed" and restart the tour on each re-render, creating an
-// infinite render loop when combined with run={true}.
 const TOUR_STEPS: Step[] = [
   {
     target: "#tour-header",
@@ -62,7 +57,7 @@ const TOUR_STEPS: Step[] = [
   },
   {
     target: "#tour-stats",
-    content: "بطاقات الإحصائيات — تعرض الإجمالي، النشطين، المنتهين، والإيرادات حسب الفترة الزمنية التي تختارها.",
+    content: "بطاقات الإحصائيات — تعرض الإجمالي، النشطين، المنتهين، والإيرادات حسب الفترة الزمنية.",
     placement: "bottom",
   },
   {
@@ -77,21 +72,21 @@ function filterByPeriod<T extends object>(
   period: StatsPeriod,
   dateKey: keyof T = "date" as keyof T,
 ): T[] {
-  const getDate = (item: T): string => {
+  // Returns null for absent / non-string dates; callers must handle null explicitly.
+  const getDate = (item: T): string | null => {
     const v = item[dateKey];
-    if (!v || typeof v !== "string") return "";
-    return v;
+    return v && typeof v === "string" ? v : null;
   };
   if (period.mode === "current_month") {
     const ym = new Date().toISOString().slice(0, 7);
-    return items.filter((i) => getDate(i).startsWith(ym));
+    return items.filter((i) => { const d = getDate(i); return d !== null && d.startsWith(ym); });
   }
   if (period.mode === "days") {
     const cutoff = new Date(Date.now() - period.n * 86_400_000).toISOString().split("T")[0];
-    return items.filter((i) => getDate(i) >= cutoff);
+    return items.filter((i) => { const d = getDate(i); return d !== null && d >= cutoff; });
   }
   if (period.mode === "month") {
-    return items.filter((i) => getDate(i).startsWith(period.ym));
+    return items.filter((i) => { const d = getDate(i); return d !== null && d.startsWith(period.ym); });
   }
   return items;
 }
@@ -157,6 +152,16 @@ export default function HomePage() {
     [refunds, statsPeriod],
   );
 
+  const alertCount = useMemo(() =>
+    subscribers.filter(
+      (s) =>
+        s.subscriptionStatus === "paused" ||
+        s.freezeData?.isFrozen === true ||
+        (s.daysRemaining > 0 && s.daysRemaining <= 15 && s.subscriptionState !== "withdrawn")
+    ).length,
+    [subscribers]
+  );
+
   const closeModal = useCallback(() => setModal({ type: "none" }), []);
   const onSaved    = useCallback(() => toast.success("تم الحفظ بنجاح"), []);
 
@@ -170,10 +175,7 @@ export default function HomePage() {
     const { subscriberId, subscriberName } = modal;
     setDeleteLoading(true);
     try {
-      await callSubscriberOperation("deleteSubscriber", {
-        subscriberId,
-        subscriberName,
-      });
+      await callSubscriberOperation("deleteSubscriber", { subscriberId, subscriberName });
       toast.success("تم الحذف بنجاح");
       closeModal();
     } catch {
@@ -191,12 +193,7 @@ export default function HomePage() {
         continuous
         onEvent={handleTourCallback}
         locale={{ back: "السابق", close: "إغلاق", last: "إنهاء", next: "التالي", skip: "تخطى" }}
-        options={{
-          primaryColor: "#5B5FEF",
-          zIndex: 10000,
-          arrowColor: "#fff",
-          showProgress: true,
-        }}
+        options={{ primaryColor: "#5B5FEF", zIndex: 10000, arrowColor: "#fff", showProgress: true }}
         styles={{
           tooltip: { borderRadius: 22, fontFamily: "inherit", direction: "rtl", boxShadow: "0 20px 48px rgba(16,20,26,.25)" },
           buttonPrimary: { borderRadius: 9999, fontWeight: 700, background: "#5B5FEF" },
@@ -204,65 +201,84 @@ export default function HomePage() {
           buttonSkip: { borderRadius: 9999 },
         }}
       />
+
       <div className="p-3 sm:p-5 md:p-8 max-w-screen-2xl mx-auto">
 
-        {/* Page header */}
-        <div id="tour-header">
-          <PageHeader
-            title="المشتركون"
-            subtitle={
-              !loading
-                ? `${subscribers.length} مشترك مسجل في النظام · ${activeCount} نشط`
-                : undefined
-            }
-            actions={
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setTourRun(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
-                  style={{ background: "var(--surface-2)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-                  title="جولة تعريفية"
-                >
-                  🎯 جولة
-                </button>
-                {can("canViewRevenue") && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onPress={() => setModal({ type: "rates" })}
-                    className="gap-1.5"
-                  >
-                    <DollarSign size={14} />
-                    أسعار الصرف
-                  </Button>
-                )}
-                {can("canCreate") && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onPress={() => setModal({ type: "add" })}
-                    className="gap-2"
-                  >
-                    <Plus size={15} />
-                    مشترك جديد
-                  </Button>
-                )}
-              </div>
-            }
-          >
+        {/* ── Top Action Bar ─────────────────────────────────────── */}
+        <motion.div
+          id="tour-header"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.38 }}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            flexWrap: "wrap", gap: 12, marginBottom: 20,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {!loading && <StatsDateFilter value={statsPeriod} onChange={setStatsPeriod} />}
-          </PageHeader>
-        </div>
+            <button
+              onClick={() => setTourRun(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 14px", borderRadius: 999,
+                fontSize: 12, fontWeight: 600,
+                background: "var(--jk-surface)",
+                color: "var(--jk-muted)",
+                border: "1px solid var(--jk-border)",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              title="جولة تعريفية"
+            >
+              🎯 جولة
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {can("canViewRevenue") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onPress={() => setModal({ type: "rates" })}
+                className="gap-1.5"
+              >
+                <DollarSign size={14} />
+                أسعار الصرف
+              </Button>
+            )}
+            {can("canCreate") && (
+              <Button
+                variant="primary"
+                size="sm"
+                onPress={() => setModal({ type: "add" })}
+                className="gap-2"
+              >
+                <Plus size={15} />
+                مشترك جديد
+              </Button>
+            )}
+          </div>
+        </motion.div>
 
         {error && (
-          <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-2xl text-sm text-red-700 font-medium flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+          <div style={{
+            marginBottom: 20, padding: "12px 18px",
+            background: "#FEF2F2", border: "1px solid rgba(239,68,68,0.25)",
+            borderRadius: 14, fontSize: 13.5, color: "#EF4444",
+            fontWeight: 500, display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#EF4444", flexShrink: 0 }} />
             {error}
           </div>
         )}
 
         {loading ? (
           <div className="space-y-6">
+            {/* Hero skeleton */}
+            <div style={{ borderRadius: 28, overflow: "hidden" }}>
+              <Skeleton className="h-52 w-full rounded-3xl" />
+            </div>
             <StatsCardsSkeleton count={8} />
             <div className="panel overflow-hidden">
               <div className="p-4" style={{ borderBottom: "1px solid var(--border)" }}>
@@ -273,6 +289,10 @@ export default function HomePage() {
           </div>
         ) : (
           <>
+            {/* ── HERO SECTION ──────────────────────────────────────── */}
+            <DashboardHero subscribers={subscribers} payments={payments} />
+
+            {/* ── KPI STATS CARDS ───────────────────────────────────── */}
             <div id="tour-stats">
               <StatsCards
                 subscribers={filteredSubscribers}
@@ -281,63 +301,75 @@ export default function HomePage() {
                 periodLabel={getPeriodLabel(statsPeriod)}
               />
             </div>
+
+            {/* ── CURRENCY BALANCE CARDS ────────────────────────────── */}
             <CurrencyCounters payments={payments} />
 
-            {/* ─── Smart Insights (always visible) ─────────────────── */}
+            {/* ── SMART INSIGHTS ────────────────────────────────────── */}
             <FadeIn delay={0.05}>
               <SmartInsights subscribers={subscribers} payments={payments} />
             </FadeIn>
 
-            {/* ─── Tabbed content ───────────────────────────────────────── */}
+            {/* ── TABBED CONTENT ────────────────────────────────────── */}
             <Tabs defaultValue="overview" className="mt-2">
               <TabList id="tour-tabs" className="mb-6">
-                <Tab value="overview">النظرة العامة</Tab>
+                <Tab value="overview">
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <BarChart2 size={13} />
+                    النظرة العامة
+                  </span>
+                </Tab>
                 <Tab value="subscribers">
-                  المشتركون
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Users size={13} />
+                    المشتركون
+                  </span>
                 </Tab>
                 <Tab
                   value="alerts"
-                  badge={
-                    subscribers.filter(
-                      (s) =>
-                        s.subscriptionStatus === "paused" ||
-                        s.freezeData?.isFrozen === true ||
-                        (s.daysRemaining > 0 && s.daysRemaining <= 15 && s.subscriptionState !== "withdrawn")
-                    ).length
-                  }
+                  badge={alertCount}
                 >
-                  التنبيهات
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Bell size={13} />
+                    التنبيهات
+                  </span>
                 </Tab>
               </TabList>
 
-              {/* ── Tab: Overview ────────────────────────────────────── */}
+              {/* ── TAB: OVERVIEW ────────────────────────────────────── */}
               <TabPanel value="overview">
-                {/* Subscription chart + team performance row */}
+                {/* Chart + Timeline row */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-5">
                   <FadeIn className="xl:col-span-2">
                     <SubscriptionChart subscribers={subscribers} payments={payments} />
                   </FadeIn>
                   <FadeIn delay={0.08}>
-                    <TeamPerformance subscribers={subscribers} />
+                    <ActivityTimeline subscribers={subscribers} payments={payments} />
                   </FadeIn>
                 </div>
 
-                {/* Calendar + alerts row */}
+                {/* Team performance + Alerts row */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-5">
                   <FadeIn className="xl:col-span-2">
-                    <MonthlyCalendar subscribers={subscribers} />
+                    <TeamPerformance subscribers={subscribers} />
                   </FadeIn>
-                  <FadeIn delay={0.1}>
+                  <FadeIn delay={0.08}>
                     <Alerts subscribers={subscribers} />
                   </FadeIn>
                 </div>
 
-                <FadeIn delay={0.15}>
+                {/* Calendar */}
+                <FadeIn delay={0.06} className="mb-5">
+                  <MonthlyCalendar subscribers={subscribers} />
+                </FadeIn>
+
+                {/* Advanced stats */}
+                <FadeIn delay={0.1}>
                   <AdvancedStats subscribers={subscribers} />
                 </FadeIn>
               </TabPanel>
 
-              {/* ── Tab: Subscribers ─────────────────────────────────── */}
+              {/* ── TAB: SUBSCRIBERS ─────────────────────────────────── */}
               <TabPanel value="subscribers">
                 <SubscribersTable
                   subscribers={subscribers}
@@ -353,7 +385,7 @@ export default function HomePage() {
                 />
               </TabPanel>
 
-              {/* ── Tab: Alerts ──────────────────────────────────────── */}
+              {/* ── TAB: ALERTS ──────────────────────────────────────── */}
               <TabPanel value="alerts">
                 <AlertsPanel subscribers={subscribers} />
               </TabPanel>
@@ -362,7 +394,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* ===== Modals ===== */}
+      {/* ═══ MODALS ═══════════════════════════════════════════════ */}
       {modal.type === "profile" && (
         <ProfileModal
           subscriber={modal.subscriber}

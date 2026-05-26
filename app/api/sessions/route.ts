@@ -28,7 +28,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // Rate limit: 30 session list requests per IP per minute
   const ip = getClientIp(request);
-  if (!checkRateLimit(`sessions-list:${ip}`, 30, 60 * 1000)) {
+  if (!(await checkRateLimit(`sessions-list:${ip}`, 30, 60 * 1000))) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 

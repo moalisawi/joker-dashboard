@@ -21,7 +21,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // Rate limit: 3 bootstrap attempts per IP per minute
   const ip = getClientIp(request);
-  if (!checkRateLimit(`bootstrap:${ip}`, 3, 60 * 1000)) {
+  if (!(await checkRateLimit(`bootstrap:${ip}`, 3, 60 * 1000))) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 

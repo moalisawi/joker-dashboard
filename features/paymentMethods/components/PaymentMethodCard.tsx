@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { Spinner } from "@heroui/react";
 import {
   MoreVertical, Users, Download, Edit2, PowerOff, Trash2,
-  Wallet, Building2, Banknote, Bitcoin, Globe, Bookmark,
+  Wallet, Building2, Banknote, Bitcoin, Globe,
 } from "lucide-react";
 import { getTypeLabel } from "./PaymentMethodTypeIcon";
 import { usePaymentMethodBalanceQuery } from "../hooks/usePaymentMethodBalanceQuery";
@@ -23,70 +23,44 @@ const COUNTRY_LABELS: Record<string, string> = {
 
 const TYPE_CONFIG = {
   ewallet: {
-    cardBg:      "linear-gradient(145deg, #EBF2FD 0%, #F5F9FF 55%, #FFFFFF 100%)",
-    cardBorder:  "rgba(91,95,239,0.22)",
-    glowColor:   "rgba(91,95,239,0.10)",
-    iconColor:   "#5B5FEF",
-    iconBg:      "rgba(91,95,239,0.15)",
-    iconBorder:  "rgba(91,95,239,0.24)",
-    badgeBg:     "rgba(91,95,239,0.12)",
-    badgeBorder: "rgba(91,95,239,0.28)",
-    badgeColor:  "#5a7fc4",
-    Icon:        Wallet,
+    accent:    "#5B5FEF",
+    accentBg:  "rgba(91,95,239,0.10)",
+    accentBd:  "rgba(91,95,239,0.24)",
+    glow:      "rgba(91,95,239,0.18)",
+    Icon:      Wallet,
   },
   bank: {
-    cardBg:      "linear-gradient(145deg, #E8F5EE 0%, #F3FAF6 55%, #FFFFFF 100%)",
-    cardBorder:  "rgba(34,197,94,0.18)",
-    glowColor:   "rgba(34,197,94,0.08)",
-    iconColor:   "#22a854",
-    iconBg:      "rgba(34,197,94,0.12)",
-    iconBorder:  "rgba(34,197,94,0.20)",
-    badgeBg:     "rgba(34,197,94,0.10)",
-    badgeBorder: "rgba(34,197,94,0.24)",
-    badgeColor:  "#16923e",
-    Icon:        Building2,
+    accent:    "#10B981",
+    accentBg:  "rgba(16,185,129,0.10)",
+    accentBd:  "rgba(16,185,129,0.24)",
+    glow:      "rgba(16,185,129,0.14)",
+    Icon:      Building2,
   },
   cash: {
-    cardBg:      "linear-gradient(145deg, #F1F3F6 0%, #F7F8FA 55%, #FFFFFF 100%)",
-    cardBorder:  "rgba(100,116,139,0.16)",
-    glowColor:   "rgba(100,116,139,0.06)",
-    iconColor:   "#6B7280",
-    iconBg:      "rgba(100,116,139,0.10)",
-    iconBorder:  "rgba(100,116,139,0.18)",
-    badgeBg:     "rgba(100,116,139,0.10)",
-    badgeBorder: "rgba(100,116,139,0.22)",
-    badgeColor:  "#6B7280",
-    Icon:        Banknote,
+    accent:    "#94A3B8",
+    accentBg:  "rgba(100,116,139,0.10)",
+    accentBd:  "rgba(100,116,139,0.20)",
+    glow:      "rgba(100,116,139,0.10)",
+    Icon:      Banknote,
   },
   crypto: {
-    cardBg:      "linear-gradient(145deg, #EEF0FB 0%, #F4F3FF 55%, #FFFFFF 100%)",
-    cardBorder:  "rgba(59,130,246,0.22)",
-    glowColor:   "rgba(59,130,246,0.10)",
-    iconColor:   "#3B82F6",
-    iconBg:      "rgba(59,130,246,0.15)",
-    iconBorder:  "rgba(59,130,246,0.24)",
-    badgeBg:     "rgba(59,130,246,0.12)",
-    badgeBorder: "rgba(59,130,246,0.28)",
-    badgeColor:  "#7094bc",
-    Icon:        Bitcoin,
+    accent:    "#F59E0B",
+    accentBg:  "rgba(245,158,11,0.10)",
+    accentBd:  "rgba(245,158,11,0.24)",
+    glow:      "rgba(245,158,11,0.14)",
+    Icon:      Bitcoin,
   },
   international: {
-    cardBg:      "linear-gradient(145deg, #FFF4E8 0%, #FFFBF2 55%, #FFFFFF 100%)",
-    cardBorder:  "rgba(245,158,11,0.24)",
-    glowColor:   "rgba(245,158,11,0.10)",
-    iconColor:   "#d4933a",
-    iconBg:      "rgba(245,158,11,0.15)",
-    iconBorder:  "rgba(245,158,11,0.24)",
-    badgeBg:     "rgba(245,158,11,0.14)",
-    badgeBorder: "rgba(245,158,11,0.28)",
-    badgeColor:  "#b07820",
-    Icon:        Globe,
+    accent:    "#3B82F6",
+    accentBg:  "rgba(59,130,246,0.10)",
+    accentBd:  "rgba(59,130,246,0.24)",
+    glow:      "rgba(59,130,246,0.14)",
+    Icon:      Globe,
   },
 } as const;
 
 type TypeKey = keyof typeof TYPE_CONFIG;
 
-// ── BrandLogo: loads image, shows fallback on error ───────────────────────────
 function BrandLogo({
   src, alt, fallback, fallbackBg, fallbackColor,
 }: {
@@ -96,7 +70,6 @@ function BrandLogo({
 }) {
   const [failed, setFailed] = useState(false);
   const onError = useCallback(() => setFailed(true), []);
-
   if (failed) {
     return (
       <span style={{
@@ -108,11 +81,10 @@ function BrandLogo({
       </span>
     );
   }
-
   return (
     <img
       src={src} alt={alt} onError={onError}
-      style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 4 }}
+      style={{ width: 26, height: 26, objectFit: "contain", borderRadius: 4 }}
     />
   );
 }
@@ -131,10 +103,13 @@ export function PaymentMethodCard({
   method, period, onEdit, onToggle, onDelete, onViewPayers, onExport,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hovered, setHovered]   = useState(false);
+
   const { data: balance, isLoading: balanceLoading } =
     usePaymentMethodBalanceQuery(method.id, period);
 
   const isDisabled   = method.status === "disabled";
+  const isActive     = method.status === "active";
   const countryLabel =
     method.scope === "global"
       ? "عالمية"
@@ -144,151 +119,196 @@ export function PaymentMethodCard({
   const cfg    = TYPE_CONFIG[method.type as TypeKey] ?? TYPE_CONFIG.cash;
   const { Icon } = cfg;
 
-  // Auto-detect brand logo from name if no manual logoUrl set
-  const brand      = !method.logoUrl ? detectBrand(method.name) : null;
+  const brand        = !method.logoUrl ? detectBrand(method.name) : null;
   const resolvedLogo = method.logoUrl ?? brand?.logoUrl ?? null;
-  const iconColor  = brand?.color  ?? cfg.iconColor;
-  const iconBg     = brand?.bgColor ?? cfg.iconBg;
-  const iconBorder = brand?.bgColor
+  const iconColor    = brand?.color  ?? cfg.accent;
+  const iconBg       = brand?.bgColor ?? cfg.accentBg;
+  const iconBd       = brand?.bgColor
     ? brand.bgColor.replace(/[\d.]+\)$/, "0.28)")
-    : cfg.iconBorder;
+    : cfg.accentBd;
 
   return (
     <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        borderRadius:   22,
-        border:         `1px solid ${cfg.cardBorder}`,
-        background:     cfg.cardBg,
-        boxShadow:      `0 1px 2px rgba(16,20,26,.04), 0 8px 24px -8px ${cfg.glowColor}`,
-        overflow:       "hidden",
-        position:       "relative",
-        transition:     "transform .2s ease, box-shadow .2s ease",
-        opacity:        isDisabled ? 0.58 : 1,
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
-        (e.currentTarget as HTMLElement).style.boxShadow = `0 1px 2px rgba(16,20,26,.04), 0 16px 36px -8px ${cfg.glowColor}`;
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-        (e.currentTarget as HTMLElement).style.boxShadow = `0 1px 2px rgba(16,20,26,.04), 0 8px 24px -8px ${cfg.glowColor}`;
+        borderRadius:   24,
+        border:         `1px solid ${hovered ? cfg.accentBd : "rgba(255,255,255,0.80)"}`,
+        background:     "rgba(255,255,255,0.72)",
+        backdropFilter: "blur(22px) saturate(1.7)",
+        WebkitBackdropFilter: "blur(22px) saturate(1.7)",
+        boxShadow: hovered
+          ? `0 2px 8px rgba(91,95,239,0.08), 0 20px 56px rgba(91,95,239,0.14), 0 0 0 1px ${cfg.accentBd}`
+          : `0 1px 3px rgba(15,23,42,0.06), 0 8px 32px rgba(91,95,239,0.07)`,
+        overflow:    "visible",
+        position:    "relative",
+        transition:  "transform .22s ease, box-shadow .22s ease, border-color .22s ease",
+        transform:   hovered ? "translateY(-3px)" : "translateY(0)",
+        opacity:     isDisabled ? 0.62 : 1,
       }}
     >
-      {/* Subtle inner highlight */}
+      {/* Visual clipping layer — clips stripe + glow to border-radius */}
       <div style={{
-        position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
-        background: "radial-gradient(ellipse at 15% 8%, rgba(255,255,255,0.75) 0%, transparent 55%)",
-        borderRadius: "inherit",
-      }} />
+        position: "absolute", inset: 0, borderRadius: "inherit",
+        overflow: "hidden", pointerEvents: "none", zIndex: 0,
+      }}>
+        {/* Top accent stripe */}
+        <div style={{
+          position: "absolute", top: 0, insetInline: 0, height: 3,
+          background: `linear-gradient(90deg, ${cfg.accent}CC 0%, #5B5FEF99 50%, ${cfg.accent}55 100%)`,
+          opacity: isActive ? 1 : 0.3,
+        }} />
+        {/* Radial glow overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `radial-gradient(ellipse 70% 50% at 15% 0%, ${cfg.glow} 0%, transparent 60%)`,
+          opacity: hovered ? 1 : 0.6,
+          transition: "opacity .22s ease",
+        }} />
+      </div>
 
-      <div style={{ position: "relative", zIndex: 1, padding: "20px 20px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "20px 20px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
 
-        {/* ── Top row: icons + menu ── */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        {/* ── TOP ROW ── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
-          {/* Icon pills (type + secondary) */}
+          {/* Left: icon + currency pills */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Primary icon */}
             <div style={{
-              width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+              width: 42, height: 42, borderRadius: 13, flexShrink: 0,
               display: "flex", alignItems: "center", justifyContent: "center",
-              background: resolvedLogo ? "#fff" : iconBg,
-              border: `1px solid ${iconBorder}`,
+              background: resolvedLogo ? "rgba(255,255,255,0.90)" : iconBg,
+              border: `1.5px solid ${iconBd}`,
               color: iconColor,
-              boxShadow: `0 2px 8px ${cfg.glowColor}`,
+              boxShadow: `0 2px 10px ${cfg.glow}`,
               overflow: "hidden",
             }}>
               {resolvedLogo ? (
                 <BrandLogo
-                  src={resolvedLogo}
-                  alt={method.name}
-                  fallback={<Icon size={20} />}
-                  fallbackBg={iconBg}
-                  fallbackColor={iconColor}
+                  src={resolvedLogo} alt={method.name}
+                  fallback={<Icon size={18} />}
+                  fallbackBg={iconBg} fallbackColor={iconColor}
                 />
               ) : (
-                <Icon size={20} />
+                <Icon size={18} />
               )}
             </div>
 
-            {/* Currency pill */}
-            <div style={{
-              height: 30, borderRadius: 999, flexShrink: 0,
-              display: "flex", alignItems: "center", gap: 4,
-              padding: "0 10px",
-              background: "rgba(255,255,255,0.70)",
-              border: `1px solid ${iconBorder}`,
-              fontSize: 11, fontWeight: 700, color: iconColor,
-              letterSpacing: "0.05em",
-            }}>
-              {method.supportedCurrencies.slice(0, 2).join(" · ")}
-              {method.supportedCurrencies.length > 2 && <span style={{ color: "var(--jk-subtle)" }}>+{method.supportedCurrencies.length - 2}</span>}
+            {/* Currency pills */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {method.supportedCurrencies.slice(0, 2).map((cur) => (
+                <span key={cur} style={{
+                  height: 22, padding: "0 8px", borderRadius: 999,
+                  fontSize: 10, fontWeight: 800, letterSpacing: "0.07em",
+                  display: "inline-flex", alignItems: "center",
+                  background: iconBg, border: `1px solid ${iconBd}`,
+                  color: iconColor,
+                }}>
+                  {cur}
+                </span>
+              ))}
+              {method.supportedCurrencies.length > 2 && (
+                <span style={{
+                  height: 22, padding: "0 8px", borderRadius: 999,
+                  fontSize: 10, fontWeight: 700,
+                  display: "inline-flex", alignItems: "center",
+                  background: "rgba(15,23,42,0.05)", border: "1px solid rgba(15,23,42,0.10)",
+                  color: "#6B7280",
+                }}>
+                  +{method.supportedCurrencies.length - 2}
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Menu */}
+          {/* Right: status + menu */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {/* Status pill */}
             <span style={{
-              padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600,
+              height: 24, padding: "0 10px", borderRadius: 999,
+              fontSize: 10.5, fontWeight: 700,
+              display: "inline-flex", alignItems: "center", gap: 5,
               whiteSpace: "nowrap",
-              ...(method.status === "active"
-                ? { background: cfg.badgeBg, color: cfg.badgeColor, border: `1px solid ${cfg.badgeBorder}` }
-                : { background: "rgba(156,163,175,.10)", color: "var(--jk-subtle)", border: "1px solid rgba(156,163,175,.20)" }),
+              ...(isActive
+                ? {
+                    background: "rgba(16,185,129,0.10)",
+                    color:      "#059669",
+                    border:     "1px solid rgba(16,185,129,0.25)",
+                  }
+                : {
+                    background: "rgba(100,116,139,0.08)",
+                    color:      "#94A3B8",
+                    border:     "1px solid rgba(100,116,139,0.18)",
+                  }),
             }}>
-              {method.status === "active" ? "مفعّلة" : "معطّلة"}
+              <span style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: isActive ? "#10B981" : "#CBD5E1",
+                flexShrink: 0,
+              }} />
+              {isActive ? "نشطة" : "معطّلة"}
             </span>
 
-            {/* Dots menu */}
+            {/* Dot menu */}
             <div style={{ position: "relative" }}>
               <button
-                style={{
-                  width: 32, height: 32, borderRadius: "50%",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "var(--jk-muted)", background: "rgba(255,255,255,0.60)",
-                  border: "1px solid rgba(255,255,255,0.85)",
-                  cursor: "pointer", transition: "background .15s",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.90)")}
-                onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.60)")}
                 onClick={() => setMenuOpen(v => !v)}
+                style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#6B7280",
+                  background: "rgba(255,255,255,0.65)",
+                  border: "1px solid rgba(255,255,255,0.90)",
+                  cursor: "pointer", transition: "all .15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.95)"; e.currentTarget.style.color = "#374151"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.65)"; e.currentTarget.style.color = "#6B7280"; }}
               >
-                <MoreVertical size={14} />
+                <MoreVertical size={13} />
               </button>
 
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                   <div style={{
-                    position: "absolute", insetInlineStart: 0, top: "calc(100% + 6px)",
-                    zIndex: 50, background: "var(--jk-surface)",
-                    border: "1px solid var(--jk-border)", borderRadius: 14,
-                    boxShadow: "var(--jk-shadow-card)", minWidth: 140, overflow: "hidden",
-                    padding: "4px 0",
+                    position: "absolute", insetInlineEnd: 0, top: "calc(100% + 6px)",
+                    zIndex: 50,
+                    background: "rgba(255,255,255,0.92)",
+                    backdropFilter: "blur(16px) saturate(1.5)",
+                    WebkitBackdropFilter: "blur(16px) saturate(1.5)",
+                    border: "1px solid rgba(255,255,255,0.90)",
+                    borderRadius: 14,
+                    boxShadow: "0 8px 32px rgba(15,23,42,0.12), 0 2px 8px rgba(15,23,42,0.06)",
+                    minWidth: 148, overflow: "hidden", padding: "4px 0",
                   }}>
                     {[
-                      { BtnIcon: Edit2,    label: "تعديل",                                               action: () => onEdit(method)   },
-                      { BtnIcon: PowerOff, label: method.status === "active" ? "تعطيل" : "تفعيل",        action: () => onToggle(method) },
+                      { BtnIcon: Edit2,    label: "تعديل",                                        action: () => onEdit(method)   },
+                      { BtnIcon: PowerOff, label: isActive ? "تعطيل" : "تفعيل",                   action: () => onToggle(method) },
                     ].map(({ BtnIcon, label, action }) => (
                       <button key={label}
-                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10,
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center", gap: 9,
                           padding: "9px 14px", fontSize: 12.5, fontWeight: 500,
-                          color: "var(--jk-text)", background: "transparent", border: "none",
-                          cursor: "pointer", textAlign: "start", transition: "background .1s" }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "var(--jk-panel)")}
+                          color: "#374151", background: "transparent", border: "none",
+                          cursor: "pointer", textAlign: "start", transition: "background .1s",
+                          fontFamily: "inherit",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(91,95,239,0.06)")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                         onClick={() => { setMenuOpen(false); action(); }}
                       >
-                        <BtnIcon size={13} style={{ color: "var(--jk-muted)" }} /> {label}
+                        <BtnIcon size={13} style={{ color: "#9CA3AF" }} /> {label}
                       </button>
                     ))}
-                    <div style={{ height: 1, background: "var(--jk-divider)", margin: "4px 10px" }} />
+                    <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "4px 10px" }} />
                     <button
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10,
+                      style={{
+                        width: "100%", display: "flex", alignItems: "center", gap: 9,
                         padding: "9px 14px", fontSize: 12.5, fontWeight: 500,
                         color: "#EF4444", background: "transparent", border: "none",
-                        cursor: "pointer", textAlign: "start", transition: "background .1s" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,.06)")}
+                        cursor: "pointer", textAlign: "start", transition: "background .1s",
+                        fontFamily: "inherit",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(239,68,68,0.06)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       onClick={() => { setMenuOpen(false); onDelete(method); }}
                     >
@@ -301,107 +321,158 @@ export function PaymentMethodCard({
           </div>
         </div>
 
-        {/* ── Title + meta ── */}
+        {/* ── TITLE SECTION ── */}
         <div>
-          <div style={{ fontSize: 19, fontWeight: 800, color: "var(--jk-text)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+          <div style={{
+            fontSize: 17, fontWeight: 800, color: "#111827",
+            letterSpacing: "-0.025em", lineHeight: 1.25,
+          }}>
             {method.name}
           </div>
-          <div style={{ fontSize: 12.5, color: "var(--jk-muted)", marginTop: 5, fontWeight: 500 }}>
-            {getTypeLabel(method.type)} · {countryLabel}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <span style={{ fontSize: 11.5, color: "#6B7280", fontWeight: 500 }}>
+              {getTypeLabel(method.type)}
+            </span>
+            <span style={{ width: 3, height: 3, borderRadius: "50%", background: "#D1D5DB", flexShrink: 0 }} />
+            <span style={{ fontSize: 11.5, color: "#6B7280", fontWeight: 500 }}>
+              {countryLabel}
+            </span>
           </div>
           {method.holderName && (
-            <div style={{ fontSize: 12, color: "var(--jk-subtle)", marginTop: 3 }}>
+            <div style={{ fontSize: 11.5, color: "#9CA3AF", marginTop: 2, fontWeight: 400 }}>
               {method.holderName}
             </div>
           )}
         </div>
 
-        {/* ── Balance per currency ── */}
+        {/* ── BALANCE SECTION ── */}
         <div style={{
-          background: "rgba(255,255,255,0.60)",
-          borderRadius: 14, border: `1px solid ${cfg.cardBorder}`,
-          padding: "12px 14px",
+          borderRadius: 16,
+          background: "rgba(15,20,40,0.04)",
+          border: `1px solid rgba(91,95,239,0.10)`,
+          overflow: "hidden",
         }}>
+          {/* Balance header */}
+          <div style={{
+            padding: "9px 14px 7px",
+            borderBottom: balanceLoading || (balance && method.supportedCurrencies.length > 0)
+              ? "1px solid rgba(91,95,239,0.08)"
+              : "none",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9CA3AF" }}>
+              الرصيد
+            </span>
+            <span style={{ fontSize: 10, color: "#C7D2FE", fontWeight: 600 }}>
+              {method.supportedCurrencies.join(" · ")}
+            </span>
+          </div>
+
+          {/* Balance rows */}
           {balanceLoading ? (
-            <div style={{ display: "flex", justifyContent: "center", padding: "6px 0" }}>
+            <div style={{ display: "flex", justifyContent: "center", padding: "14px 0" }}>
               <Spinner size="sm" />
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {method.supportedCurrencies.map((cur: SupportedCurrency) => {
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {method.supportedCurrencies.map((cur: SupportedCurrency, idx) => {
                 const amt = balance?.perCurrency[cur] ?? 0;
                 return (
-                  <div key={cur} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div key={cur} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "10px 14px",
+                    borderTop: idx > 0 ? "1px solid rgba(91,95,239,0.07)" : "none",
+                  }}>
                     <span style={{
-                      fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em",
-                      color: iconColor, background: iconBg,
-                      border: `1px solid ${iconBorder}`,
-                      borderRadius: 8, padding: "2px 8px",
+                      fontSize: 10, fontWeight: 800, letterSpacing: "0.08em",
+                      color: iconColor,
+                      background: iconBg,
+                      border: `1px solid ${iconBd}`,
+                      borderRadius: 7, padding: "2px 8px",
                     }}>
                       {cur}
                     </span>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: "var(--jk-text)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+                    <span style={{
+                      fontSize: 17, fontWeight: 800, color: "#111827",
+                      fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em",
+                    }}>
                       {amt.toLocaleString()}
                     </span>
                   </div>
                 );
               })}
               {balance && balance.refundedUSD > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 6, borderTop: `1px solid ${cfg.cardBorder}` }}>
-                  <span style={{ fontSize: 11, color: "var(--jk-warn)", fontWeight: 600 }}>صافي بعد الاسترداد</span>
-                  <span style={{ fontSize: 13, color: "var(--jk-warn)", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>${net.toFixed(2)}</span>
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "8px 14px",
+                  borderTop: "1px solid rgba(245,158,11,0.14)",
+                  background: "rgba(245,158,11,0.04)",
+                }}>
+                  <span style={{ fontSize: 10.5, color: "#D97706", fontWeight: 600 }}>صافي بعد الاسترداد</span>
+                  <span style={{ fontSize: 14, color: "#D97706", fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
+                    ${net.toFixed(2)}
+                  </span>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* ── Bottom row: subscriber badge + actions ── */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* ── FOOTER ROW ── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 2 }}>
 
-          {/* Subscriber count badge */}
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            padding: "5px 12px", borderRadius: 999,
-            background: iconBg,
-            border: `1px solid ${iconBorder}`,
-            fontSize: 12.5, fontWeight: 700, color: iconColor,
-          }}>
-            <Users size={12} />
+          {/* Subscriber pill */}
+          <button
+            onClick={() => onViewPayers(method)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 12px", borderRadius: 999,
+              background: iconBg, border: `1px solid ${iconBd}`,
+              fontSize: 12, fontWeight: 700, color: iconColor,
+              cursor: "pointer", transition: "all .15s",
+              fontFamily: "inherit",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = cfg.accentBg; e.currentTarget.style.opacity = "0.8"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = iconBg; e.currentTarget.style.opacity = "1"; }}
+          >
+            <Users size={11} />
             {balance?.payerCount ?? 0} مشترك
-          </div>
+          </button>
 
           {/* Action buttons */}
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            {/* View payers */}
             <button
               title="عرض المشتركين"
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 12px", borderRadius: 999,
-                background: "rgba(255,255,255,0.65)", border: `1px solid ${cfg.cardBorder}`,
-                color: "var(--jk-muted)", fontSize: 12, fontWeight: 600,
-                cursor: "pointer", transition: "all .15s ease",
-              }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,.95)"; el.style.color = "var(--jk-text)"; }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,.65)"; el.style.color = "var(--jk-muted)"; }}
               onClick={() => onViewPayers(method)}
+              style={{
+                width: 32, height: 32, borderRadius: 10,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(255,255,255,0.70)",
+                border: "1px solid rgba(255,255,255,0.90)",
+                color: "#6B7280", cursor: "pointer", transition: "all .15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(91,95,239,0.08)"; e.currentTarget.style.color = "#5B5FEF"; e.currentTarget.style.borderColor = "rgba(91,95,239,0.20)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.70)"; e.currentTarget.style.color = "#6B7280"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.90)"; }}
             >
-              <Users size={12} />
+              <Users size={13} />
             </button>
+
+            {/* Export */}
             <button
               title="تصدير"
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 12px", borderRadius: 999,
-                background: "rgba(255,255,255,0.65)", border: `1px solid ${cfg.cardBorder}`,
-                color: "var(--jk-muted)", fontSize: 12, fontWeight: 600,
-                cursor: "pointer", transition: "all .15s ease",
-              }}
-              onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,.95)"; el.style.color = "var(--jk-text)"; }}
-              onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,.65)"; el.style.color = "var(--jk-muted)"; }}
               onClick={() => onExport(method)}
+              style={{
+                width: 32, height: 32, borderRadius: 10,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(255,255,255,0.70)",
+                border: "1px solid rgba(255,255,255,0.90)",
+                color: "#6B7280", cursor: "pointer", transition: "all .15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(91,95,239,0.08)"; e.currentTarget.style.color = "#5B5FEF"; e.currentTarget.style.borderColor = "rgba(91,95,239,0.20)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.70)"; e.currentTarget.style.color = "#6B7280"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.90)"; }}
             >
-              <Download size={12} />
+              <Download size={13} />
             </button>
           </div>
         </div>

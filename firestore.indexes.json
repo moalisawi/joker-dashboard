@@ -29,13 +29,31 @@
         { "fieldPath": "amountUSD", "order": "DESCENDING" }
       ]
     },
-    // Employee performance: filter by employee, sort by date
+    // Employee performance: filter by employee (legacy createdBy)
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "createdBy", "order": "ASCENDING" },
         { "fieldPath": "date",      "order": "DESCENDING" }
+      ]
+    },
+    // Employee payment analytics (new UID-based scoping from Firestore rules)
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "convincedByUid", "order": "ASCENDING" },
+        { "fieldPath": "date",           "order": "DESCENDING" }
+      ]
+    },
+    // Employee payment analytics + date range
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "convincedByUid", "order": "ASCENDING" },
+        { "fieldPath": "date",           "order": "ASCENDING" }
       ]
     },
     // Payment method breakdown
@@ -303,13 +321,32 @@
         { "fieldPath": "date",              "order": "DESCENDING" }
       ]
     },
-    // Employee attribution report
+    // Employee attribution report (legacy name-based)
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "convincedBy", "order": "ASCENDING" },
         { "fieldPath": "date",        "order": "DESCENDING" }
+      ]
+    },
+    // Employee scoped query (new UID-based) — useSubscribers for employees
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "convincedByUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",      "order": "DESCENDING" }
+      ]
+    },
+    // Employee scoped + deleted filter (UID-based)
+    {
+      "collectionGroup": "subscribers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "convincedByUid", "order": "ASCENDING" },
+        { "fieldPath": "deleted",        "order": "ASCENDING" },
+        { "fieldPath": "createdAt",      "order": "DESCENDING" }
       ]
     },
     // Country / residence breakdown

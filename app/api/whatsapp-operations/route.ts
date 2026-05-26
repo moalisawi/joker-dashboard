@@ -73,7 +73,7 @@ async function writeAudit(
 export async function POST(request: Request): Promise<NextResponse> {
   // Rate limit: 60 whatsapp operations per IP per minute
   const ip = getClientIp(request);
-  if (!checkRateLimit(`whatsapp-ops:${ip}`, 60, 60 * 1000)) {
+  if (!(await checkRateLimit(`whatsapp-ops:${ip}`, 60, 60 * 1000))) {
     return jsonError("Too many requests", 429);
   }
 

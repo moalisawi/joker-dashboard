@@ -37,7 +37,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // Rate limit: 10 failed login attempts per IP per 5 minutes
   const ip = getClientIp(request);
-  if (!checkRateLimit(`failed-login:${ip}`, 10, 5 * 60 * 1000)) {
+  if (!(await checkRateLimit(`failed-login:${ip}`, 10, 5 * 60 * 1000))) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 

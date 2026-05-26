@@ -14,7 +14,7 @@ export async function PATCH(
 
   // Rate limit: 10 logout requests per IP per minute
   const ip = getClientIp(request);
-  if (!checkRateLimit(`session-logout:${ip}`, 10, 60 * 1000)) {
+  if (!(await checkRateLimit(`session-logout:${ip}`, 10, 60 * 1000))) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 

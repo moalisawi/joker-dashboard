@@ -16,30 +16,50 @@ const positiveNumber = z.number().positive();
 const nonNegativeNumber = z.number().min(0);
 const currencySchema = z.string().min(1).max(10);
 
+const subscriberCoreSchema = z.object({
+  name:             z.string().min(1, "Name is required").max(200),
+  phone:            z.string().max(50).optional().nullable(),
+  package:          z.string().max(200).optional().nullable(),
+  duration:         z.number().int().positive().optional(),
+  source:           z.string().max(100).optional().nullable(),
+  convincedBy:      z.string().max(200).optional().nullable(),
+  convincedByUid:   z.string().max(128).optional().nullable(),
+  paidShift:        z.string().max(200).optional().nullable(),
+  notes:            z.string().max(2000).optional().nullable(),
+  date:             dateSchema,
+  startDate:        dateSchema,
+  expiryDate:       dateSchema,
+  currencyOriginal: currencySchema.optional(),
+  lockedRate:       z.number().positive().optional(),
+  totalPrice:       nonNegativeNumber.optional(),
+  totalPriceUSD:    nonNegativeNumber.optional(),
+  payment:          z.string().max(100).optional().nullable(),
+  paymentMethodId:  z.string().max(100).optional().nullable(),
+  gender:           z.enum(["male","female"]).optional().nullable(),
+  age:              z.number().int().min(1).max(150).optional().nullable(),
+  teamId:           z.string().optional().nullable(),
+  teamName:         z.string().max(200).optional().nullable(),
+  // Extended profile fields
+  residence:        z.string().max(100).optional().nullable(),
+  phoneCountry:     z.string().max(10).optional().nullable(),
+  dialCode:         z.string().max(10).optional().nullable(),
+  phoneE164:        z.string().max(20).optional().nullable(),
+  height:           z.number().positive().optional().nullable(),
+  weight:           z.number().positive().optional().nullable(),
+  goal:             z.string().max(500).optional().nullable(),
+  referrer:         z.string().max(200).optional().nullable(),
+  sourceDetail:     z.string().max(200).optional().nullable(),
+  assignedSalesId:          z.string().max(128).optional().nullable(),
+  assignedSalesName:        z.string().max(200).optional().nullable(),
+  assignedNutritionistId:   z.string().max(128).optional().nullable(),
+  assignedNutritionistName: z.string().max(200).optional().nullable(),
+  assignedTeamId:           z.string().max(128).optional().nullable(),
+  assignedTeamName:         z.string().max(200).optional().nullable(),
+  assignmentType:           z.string().max(50).optional().nullable(),
+});
+
 const createSubscriberSchema = z.object({
-  subscriber: z.object({
-    name:             z.string().min(1, "Name is required").max(200),
-    phone:            z.string().max(50).optional().nullable(),
-    package:          z.string().max(200).optional().nullable(),
-    duration:         z.number().int().positive().optional(),
-    source:           z.string().max(100).optional().nullable(),
-    convincedBy:      z.string().max(200).optional().nullable(),
-    paidShift:        z.string().max(200).optional().nullable(),
-    notes:            z.string().max(2000).optional().nullable(),
-    date:             dateSchema,
-    startDate:        dateSchema,
-    expiryDate:       dateSchema,
-    currencyOriginal: currencySchema.optional(),
-    lockedRate:       z.number().positive().optional(),
-    totalPrice:       nonNegativeNumber.optional(),
-    totalPriceUSD:    nonNegativeNumber.optional(),
-    payment:          z.string().max(100).optional().nullable(),
-    paymentMethodId:  z.string().max(100).optional().nullable(),
-    gender:           z.enum(["male","female"]).optional().nullable(),
-    age:              z.number().int().min(1).max(150).optional().nullable(),
-    teamId:           z.string().optional().nullable(),
-    teamName:         z.string().max(200).optional().nullable(),
-  }).passthrough(),
+  subscriber: subscriberCoreSchema,
   initialPayment: z.object({
     amountOriginal:   nonNegativeNumber.optional(),
     currencyOriginal: currencySchema.optional(),
@@ -49,12 +69,13 @@ const createSubscriberSchema = z.object({
     date:             dateSchema,
     notes:            z.string().max(2000).optional().nullable(),
     receiptUrl:       z.string().url().optional().nullable(),
-  }).optional(),
+  }).optional().nullable(),
 });
 
+// Explicit allowed fields for updates — prevents mass-assignment of arbitrary fields.
 const updateSubscriberSchema = z.object({
   subscriberId: subscriberIdSchema,
-  subscriber:   z.record(z.string(), z.unknown()),
+  subscriber:   subscriberCoreSchema.partial(),
 });
 
 const deleteSubscriberSchema = z.object({
@@ -166,7 +187,7 @@ function todayString() {
 // Financial fields are intentionally excluded — they are only mutated
 // through their dedicated operations (addPayment, renewSubscription, etc.).
 const SUBSCRIBER_WRITABLE_FIELDS = new Set([
-  "name", "phone", "package", "duration", "source", "convincedBy",
+  "name", "phone", "package", "duration", "source", "convincedBy", "convincedByUid",
   "paidShift", "notes", "teamId", "teamName",
   "assignedSalesId", "assignedSalesName",
   "assignedNutritionistId", "assignedNutritionistName",
@@ -289,7 +310,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Rate limit: 120 operations per IP per minute (generous for normal use,
   // blocks automated abuse / rapid-fire mutation loops).
   const ip = getClientIp(request);
-  if (!checkRateLimit(`sub-ops:${ip}`, 120, 60 * 1000)) {
+  if (!(await checkRateLimit(`sub-ops:${ip}`, 120, 60 * 1000))) {
     return jsonError("Too many requests", 429);
   }
 
@@ -376,6 +397,17 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
   const safeSubscriber = pickWritableFields(subscriber);
   if (!asString(safeSubscriber.name)) throw new Error("Subscriber name is required");
 
+  // Prefer explicit UID; fall back to a UID lookup by employeeName for legacy callers
+  let convincedByUid = asString(safeSubscriber.convincedByUid);
+  if (!convincedByUid && safeSubscriber.convincedBy) {
+    const empSnap = await db.collection("users")
+      .where("employeeName", "==", safeSubscriber.convincedBy)
+      .limit(1)
+      .get();
+    if (!empSnap.empty) convincedByUid = empSnap.docs[0].id;
+  }
+  if (convincedByUid) safeSubscriber.convincedByUid = convincedByUid;
+
   await db.runTransaction(async (tx) => {
     tx.set(subRef, {
       ...safeSubscriber,
@@ -401,6 +433,7 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
       tx.set(paymentRef, {
         subscriberId: subRef.id,
         subscriberName: asString(subscriber.name),
+        ...(convincedByUid ? { convincedByUid } : {}),
         amountOriginal,
         currencyOriginal: asString(initialPayment.currencyOriginal, asString(subscriber.currencyOriginal, "USD")),
         exchangeRate,
@@ -439,6 +472,15 @@ async function updateSubscriber(user: NonNullable<ServerUser>, payload: Record<s
   const raw = asRecord(payload.subscriber);
   const safeUpdate = pickWritableFields(raw);
   if (Object.keys(safeUpdate).length === 0) throw new Error("No valid fields to update");
+
+  // If convincedBy name is being changed without an explicit UID, resolve it now
+  if (safeUpdate.convincedBy && !safeUpdate.convincedByUid) {
+    const empSnap = await db.collection("users")
+      .where("employeeName", "==", safeUpdate.convincedBy)
+      .limit(1)
+      .get();
+    if (!empSnap.empty) safeUpdate.convincedByUid = empSnap.docs[0].id;
+  }
 
   const ref = db.collection("subscribers").doc(subscriberId);
 
@@ -533,9 +575,11 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
     const remainingAmountUSD = Math.max(0, totalPriceUSD - paidAmountUSD);
 
     const pmId = asString(payload.paymentMethodId);
+    const subConvincedByUid = asString(current.convincedByUid);
     tx.set(paymentRef, {
       subscriberId,
       subscriberName,
+      ...(subConvincedByUid ? { convincedByUid: subConvincedByUid } : {}),
       amountOriginal,
       currencyOriginal: asString(payload.currencyOriginal, "USD"),
       exchangeRate,
@@ -694,9 +738,11 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
 
     if (paidAmount > 0) {
       const renewPmId = asString(payload.paymentMethodId);
+      const renewConvincedByUid = asString(current.convincedByUid);
       tx.set(paymentRef, {
         subscriberId,
         subscriberName,
+        ...(renewConvincedByUid ? { convincedByUid: renewConvincedByUid } : {}),
         amountOriginal: paidAmount,
         currencyOriginal: currency,
         exchangeRate,

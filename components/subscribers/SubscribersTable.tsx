@@ -12,6 +12,9 @@ import {
 import type { Subscriber } from "@/types";
 import { formatNumber, formatDate, getWhatsAppLink } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
+import { useActiveEmployees } from "@/features/users/hooks";
+import SubscriberNameChip from "@/components/subscribers/SubscriberNameChip";
+import EmployeeNameChip   from "@/components/employees/EmployeeNameChip";
 import {
   Search, Pencil, RotateCcw, CreditCard, Eye, Phone,
   PauseCircle, Snowflake, Play, UserMinus, Trash2, X,
@@ -52,6 +55,16 @@ export default function SubscribersTable({
 }: Props) {
   const { can } = useAuthStore();
   const canRev = can("canViewRevenue");
+
+  const { data: activeEmployees = [] } = useActiveEmployees();
+  const empNameToUid = useMemo(() => {
+    const m: Record<string, string> = {};
+    activeEmployees.forEach((e) => {
+      const name = e.employeeName || e.name || "";
+      if (name) m[name] = e.uid;
+    });
+    return m;
+  }, [activeEmployees]);
 
   const [search, setSearch]             = useState("");
   const [filterEmp, setFilterEmp]       = useState("");
@@ -292,15 +305,17 @@ export default function SubscribersTable({
                   <td className="hidden sm:table-cell px-4 py-3.5 text-xs" style={{ color: "var(--text-muted)" }}>{i + 1}</td>
                   <td className="hidden sm:table-cell px-4 py-3.5 text-xs whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{formatDate(s.date)}</td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
-                    <button onClick={() => onProfile(s)} className="flex items-center gap-2.5 group" style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                    <div className="flex items-center gap-2.5">
                       <span className="h-8 w-8 shrink-0 flex items-center justify-center rounded-xl text-[10px] font-black text-white"
                         style={{ background: "linear-gradient(135deg,#5B5FEF,#4338CA)", boxShadow: "0 2px 6px rgba(91,95,239,.28)", letterSpacing: "0.04em" }}>
                         {(s.name || "؟").split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
                       </span>
-                      <span className="text-sm font-semibold group-hover:text-indigo-500 transition-colors" style={{ color: "var(--text-primary)" }}>
-                        {s.name || "-"}
-                      </span>
-                    </button>
+                      <SubscriberNameChip
+                        subscriber={s}
+                        className="text-sm"
+                        style={{ color: "var(--text-primary)" }}
+                      />
+                    </div>
                   </td>
                   <td className="hidden lg:table-cell px-4 py-3.5 text-xs font-mono whitespace-nowrap" style={{ color: "var(--text-secondary)" }} dir="ltr">
                     {s.dialCode} {s.phone}
@@ -349,9 +364,13 @@ export default function SubscribersTable({
                     </span>
                   </td>
                   <td className="hidden lg:table-cell px-4 py-3.5">
-                    <span className={`text-xs px-2 py-0.5 rounded font-semibold ${empClass(s.convincedBy)}`}>
-                      {s.convincedBy || "-"}
-                    </span>
+                    {s.convincedBy ? (
+                      <EmployeeNameChip
+                        name={s.convincedBy}
+                        uid={empNameToUid[s.convincedBy] || undefined}
+                        className={`text-xs px-2 py-0.5 rounded font-semibold ${empClass(s.convincedBy)}`}
+                      />
+                    ) : <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>}
                   </td>
                   <td className="px-3 py-3.5">
                     <div className="flex items-center gap-1">
@@ -437,14 +456,21 @@ export default function SubscribersTable({
                   {(s.name || "؟").split(" ").map((w: string) => w[0]).slice(0,2).join("").toUpperCase()}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <Link href={`/subscribers/${s.id}`} className="font-bold text-sm leading-tight hover:text-blue-500 transition-colors"
-                    style={{ color: "var(--text-primary)" }}>
-                    {s.name}
-                  </Link>
+                  <SubscriberNameChip
+                    subscriber={s}
+                    className="font-bold text-sm leading-tight"
+                    style={{ color: "var(--text-primary)" }}
+                  />
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${statusClass(s.status)}`}>{s.status}</span>
                     <span className={`text-xs px-2 py-0.5 rounded font-bold ${s.package === "فضية" ? "pkg-silver" : "pkg-gold"}`}>{s.package}</span>
-                    {s.convincedBy && <span className={`text-xs px-2 py-0.5 rounded font-semibold ${empClass(s.convincedBy)}`}>{s.convincedBy}</span>}
+                    {s.convincedBy && (
+                      <EmployeeNameChip
+                        name={s.convincedBy}
+                        uid={empNameToUid[s.convincedBy] || undefined}
+                        className={`text-xs px-2 py-0.5 rounded font-semibold ${empClass(s.convincedBy)}`}
+                      />
+                    )}
                   </div>
                 </div>
                 <span className="text-xs whitespace-nowrap shrink-0 mt-1" style={{ color: "var(--text-muted)" }}>

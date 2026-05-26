@@ -1,16 +1,9 @@
-﻿"use client";
+"use client";
 
 import { CreditCard, CheckCircle, DollarSign, Users } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import type { PaymentMethod, BalancePeriod } from "../types";
 import { useAllMethodsBalanceQuery } from "../hooks/useAllMethodsBalanceQuery";
-
-const ACC = {
-  blue:   "#5B5FEF",
-  emerald:"#5B5FEF",
-  amber:  "#F59E0B",
-  violet: "#3B82F6",
-};
 
 interface Props {
   methods: PaymentMethod[];
@@ -18,47 +11,69 @@ interface Props {
 }
 
 function KpiCard({
-  accent,
-  icon,
-  label,
-  value,
-  loading,
+  accent, glow, icon, label, value, loading,
 }: {
-  accent:  string;
-  icon:    React.ReactNode;
-  label:   string;
-  value:   string | number;
+  accent:   string;
+  glow:     string;
+  icon:     React.ReactNode;
+  label:    string;
+  value:    string | number;
   loading?: boolean;
 }) {
   return (
-    <div
-      className="rounded-2xl p-4 flex items-center gap-3"
-      style={{
-        background:   "var(--surface)",
-        border:       "1px solid var(--border)",
-        boxShadow:    "var(--shadow-card)",
-      }}
+    <div style={{
+      borderRadius: 20,
+      background: "rgba(255,255,255,0.72)",
+      backdropFilter: "blur(20px) saturate(1.6)",
+      WebkitBackdropFilter: "blur(20px) saturate(1.6)",
+      border: "1px solid rgba(255,255,255,0.82)",
+      boxShadow: `0 1px 3px rgba(15,23,42,0.05), 0 6px 24px ${glow}`,
+      padding: "16px 18px",
+      display: "flex", alignItems: "center", gap: 14,
+      position: "relative", overflow: "hidden",
+      transition: "transform .2s ease, box-shadow .2s ease",
+    }}
+    onMouseEnter={e => {
+      (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+      (e.currentTarget as HTMLElement).style.boxShadow = `0 2px 8px rgba(15,23,42,0.06), 0 12px 36px ${glow}`;
+    }}
+    onMouseLeave={e => {
+      (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+      (e.currentTarget as HTMLElement).style.boxShadow = `0 1px 3px rgba(15,23,42,0.05), 0 6px 24px ${glow}`;
+    }}
     >
-      <div
-        className="h-10 w-10 flex items-center justify-center rounded-xl shrink-0"
-        style={{ background: `${accent}18`, border: `1px solid ${accent}28` }}
-      >
-        <span style={{ color: accent }}>{icon}</span>
+      {/* Accent glow top-left */}
+      <div style={{
+        position: "absolute", inset: 0, pointerEvents: "none",
+        background: `radial-gradient(ellipse 80% 60% at 0% 0%, ${glow} 0%, transparent 60%)`,
+        borderRadius: "inherit",
+      }} />
+
+      <div style={{
+        width: 42, height: 42, borderRadius: 13, flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: `${accent}12`, border: `1.5px solid ${accent}28`,
+        color: accent, position: "relative",
+      }}>
+        {icon}
       </div>
-      <div className="min-w-0">
-        <p
-          className="text-[11px] font-medium uppercase tracking-wider truncate"
-          style={{ color: "var(--text-muted)" }}
-        >
+
+      <div style={{ minWidth: 0, position: "relative" }}>
+        <p style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+          textTransform: "uppercase", color: "#9CA3AF",
+          marginBottom: 4,
+        }}>
           {label}
         </p>
         {loading ? (
           <Spinner size="sm" />
         ) : (
-          <p
-            className="text-lg font-black tabular-nums leading-tight"
-            style={{ color: "var(--text-primary)" }}
-          >
+          <p style={{
+            fontSize: 22, fontWeight: 900, color: "#111827",
+            fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em",
+            lineHeight: 1,
+          }}>
             {value}
           </p>
         )}
@@ -75,26 +90,26 @@ export function PaymentMethodSummaryStats({ methods, period }: Props) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <KpiCard
-        accent={ACC.blue}
+        accent="#5B5FEF" glow="rgba(91,95,239,0.12)"
         icon={<CreditCard size={18} />}
         label="إجمالي طرق الدفع"
         value={total}
       />
       <KpiCard
-        accent={ACC.emerald}
+        accent="#10B981" glow="rgba(16,185,129,0.12)"
         icon={<CheckCircle size={18} />}
         label="المفعّلة"
         value={active}
       />
       <KpiCard
-        accent={ACC.amber}
+        accent="#F59E0B" glow="rgba(245,158,11,0.12)"
         icon={<DollarSign size={18} />}
         label="إجمالي الدخل"
         value={`$${totalUSD.toFixed(2)}`}
         loading={isLoading && methods.length > 0}
       />
       <KpiCard
-        accent={ACC.violet}
+        accent="#3B82F6" glow="rgba(59,130,246,0.12)"
         icon={<Users size={18} />}
         label="المشتركون"
         value={payerCount}

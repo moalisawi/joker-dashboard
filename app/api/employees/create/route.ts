@@ -61,7 +61,7 @@ async function deleteAuthUser(uid: string): Promise<void> {
 export async function POST(request: Request): Promise<NextResponse> {
   // Rate limit: 10 employee creations per IP per minute
   const ip = getClientIp(request);
-  if (!checkRateLimit(`emp-create:${ip}`, 10, 60 * 1000)) {
+  if (!(await checkRateLimit(`emp-create:${ip}`, 10, 60 * 1000))) {
     return jsonError("Too many requests", 429);
   }
 

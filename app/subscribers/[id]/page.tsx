@@ -30,6 +30,7 @@ import PaymentsTab    from "@/components/subscribers/workspace/PaymentsTab";
 import RenewalsTab    from "@/components/subscribers/workspace/RenewalsTab";
 import ActivityTab    from "@/components/subscribers/workspace/ActivityTab";
 import TimelineTab    from "@/components/subscribers/workspace/TimelineTab";
+import ConfirmDialog   from "@/components/ui/ConfirmDialog";
 import type { Subscriber } from "@/types";
 import {
   ArrowRight, Edit, RefreshCw, DollarSign, Phone,
@@ -102,6 +103,7 @@ export default function SubscriberWorkspacePage() {
   const [modal, setModal]           = useState<"edit"|"renew"|"pay"|"freeze"|"pause"|"resume"|"withdraw"|null>(null);
   const [tab, setTab]               = useState<TabKey>("overview");
   const [resumingPause, setResumingPause] = useState(false);
+  const [resumePauseConfirm, setResumePauseConfirm] = useState(false);
 
   // Payments + refunds needed by overview + payments + activity tabs
   const { payments } = usePayments({ subscriberId: id });
@@ -127,9 +129,14 @@ export default function SubscriberWorkspacePage() {
 
   const onSaved = useCallback(() => setModal(null), []);
 
-  const handleResumePause = useCallback(async () => {
+  const handleResumePause = useCallback(() => {
     if (!subscriber) return;
-    if (!confirm(`استئناف اشتراك "${subscriber.name}"؟`)) return;
+    setResumePauseConfirm(true);
+  }, [subscriber]);
+
+  const doResumePause = useCallback(async () => {
+    if (!subscriber) return;
+    setResumePauseConfirm(false);
     setResumingPause(true);
     try {
       await callSubscriberOperation("resumePausedSubscription", { subscriberId: subscriber.id });
@@ -423,6 +430,15 @@ export default function SubscriberWorkspacePage() {
           <WithdrawModal subscriber={s} exchangeRates={exchangeRates}
             onClose={onSaved} onSaved={onSaved}/>
         )}
+        <ConfirmDialog
+          open={resumePauseConfirm}
+          onClose={() => setResumePauseConfirm(false)}
+          onConfirm={doResumePause}
+          title={`استئناف اشتراك "${s.name}"؟`}
+          description="سيتم استئناف الاشتراك الموقوف وإعادة احتساب تاريخ الانتهاء."
+          confirmLabel="استئناف"
+          loading={resumingPause}
+        />
       </div>
     </ProtectedLayout>
   );

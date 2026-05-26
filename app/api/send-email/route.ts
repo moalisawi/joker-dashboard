@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request): Promise<NextResponse> {
   // Rate limit: 20 emails per IP per hour
   const ip = getClientIp(request);
-  if (!checkRateLimit(`send-email:${ip}`, 20, 60 * 60 * 1000)) {
+  if (!(await checkRateLimit(`send-email:${ip}`, 20, 60 * 60 * 1000))) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 

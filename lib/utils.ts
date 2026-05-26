@@ -154,6 +154,7 @@ export function normalizeSubscriber(raw: Record<string, unknown> & { id: string 
     source: (raw.source as string) || "",
     referrer: (raw.referrer as string) || "",
     convincedBy: (raw.convincedBy as string) || "",
+    convincedByUid: (raw.convincedByUid as string | null) ?? null,
     paidShift: (raw.paidShift as string) || "",
     team: (raw.team as string) || "",
     notes: (raw.notes as string) || "",

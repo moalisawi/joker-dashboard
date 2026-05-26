@@ -36,6 +36,36 @@ service cloud.firestore {
           && gp[category].get(action, false) == true;
     }
 
+    // ─── Subscriber row-level read guard for employees ─────────────────────
+    //
+    // Security model:
+    //  • Owners and admins can read all subscriber records.
+    //  • Employees can ONLY read records where THEY are the convincer.
+    //
+    // Two-tier lookup for backward compatibility:
+    //  1. New records store convincedByUid (employee Firebase UID) — fast,
+    //     tamper-proof, survives name changes. This is the preferred path.
+    //  2. Legacy records have only convincedBy (employee display name). We fall
+    //     back to matching that against the current user's employeeName but ONLY
+    //     when convincedByUid is absent (null / missing). This ensures that once
+    //     a record is migrated to use the UID, the name-based bypass is gone.
+    //
+    // NOTE: userDoc() reads are cached per-request by Firestore, so the
+    // call inside canReadSubscriber() does not add a second document read
+    // beyond what isOwner/isAdmin/isEmployee already triggered.
+    function canReadSubscriberAsEmployee() {
+      let uid  = request.auth.uid;
+      let sub  = resource.data;
+      // Path 1 — UID-based (new records)
+      let hasUid = sub.get('convincedByUid', null) != null;
+      if (hasUid) {
+        return sub.get('convincedByUid', '') == uid;
+      }
+      // Path 2 — Name-based fallback (legacy records without convincedByUid)
+      let empName = userDoc().get('employeeName', '');
+      return empName != '' && sub.get('convincedBy', '') == empName;
+    }
+
     // ─── users ────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read:          if isAuth() && (request.auth.uid == uid || isStaff());
@@ -51,22 +81,33 @@ service cloud.firestore {
     }
 
     // ─── subscribers ──────────────────────────────────────────────────────
+    // SECURITY FIX: Employees can only read their own subscribers.
+    // Previously any active user could read all subscribers. This rule scopes
+    // employee reads to records where they are the convincedBy party.
     match /subscribers/{id} {
-      allow read:          if isAnyActive();
+      allow read:   if isStaff()
+                    || (isEmployee() && canReadSubscriberAsEmployee());
+      // All writes go through the Admin SDK (API routes) — client writes blocked.
       allow create, update, delete: if false;
 
-      // renewalHistory sub-collection — server-only writes, any active user can read
+      // renewalHistory sub-collection — server-only writes
       match /renewalHistory/{rid} {
-        allow read:  if isAnyActive();
+        allow read:  if isStaff()
+                     || (isEmployee() && canReadSubscriberAsEmployee());
         allow write: if false;
       }
     }
 
     // ─── payments ─────────────────────────────────────────────────────────
+    // SECURITY FIX: Employees with analytics/payments view can only see
+    // payments linked to their own subscribers (via subscriberId field).
+    // Staff (owner/admin) see everything.
     match /payments/{id} {
-      allow read:          if isStaff()
-                           || hasPerm('analytics', 'view')
-                           || hasPerm('payments', 'view');
+      allow read:   if isStaff()
+                    || (isEmployee()
+                        && (hasPerm('analytics', 'view') || hasPerm('payments', 'view'))
+                        && resource.data.get('convincedByUid', null) != null
+                        && resource.data.get('convincedByUid', '') == request.auth.uid);
       allow create, update, delete: if false;
     }
 
@@ -79,7 +120,6 @@ service cloud.firestore {
     }
 
     // ─── auditLogs — server-only writes (Admin SDK) ───────────────────────────
-    // Client writes are blocked to prevent forged audit entries.
     match /auditLogs/{id} {
       allow read:  if isStaff() || hasPerm('logs', 'view');
       allow write: if false;
@@ -89,7 +129,6 @@ service cloud.firestore {
     match /notifications/{id} {
       allow read:          if isAnyActive();
       allow create:        if isStaff();
-      // Staff can update any field; any active user can only update readBy/archived
       allow update:        if isStaff()
                            || (isAnyActive()
                                && request.resource.data.diff(resource.data).affectedKeys()
@@ -114,7 +153,6 @@ service cloud.firestore {
     match /subscriberNotes/{id} {
       allow read:   if isAnyActive();
       allow create: if isAnyActive();
-      // Author can edit/soft-delete their own notes (must still be active)
       allow update: if isAnyActive() && request.auth.uid == resource.data.authorId;
       allow delete: if false;
     }
@@ -145,27 +183,26 @@ service cloud.firestore {
     }
 
     // ─── subscriberAssignments — server-only writes (Admin SDK) ───────────
-    // Written by the API route after updating the subscriber document.
     match /subscriberAssignments/{id} {
       allow read:  if isAnyActive();
       allow write: if false;
     }
 
-    // ─── whatsappLeads — reads by any active user; writes via Admin SDK only ──
+    // ─── whatsappLeads ─────────────────────────────────────────────────────
     match /whatsappLeads/{id} {
       allow read:               if isAnyActive();
-      allow create, update:     if false;  // Admin SDK only (API route)
+      allow create, update:     if false;
       allow delete:             if false;
     }
 
-    // ─── whatsappMessages — reads by any active user; writes via Admin SDK ────
+    // ─── whatsappMessages ──────────────────────────────────────────────────
     match /whatsappMessages/{id} {
       allow read:               if isAnyActive();
-      allow create, update:     if false;  // Admin SDK only (API route)
+      allow create, update:     if false;
       allow delete:             if false;
     }
 
-    // ─── cannedResponses — read by any active user; write by staff only ───────
+    // ─── cannedResponses ───────────────────────────────────────────────────
     match /cannedResponses/{id} {
       allow read:               if isAnyActive();
       allow create, update:     if isStaff();

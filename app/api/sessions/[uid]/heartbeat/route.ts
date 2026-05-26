@@ -14,7 +14,7 @@ export async function PATCH(
 
   // Rate limit: 2 heartbeats per IP per minute (sent every 30s by client)
   const ip = getClientIp(request);
-  if (!checkRateLimit(`heartbeat:${ip}`, 2, 60 * 1000)) {
+  if (!(await checkRateLimit(`heartbeat:${ip}`, 2, 60 * 1000))) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 

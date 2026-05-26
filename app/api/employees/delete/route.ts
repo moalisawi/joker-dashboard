@@ -17,7 +17,7 @@ function jsonError(msg: string, status: number) {
 
 export async function POST(request: Request): Promise<NextResponse> {
   const ip = getClientIp(request);
-  if (!checkRateLimit(`emp-delete:${ip}`, 5, 60 * 1000)) return jsonError("Too many requests", 429);
+  if (!(await checkRateLimit(`emp-delete:${ip}`, 5, 60 * 1000))) return jsonError("Too many requests", 429);
 
   // ── 1. Auth — owner only ─────────────────────────────────────────────────────
   let actor;

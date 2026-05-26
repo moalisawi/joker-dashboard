@@ -62,6 +62,7 @@ export interface Subscriber {
   source: string;
   referrer?: string;
   convincedBy: string;
+  convincedByUid?: string | null;
   paidShift: string;
   team: string;
   notes?: string;

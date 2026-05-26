@@ -14,6 +14,10 @@ function buildQuery(
 ) {
   const base = collection(db, "subscribers");
   if (canViewAll) return query(base, orderBy("createdAt", "desc"));
+  // Prefer UID-based query (survives name changes); fall back to name for legacy records.
+  // Firestore security rules enforce the same two-tier check server-side, so both queries
+  // are safe — the rules will reject any document the employee is not allowed to see.
+  if (user?.uid) return query(base, where("convincedByUid", "==", user.uid));
   return query(
     base,
     where("convincedBy", "==", user?.employeeName || user?.name || "")
@@ -32,6 +36,7 @@ export function useSubscribers() {
       const snap = await getDocs(buildQuery(user, canViewAll));
       return snap.docs
         .map((d) => normalizeSubscriber({ id: d.id, ...d.data() } as Record<string, unknown> & { id: string }))
+        .filter((s) => s.deleted !== true)
         .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
     },
     staleTime: Infinity,

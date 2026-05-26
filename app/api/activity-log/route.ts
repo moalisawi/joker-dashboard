@@ -20,7 +20,7 @@ const bodySchema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const ip = getClientIp(request);
-  if (!checkRateLimit(`activity-log:${ip}`, 120, 60 * 1000)) {
+  if (!(await checkRateLimit(`activity-log:${ip}`, 120, 60 * 1000))) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 

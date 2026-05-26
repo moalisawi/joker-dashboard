@@ -27,7 +27,7 @@ const bodySchema = z.object({
 
 export async function POST(request: Request): Promise<NextResponse> {
   const ip = getClientIp(request);
-  if (!checkRateLimit(`assign:${ip}`, 60, 60 * 1000)) return jsonError("Too many requests", 429);
+  if (!(await checkRateLimit(`assign:${ip}`, 60, 60 * 1000))) return jsonError("Too many requests", 429);
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
   let actor;

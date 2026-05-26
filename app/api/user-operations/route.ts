@@ -125,7 +125,7 @@ async function writeAudit(
 export async function POST(request: Request): Promise<NextResponse> {
   // Rate limit: 30 user-management operations per IP per minute
   const ip = getClientIp(request);
-  if (!checkRateLimit(`user-ops:${ip}`, 30, 60 * 1000)) {
+  if (!(await checkRateLimit(`user-ops:${ip}`, 30, 60 * 1000))) {
     return jsonError("Too many requests", 429);
   }
 

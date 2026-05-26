@@ -71,10 +71,10 @@
   --jk-frozen-bg:   #EFF6FF;  --jk-frozen-border:#EFF6FF;   --jk-frozen-bd:       rgba(59,130,246,0.25);
   --jk-withdrawn:   #9CA3AF;  --jk-withdrawn-bg: #F1F5F9;   --jk-withdrawn-border:rgba(156,163,175,0.30); --jk-withdrawn-bd:rgba(156,163,175,0.30);
 
-  /* Shadows — DESIGN.md */
-  --jk-shadow-flat:       0 1px 3px rgba(15,23,42,0.04);
-  --jk-shadow-card:       0px 4px 20px rgba(15,23,42,0.04);
-  --jk-shadow-stat:       0px 4px 20px rgba(15,23,42,0.04);
+  /* Shadows — enhanced for gradient bg */
+  --jk-shadow-flat:       0 1px 3px rgba(91,95,239,0.06), 0 2px 6px rgba(15,23,42,0.04);
+  --jk-shadow-card:       0px 2px 8px rgba(91,95,239,0.06), 0px 8px 28px rgba(15,23,42,0.07);
+  --jk-shadow-stat:       0px 2px 8px rgba(91,95,239,0.06), 0px 8px 28px rgba(15,23,42,0.07);
   --jk-shadow-btn:        0 4px 14px rgba(91,95,239,0.30);
   --jk-shadow-primary:    0 4px 14px rgba(91,95,239,0.30);
   --jk-shadow-accent:     0 4px 12px rgba(91,95,239,0.25);
@@ -139,22 +139,104 @@ html {
 ::-webkit-scrollbar-corner       { background: transparent; }
 * { scrollbar-width: thin; scrollbar-color: rgba(107,114,128,0.22) transparent; }
 
+/* ── Mesh gradient background animation ────────────────────────── */
+@keyframes orb-drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(3%, 4%) scale(1.06); }
+  66%       { transform: translate(-2%, 2%) scale(0.96); }
+}
+@keyframes orb-drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(-4%, -3%) scale(0.95); }
+  66%       { transform: translate(3%, -5%) scale(1.05); }
+}
+@keyframes orb-drift-c {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(5%, -4%) scale(1.08); }
+}
+
 body {
   font-family: var(--font-cairo), Inter, system-ui, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
-  background: #F5F7FB;
+  background-color: #ECEFFE;
+  background-image:
+    linear-gradient(160deg, #ECEFFE 0%, #F4F5FF 35%, #EEF2FB 65%, #EAE8FF 100%);
+  background-attachment: fixed;
   color: var(--jk-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   min-height: 100vh;
+  isolation: isolate;
 }
 
-/* Clean background — no grain overlay */
+/* Mesh gradient orbs — fixed, behind all content */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(80px);
+}
+
+body::before {
+  width: 55vw;
+  height: 55vw;
+  top: -18%;
+  inset-inline-start: -10%;
+  background: radial-gradient(ellipse at center,
+    rgba(91, 95, 239, 0.22) 0%,
+    rgba(99, 102, 241, 0.14) 40%,
+    transparent 70%
+  );
+  animation: orb-drift-a 18s ease-in-out infinite;
+}
+
+body::after {
+  width: 50vw;
+  height: 50vw;
+  bottom: -15%;
+  inset-inline-end: -8%;
+  background: radial-gradient(ellipse at center,
+    rgba(139, 92, 246, 0.20) 0%,
+    rgba(109, 40, 217, 0.12) 40%,
+    transparent 70%
+  );
+  animation: orb-drift-b 22s ease-in-out infinite;
+}
+
+/* Third accent orb via a wrapper */
+.jk-bg-orb-c {
+  position: fixed;
+  width: 38vw;
+  height: 38vw;
+  top: 35%;
+  inset-inline-end: 25%;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(90px);
+  background: radial-gradient(ellipse at center,
+    rgba(59, 130, 246, 0.13) 0%,
+    transparent 65%
+  );
+  animation: orb-drift-c 26s ease-in-out infinite;
+}
+
+/* Cards lifted — stronger shadow on new bg */
 body > * { position: relative; }
+
+/* Update CSS vars to reflect new bg */
+:root {
+  --background: #ECEFFE;
+  --page-bg:    #ECEFFE;
+  --jk-bg:      #ECEFFE;
+}
 
 /* Tabular numerals globally for digits inside money/stat contexts */
 .jk-num, .stat-value, .donut-label {
@@ -162,31 +244,41 @@ body > * { position: relative; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PANELS / CARDS
+   PANELS / CARDS — enhanced shadows for gradient bg
    ═══════════════════════════════════════════════════════════════════ */
-/* Cards — DESIGN.md */
 .panel {
   background: #FFFFFF;
   border-radius: 22px;
-  border: 1px solid #EEF2F7;
-  box-shadow: 0px 4px 20px rgba(15,23,42,0.04);
+  border: 1px solid rgba(255,255,255,0.85);
+  box-shadow:
+    0px 2px 8px rgba(91,95,239,0.06),
+    0px 8px 28px rgba(15,23,42,0.07);
   transition: box-shadow .2s ease, transform .2s ease;
 }
-.panel:hover { box-shadow: 0px 10px 30px rgba(15,23,42,0.08); transform: translateY(-1px); }
+.panel:hover {
+  box-shadow:
+    0px 4px 16px rgba(91,95,239,0.10),
+    0px 14px 40px rgba(15,23,42,0.11);
+  transform: translateY(-2px);
+}
 
 .jk-card {
   background: #FFFFFF;
-  border: 1px solid #EEF2F7;
+  border: 1px solid rgba(255,255,255,0.85);
   border-radius: 22px;
-  box-shadow: 0px 4px 20px rgba(15,23,42,0.04);
+  box-shadow:
+    0px 2px 8px rgba(91,95,239,0.06),
+    0px 8px 28px rgba(15,23,42,0.07);
   padding: 22px;
 }
 
 .jk-stat {
   background: #FFFFFF;
-  border: 1px solid #EEF2F7;
+  border: 1px solid rgba(255,255,255,0.85);
   border-radius: 22px;
-  box-shadow: 0px 4px 20px rgba(15,23,42,0.04);
+  box-shadow:
+    0px 2px 8px rgba(91,95,239,0.06),
+    0px 8px 28px rgba(15,23,42,0.07);
   padding: 22px;
 }
 
@@ -1587,4 +1679,148 @@ p { color: inherit; }
 .insight-card.warning::before  { background: #F59E0B; }
 .insight-card.critical::before { background: #EF4444; }
 .insight-card.success::before  { background: #22C55E; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PREMIUM DASHBOARD v3 — Hero section, fintech cards, motion
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Dashboard hero dark panel ── */
+.dash-hero {
+  position: relative; overflow: hidden;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #0F1629 0%, #18213F 38%, #0D1420 68%, #160E2E 100%);
+  border: 1px solid rgba(91,95,239,0.22);
+  box-shadow:
+    0 24px 72px rgba(91,95,239,0.20),
+    0 6px 24px rgba(0,0,0,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* ── Hero grid mesh overlay ── */
+.dash-hero::before {
+  content: "";
+  position: absolute; inset: 0; border-radius: 28px; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ── Hero shine edge ── */
+.dash-hero::after {
+  content: "";
+  position: absolute; top: 0; inset-inline-start: 0; inset-inline-end: 0;
+  height: 1px; border-radius: 28px 28px 0 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+}
+
+/* ── Ping animation for live indicator ── */
+@keyframes jk-ping {
+  75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+.jk-ping-dot {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: #22C55E; opacity: 0.5;
+  animation: jk-ping 1.8s cubic-bezier(0,0,0.2,1) infinite;
+}
+
+/* ── Currency fintech dark cards ── */
+.currency-card-dark {
+  position: relative; overflow: hidden;
+  border-radius: 22px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  cursor: default;
+}
+.currency-card-dark:hover { transform: translateY(-4px); }
+
+/* ── Section action button (subtle) ── */
+.section-action-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 10px;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  background: var(--jk-panel);
+  color: var(--jk-muted);
+  border: 1px solid var(--jk-border);
+  cursor: pointer; transition: all 0.15s ease;
+}
+.section-action-btn:hover {
+  background: var(--jk-surface-hover);
+  color: var(--jk-text);
+  border-color: var(--jk-border-strong);
+}
+
+/* ── Activity timeline item ── */
+.timeline-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--jk-divider);
+  transition: background 0.12s ease;
+}
+.timeline-item:last-child { border-bottom: none; }
+
+/* ── Framer Motion enter overrides ── */
+@media (prefers-reduced-motion: reduce) {
+  .panel, .jk-stat, .jk-card {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ── Premium tab active indicator ── */
+.jk-tab.active {
+  background: linear-gradient(135deg, #5B5FEF 0%, #4F46E5 100%);
+  box-shadow: 0 6px 20px rgba(91,95,239,0.32);
+}
+
+/* ── Enhanced panel depth on page ── */
+.panel {
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(1px);
+}
+
+/* ── Hero metric mini-card grid responsive ── */
+.hero-metric-grid {
+  display: grid;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .hero-metric-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (min-width: 641px) and (max-width: 900px) {
+  .hero-metric-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ── Floating card accent glow on hover ── */
+.jk-stat:hover,
+.jk-card:hover {
+  box-shadow:
+    0px 4px 16px rgba(91,95,239,0.10),
+    0px 16px 40px rgba(15,23,42,0.10);
+}
+
+/* ── Smooth stagger entrance for stat grids ── */
+@keyframes statEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Balance card number glow (dark bg context) ── */
+.balance-num {
+  font-size: clamp(20px, 2.8vw, 28px);
+  font-weight: 800; line-height: 1;
+  letter-spacing: -0.028em;
+  color: #FFFFFF;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 20px rgba(255,255,255,0.15);
+}
+
+/* ── Premium scrollbar on panel content ── */
+.panel-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107,114,128,0.16) transparent;
+}
+.panel-scroll::-webkit-scrollbar { width: 4px; }
+.panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.panel-scroll::-webkit-scrollbar-thumb { background: rgba(107,114,128,0.16); border-radius: 99px; }
 

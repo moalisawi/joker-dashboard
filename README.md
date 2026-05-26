@@ -4,6 +4,31 @@ A full-featured Arabic-RTL subscription management system built with Next.js 16,
 
 ---
 
+## Latest Changes — 2026-05-26
+
+### Security Hardening
+- **Firestore rules** — employees now have row-level scoping: they can only read subscribers where they are the `convincedBy` party. Uses `convincedByUid` (UID-based, tamper-proof) for new records, with a name-based fallback for legacy records.
+- **Rate limiting** — upgraded from in-process to Upstash Redis (shared across all serverless instances). Configure via `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`. Falls back to in-memory for local dev.
+- **Env validation** — new `lib/env.ts` validates all env vars at startup with Zod. Deployments with missing credentials fail immediately rather than at runtime.
+
+### `convincedByUid` End-to-End Migration
+- All new subscriber records now store `convincedByUid` (Firebase UID) alongside the `convincedBy` display name.
+- The UID is resolved automatically: clients send the name, the API looks up the UID from the users collection.
+- Payment records (`payments` collection) also carry `convincedByUid` so employee-scoped analytics work correctly.
+- `useSubscribers` hook now queries by UID for employees (survives name changes).
+
+### Bug Fixes
+- **Subscribers table** — header/row column mismatch when revenue column was hidden for employees is fixed.
+- **Confirm dialogs** — replaced all native `confirm()` calls with the `ConfirmDialog` component (accessible, styled, consistent with the rest of the UI).
+- **AdvancedStats** — removed hardcoded employee names from `EMP_COLORS`; chart bar colors are now assigned dynamically by index.
+- **`filterByPeriod`** — null date handling is now explicit (items without dates are intentionally excluded from period filters).
+- **`useSubscribers`** — initial `getDocs` now applies the same `deleted !== true` filter that the real-time snapshot handler already had.
+
+### Indexes
+- Added `convincedByUid` composite indexes to `firestore.indexes.json` for both `subscribers` and `payments` collections.
+
+---
+
 ## Overview
 
 Joker Dashboard is an internal operations platform for managing subscribers, payments, teams, and analytics. The UI is fully Arabic (RTL, `lang="ar" dir="rtl"`) with a role-based access control system that controls what each user can see and do.
@@ -68,7 +93,7 @@ Three auth roles, enforced both client-side (UI gates) and server-side (Firestor
 
 | Permission | owner | admin | employee |
 |-----------|-------|-------|----------|
-| View all subscribers | ✓ | ✓ | ✓ |
+| View all subscribers | ✓ | ✓ | own only |
 | View revenue | ✓ | ✓ | — |
 | Create / Edit | ✓ | ✓ | ✓ |
 | Delete | ✓ | — | — |
@@ -78,6 +103,8 @@ Three auth roles, enforced both client-side (UI gates) and server-side (Firestor
 | Manage payment methods | ✓ | ✓ | — |
 
 Employee sub-roles (`team_leader`, `sales`, `followup`) carry their own granular permission sets defined in [`lib/permissions.ts`](lib/permissions.ts).
+
+> **Row-level security:** Employees can only read subscriber records where they are the `convincedBy` party — enforced at the Firestore rules layer, not just the UI. New records use `convincedByUid` (Firebase UID) for tamper-proof attribution; legacy records fall back to name matching.
 
 ---
 
@@ -168,14 +195,23 @@ NEXT_PUBLIC_FIREBASE_DATABASE_URL=        # Realtime DB for presence/sessions
 # Firebase Admin SDK — service account credentials
 FIREBASE_PROJECT_ID=
 FIREBASE_CLIENT_EMAIL=
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+# Option A (recommended — base64 encoded, no newline escaping needed)
+FIREBASE_PRIVATE_KEY_B64=<base64 of the full PEM key>
+
+# Option B (raw PEM — keep literal \n sequences, wrap in double quotes)
+# FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
 # Resend — transactional email
 RESEND_API_KEY=
 RESEND_FROM_EMAIL=Joker Dashboard <noreply@yourdomain.com>
+
+# Upstash Redis — distributed rate limiting (optional; falls back to in-memory if absent)
+UPSTASH_REDIS_REST_URL=https://xxxxx.upstash.io
+UPSTASH_REDIS_REST_TOKEN=AXxxxx==
 ```
 
-> **Note:** `FIREBASE_PRIVATE_KEY` must keep the literal `\n` newline sequences. Wrap the value in double quotes in the `.env` file.
+> **Tip:** Generate `FIREBASE_PRIVATE_KEY_B64` with: `base64 -w 0 serviceAccountKey.json | pbcopy` (macOS) or paste the key into an online base64 encoder.
 
 ---
 
@@ -247,14 +283,16 @@ All data is protected by `firestore.rules`. The client SDK **cannot** bypass the
 - Failed login attempts are tracked and surfaced on the Sessions page
 
 ### Rate Limiting
-API routes use `lib/rateLimit.ts` to throttle abusive callers. Limits are enforced per IP using an in-memory sliding window (suitable for single-instance deployments; use Redis or Firestore for multi-instance).
+API routes use `lib/rateLimit.ts` to throttle abusive callers. When `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set, limits are enforced via Upstash Redis (shared across all serverless instances — production-safe). Falls back to an in-process fixed-window counter for local development.
 
 ### Audit Logging
 Every privileged operation (create, edit, delete, withdraw, role change) writes a record to the `auditLogs` Firestore collection via `lib/auditLog.ts`. Logs are immutable — no update or delete is permitted by the rules.
 
 ### Environment Variables
 - `NEXT_PUBLIC_*` vars are safe to expose (they are Firebase client credentials, protected by Firestore rules and authorized domains)
-- `FIREBASE_PRIVATE_KEY` and `RESEND_API_KEY` are server-only — never prefix them with `NEXT_PUBLIC_`
+- `FIREBASE_PRIVATE_KEY_B64` (base64-encoded) or `FIREBASE_PRIVATE_KEY` (raw PEM with `\n`) for the Admin SDK private key
+- `RESEND_API_KEY` is server-only — never prefix it with `NEXT_PUBLIC_`
+- All server env vars are validated at startup via `lib/env.ts` (Zod schema) — misconfigured deployments fail immediately rather than at request time
 - Never commit `.env.local` — it is in `.gitignore`
 
 ### Soft Deletes
