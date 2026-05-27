@@ -380,6 +380,45 @@ export default function LoginPage() {
         >
           نظام الجوكر — لوحة إدارة المشتركين © 2026
         </motion.p>
+
+        <motion.div
+          variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: 0.45 } } }}
+          className="mt-4"
+        >
+          <a
+            href="/pitch"
+            className="w-full flex items-center justify-center gap-2 font-bold transition-all duration-200"
+            style={{
+              padding: "13px 20px",
+              borderRadius: 14,
+              background: "rgba(165,180,252,0.08)",
+              border: "1px solid rgba(165,180,252,0.22)",
+              color: "rgba(165,180,252,0.90)",
+              fontSize: 14.5,
+              textDecoration: "none",
+              letterSpacing: "-0.01em",
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget as HTMLAnchorElement;
+              el.style.background = "rgba(165,180,252,0.14)";
+              el.style.borderColor = "rgba(165,180,252,0.40)";
+              el.style.color = "#FFFFFF";
+              el.style.transform = "translateY(-1px)";
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget as HTMLAnchorElement;
+              el.style.background = "rgba(165,180,252,0.08)";
+              el.style.borderColor = "rgba(165,180,252,0.22)";
+              el.style.color = "rgba(165,180,252,0.90)";
+              el.style.transform = "translateY(0)";
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            شوف كيف يشتغل النظام
+          </a>
+        </motion.div>
       </motion.div>
     </div>
   );

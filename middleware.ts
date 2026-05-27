@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Routes that are publicly accessible without authentication
-const PUBLIC_PATHS = new Set(["/login", "/api/sessions/failed"]);
+const PUBLIC_PATHS = new Set(["/login", "/pitch", "/api/sessions/failed"]);
 
 // Paths that bypass the middleware entirely (static assets, Next internals)
 const BYPASS_PREFIXES = ["/_next/", "/favicon.ico", "/fonts/", "/images/"];
