@@ -15,12 +15,35 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "auto-migrate.js",
     "migrate.js",
+    // Generated/deployment artifacts — not source code:
+    ".firebase/**",
+    ".vercel/**",
+    ".sixth/**",
+    "coverage/**",
+    "test-results/**",
+    "playwright-qa-shots/**",
+    "playwright-report/**",
   ]),
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
       "react-hooks/purity": "warn",
       "react-hooks/set-state-in-effect": "warn",
+    },
+  },
+  {
+    // CommonJS config files — require() is the correct module form here.
+    files: ["jest.config.js", "next.config.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    // Playwright test helpers — not React code; `use` here is a Playwright
+    // fixture callback, not a hook, which trips react-hooks/rules-of-hooks.
+    files: ["e2e/**"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
     },
   },
 ]);

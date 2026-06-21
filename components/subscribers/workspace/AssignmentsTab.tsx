@@ -63,7 +63,7 @@ function HistoryCard({ rec }: { rec: SubscriberAssignmentRecord }) {
         </div>
         {rec.reason && (
           <p className="text-[11px] italic mb-0.5" style={{ color:"var(--text-secondary)" }}>
-            "{rec.reason}"
+            &quot;{rec.reason}&quot;
           </p>
         )}
         <p className="text-[10px] flex items-center gap-1" style={{ color:"var(--text-muted)" }}>

@@ -1,3 +1,5 @@
+import { formatCurrency } from '@/lib/currency'
+
 describe('Utils', () => {
   describe('filterByPeriod', () => {
     const filterByPeriod = <T extends object>(
@@ -76,23 +78,14 @@ describe('Utils', () => {
   })
 
   describe('formatCurrency', () => {
-    const formatCurrency = (value: number, currency: string = 'USD'): string => {
-      const formatter = new Intl.NumberFormat('ar-EG', {
-        style: 'currency',
-        currency,
-      })
-      return formatter.format(value)
-    }
-
     it('should format USD correctly', () => {
       const result = formatCurrency(1234.56, 'USD')
-      expect(result).toContain('1,234')
-      expect(result).toContain('56')
+      expect(result).toBe('1234.56 دولار')
     })
 
     it('should format EGP correctly', () => {
       const result = formatCurrency(1000, 'EGP')
-      expect(result).toContain('1,000')
+      expect(result).toBe('1000.00 جنيه')
     })
   })
 

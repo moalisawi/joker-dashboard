@@ -519,8 +519,10 @@ export default function SessionsPage() {
 
   const fetchRef  = useRef(fetchSessions);
   const failedRef = useRef(fetchFailed);
-  fetchRef.current  = fetchSessions;
-  failedRef.current = fetchFailed;
+  useEffect(() => {
+    fetchRef.current  = fetchSessions;
+    failedRef.current = fetchFailed;
+  });
 
   // Access guard
   useEffect(() => {

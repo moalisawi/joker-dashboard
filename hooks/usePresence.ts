@@ -59,7 +59,9 @@ export function usePresence() {
 
   // Keep a live ref to pathname so the connection listener always reads latest
   const pathnameRef = useRef(pathname);
-  pathnameRef.current = pathname;
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  });
 
   // Main presence lifecycle — runs once per authenticated uid
   useEffect(() => {

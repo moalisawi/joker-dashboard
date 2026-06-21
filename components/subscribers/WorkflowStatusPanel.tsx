@@ -76,7 +76,7 @@ export default function WorkflowStatusPanel({ subscriber, onSuccess }: Props) {
 
         {subscriber.workflowStatusNote && (
           <p className="text-xs mt-2 italic" style={{ color: "var(--text-secondary)" }}>
-            "{subscriber.workflowStatusNote}"
+            &quot;{subscriber.workflowStatusNote}&quot;
           </p>
         )}
       </div>

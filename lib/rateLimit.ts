@@ -28,7 +28,7 @@ setInterval(() => {
 
 function _memCheck(key: string, limit: number, windowMs: number): boolean {
   const now = Date.now();
-  let win = _memStore.get(key);
+  const win = _memStore.get(key);
   if (!win || now > win.resetAt) {
     _memStore.set(key, { count: 1, resetAt: now + windowMs });
     return true;

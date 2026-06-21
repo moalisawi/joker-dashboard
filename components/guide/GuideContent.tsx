@@ -794,7 +794,7 @@ export default function GuideContent({ data }: { data: GuideData }) {
               {filteredSections.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "80px 0" }}>
                   <Search size={40} style={{ margin: "0 auto 16px", color: P.border, display: "block" }} />
-                  <p style={{ color: P.muted, fontWeight: 500, fontSize: 15 }}>لا توجد نتائج لـ "{searchQuery}"</p>
+                  <p style={{ color: P.muted, fontWeight: 500, fontSize: 15 }}>لا توجد نتائج لـ &quot;{searchQuery}&quot;</p>
                   <button
                     onClick={() => setSearchQuery("")}
                     style={{

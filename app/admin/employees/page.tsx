@@ -136,6 +136,29 @@ function ActionsMenu({
 
 // ─── Employee Form Modal ──────────────────────────────────────────────────────
 
+function RoleOptions() {
+  return (
+    <>
+      <option value="sales">مبيعات</option>
+      <option value="followup">متابعة</option>
+      <option value="team_leader">قائد فريق</option>
+      <option value="admin">مدير</option>
+    </>
+  );
+}
+
+function TeamSelect({ reg, teams }: { reg: object; teams: Team[] }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold mb-1.5" style={{ color:"var(--text-secondary)" }}>الفريق</label>
+      <select {...(reg as React.SelectHTMLAttributes<HTMLSelectElement>)} className="form-input">
+        <option value="">— بدون فريق —</option>
+        {teams.filter((t) => t.active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+      </select>
+    </div>
+  );
+}
+
 function EmployeeFormModal({
   mode, employee, teams, onClose, onSuccess,
 }: {
@@ -192,25 +215,6 @@ function EmployeeFormModal({
   const cErr     = cf.formState.errors;
   const eErr     = ef.formState.errors;
   const pending  = createMut.isPending || updateMut.isPending;
-
-  const RoleOptions = () => (
-    <>
-      <option value="sales">مبيعات</option>
-      <option value="followup">متابعة</option>
-      <option value="team_leader">قائد فريق</option>
-      <option value="admin">مدير</option>
-    </>
-  );
-
-  const TeamSelect = ({ reg }: { reg: object }) => (
-    <div>
-      <label className="block text-xs font-semibold mb-1.5" style={{ color:"var(--text-secondary)" }}>الفريق</label>
-      <select {...(reg as React.SelectHTMLAttributes<HTMLSelectElement>)} className="form-input">
-        <option value="">— بدون فريق —</option>
-        {teams.filter((t) => t.active).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-      </select>
-    </div>
-  );
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -283,7 +287,7 @@ function EmployeeFormModal({
                 </div>
               </div>
 
-              {teams.length > 0 && <TeamSelect reg={cf.register("teamId")} />}
+              {teams.length > 0 && <TeamSelect reg={cf.register("teamId")} teams={teams} />}
 
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color:"var(--text-secondary)" }}>ملاحظات</label>
@@ -326,7 +330,7 @@ function EmployeeFormModal({
                 </div>
               </div>
 
-              {teams.length > 0 && <TeamSelect reg={ef.register("teamId")} />}
+              {teams.length > 0 && <TeamSelect reg={ef.register("teamId")} teams={teams} />}
 
               <div>
                 <label className="block text-xs font-semibold mb-1.5" style={{ color:"var(--text-secondary)" }}>ملاحظات</label>

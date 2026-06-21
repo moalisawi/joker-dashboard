@@ -71,8 +71,8 @@ export default function SubscribersTableOptimized({
   }, [subscribers, searchTerm, page])
 
   // Debounced search handler
-  const handleSearch = useCallback(
-    debounce((value: string) => {
+  const handleSearch = useMemo(
+    () => debounce((value: string) => {
       setSearchTerm(value)
       setPage(1)
     }, 300),
