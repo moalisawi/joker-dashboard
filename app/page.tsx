@@ -36,6 +36,7 @@ import FadeIn from "@/components/ui/FadeIn";
 import StatsCardsSkeleton from "@/components/stats/StatsCardsSkeleton";
 import DashboardHero from "@/components/dashboard/DashboardHero";
 import ActivityTimeline from "@/components/dashboard/ActivityTimeline";
+import TodaySummary from "@/components/stats/TodaySummary";
 import type { Subscriber, Payment, RefundTransaction } from "@/types";
 import { Plus, DollarSign, BarChart2, Users, Bell } from "lucide-react";
 import { Button, Skeleton } from "@heroui/react";
@@ -338,13 +339,16 @@ export default function HomePage() {
 
               {/* ── TAB: OVERVIEW ────────────────────────────────────── */}
               <TabPanel value="overview">
-                {/* Chart + Timeline row */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-5">
+                {/* Chart + Timeline + Today Summary row */}
+                <div className="grid grid-cols-1 xl:grid-cols-4 gap-5 mb-5">
                   <FadeIn className="xl:col-span-2">
                     <SubscriptionChart subscribers={subscribers} payments={payments} />
                   </FadeIn>
-                  <FadeIn delay={0.08}>
+                  <FadeIn delay={0.06}>
                     <ActivityTimeline subscribers={subscribers} payments={payments} />
+                  </FadeIn>
+                  <FadeIn delay={0.10}>
+                    <TodaySummary subscribers={subscribers} />
                   </FadeIn>
                 </div>
 

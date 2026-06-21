@@ -107,14 +107,32 @@ export async function POST(request: Request): Promise<NextResponse> {
   const user = await verifyServerUser(request);
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
+  // Auth indicator cookie: set after successful token verification.
+  // httpOnly + Secure prevents client-side JS from reading or forging it.
+  // SameSite=Lax blocks cross-site request use while allowing normal navigation.
+  // The middleware checks for this cookie's presence to fast-fail unauthenticated
+  // page requests at the edge (no crypto required there — data is still protected
+  // by verifyServerUser() in each API route handler).
+  const isSecure = process.env.NODE_ENV === "production";
+  const cookieOptions = [
+    "__session=1",
+    "Path=/",
+    `Max-Age=${7 * 24 * 60 * 60}`, // 7 days
+    "HttpOnly",
+    "SameSite=Lax",
+    ...(isSecure ? ["Secure"] : []),
+  ].join("; ");
+
   // Session logging writes via Admin SDK only (firestore.rules denies client writes).
   // Without admin credentials in dev, the write hangs ~10s on metadata-server timeout
   // before failing — return early so the client doesn't block on it.
   if (!hasAdminCredentials()) {
-    return NextResponse.json(
+    const res = NextResponse.json(
       { success: false, skipped: true, reason: "admin-credentials-unavailable" },
       { status: 202 }
     );
+    res.headers.append("Set-Cookie", cookieOptions);
+    return res;
   }
 
   const ua = request.headers.get("user-agent") || "";
@@ -161,7 +179,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const docRef = await getFirestore().collection("loginSessions").add(sessionData);
 
-    return NextResponse.json({ success: true, sessionId: docRef.id });
+    const res = NextResponse.json({ success: true, sessionId: docRef.id });
+    res.headers.append("Set-Cookie", cookieOptions);
+    return res;
   } catch (err) {
     console.error("[sessions/log]", err instanceof Error ? err.message : err);
     return NextResponse.json({ success: false, error: "Internal error" }, { status: 500 });

@@ -52,7 +52,21 @@ export async function PATCH(
       sessionDuration: durationSec,
     });
 
-    return NextResponse.json({ success: true });
+    // Clear the auth indicator cookie so the middleware fast-fails subsequent
+    // unauthenticated page requests immediately after logout.
+    const isSecure = process.env.NODE_ENV === "production";
+    const clearCookie = [
+      "__session=",
+      "Path=/",
+      "Max-Age=0",
+      "HttpOnly",
+      "SameSite=Lax",
+      ...(isSecure ? ["Secure"] : []),
+    ].join("; ");
+
+    const res = NextResponse.json({ success: true });
+    res.headers.append("Set-Cookie", clearCookie);
+    return res;
   } catch (err) {
     console.error("[sessions/logout]", err instanceof Error ? err.message : err);
     return NextResponse.json({ success: false, error: "Internal error" }, { status: 500 });

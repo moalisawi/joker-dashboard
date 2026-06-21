@@ -67,9 +67,12 @@ service cloud.firestore {
     }
 
     // ─── users ────────────────────────────────────────────────────────────
+    // All user-doc writes go through the Admin SDK (API routes) which bypass
+    // these rules. Blocking client writes here enforces the architectural
+    // contract and prevents privilege escalation (e.g. self-promoting to owner).
     match /users/{uid} {
-      allow read:          if isAuth() && (request.auth.uid == uid || isStaff());
-      allow create, update: if isOwner();
+      allow read:           if isAuth() && (request.auth.uid == uid || isStaff());
+      allow create, update: if false;
       allow delete:         if false;
     }
 
@@ -114,14 +117,14 @@ service cloud.firestore {
     // ─── refunds ──────────────────────────────────────────────────────────
     match /refunds/{id} {
       allow read:          if isStaff()
-                           || hasPerm('analytics', 'view')
-                           || hasPerm('payments', 'view');
+                           || (isAuth() && hasPerm('analytics', 'view'))
+                           || (isAuth() && hasPerm('payments', 'view'));
       allow create, update, delete: if false;
     }
 
     // ─── auditLogs — server-only writes (Admin SDK) ───────────────────────────
     match /auditLogs/{id} {
-      allow read:  if isStaff() || hasPerm('logs', 'view');
+      allow read:  if isStaff() || (isAuth() && hasPerm('logs', 'view'));
       allow write: if false;
     }
 
@@ -138,7 +141,7 @@ service cloud.firestore {
 
     // ─── monthlyAnalytics — Cloud Functions write only ────────────────────
     match /monthlyAnalytics/{month} {
-      allow read:          if isStaff() || hasPerm('analytics', 'view');
+      allow read:          if isStaff() || (isAuth() && hasPerm('analytics', 'view'));
       allow write:         if false;
     }
 
@@ -159,8 +162,8 @@ service cloud.firestore {
 
     // ─── paymentMethods ───────────────────────────────────────────────────
     match /paymentMethods/{id} {
-      allow read:          if isAnyActive();
-      allow create, update: if isStaff() || hasPerm('settings', 'manage');
+      allow read:           if isAnyActive();
+      allow create, update: if isStaff() || (isAuth() && hasPerm('settings', 'manage'));
       allow delete:         if false;
     }
 
@@ -178,7 +181,7 @@ service cloud.firestore {
 
     // ─── activityLogs — server-only writes (Admin SDK) ────────────────────
     match /activityLogs/{id} {
-      allow read:  if isStaff() || hasPerm('logs', 'view');
+      allow read:  if isStaff() || (isAuth() && hasPerm('logs', 'view'));
       allow write: if false;
     }
 

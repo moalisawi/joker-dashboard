@@ -35,20 +35,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // For page routes: check for the Firebase Auth session cookie or a session token.
-  // Firebase Auth uses __session cookie when configured with a custom domain.
-  // Without a cookie-based session, we fall back to checking for the presence of
-  // local storage auth state — which is only possible client-side.
-  // Therefore, we rely on the client-side ProtectedLayout guard for page auth,
-  // but we can still block obviously unauthenticated requests early.
+  // For page routes: require the __session auth-indicator cookie.
   //
-  // Note: Full server-side page protection requires Firebase session cookies
-  // (firebase-admin verifySessionCookie). This is the recommended upgrade path.
+  // This cookie is set (httpOnly, Secure, SameSite=Lax) by the /api/sessions/log
+  // and /api/bootstrap-user route handlers immediately after a valid Firebase ID
+  // token is verified server-side. It is cleared by /api/sessions/[uid]/logout.
+  //
+  // We only check for the cookie's *presence* here — no crypto needed — because:
+  //  • The cookie is httpOnly, so client JS cannot forge it.
+  //  • firebase-admin does not run on the Edge runtime; full verifySessionCookie
+  //    happens in each API route handler via verifyServerUser().
+  //  • Page content (rendered HTML) is not sensitive; the real guard is the API
+  //    layer. This edge check fast-fails bots and unauthenticated crawlers.
   const sessionCookie = request.cookies.get("__session")?.value;
   if (!sessionCookie) {
-    // No session cookie: let the client-side guard handle the redirect.
-    // The page will show a loading state and redirect to /login if unauthenticated.
-    return NextResponse.next();
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
