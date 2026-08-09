@@ -1,3 +1,12 @@
+const isDev = process.env.NODE_ENV !== 'production'
+
+// 'unsafe-eval' is only needed by the dev server's React Refresh runtime.
+// Shipping it in production would let any injected string be executed as code,
+// which is most of what a CSP is there to stop.
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'"
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ['firebase', '@firebase'],
@@ -9,7 +18,12 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    domains: ['cdn.example.com'],
+    // `domains` was removed in Next 16 in favour of remotePatterns. The only
+    // remote images the app loads are Firebase Storage receipt uploads.
+    remotePatterns: [
+      { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
+      { protocol: 'https', hostname: '*.firebasestorage.app' },
+    ],
     minimumCacheTTL: 60,
   },
 
@@ -39,7 +53,7 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",   // Next.js requires unsafe-eval in dev; tighten in prod
+              scriptSrc,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
