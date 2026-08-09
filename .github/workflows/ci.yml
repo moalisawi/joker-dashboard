@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Types · Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Firestore config files are parseable
+        # firestore.indexes.json previously contained // comments, which made
+        # JSON.parse fail. This step stops that from coming back.
+        run: |
+          node -e "const i=require('./firestore.indexes.json'); console.log('indexes:', i.indexes.length)"
+          node -e "require('./firebase.json'); console.log('firebase.json OK')"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npm test -- --ci
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate throwaway service-account key
+        # lib/env.ts validates the Firebase env at module load, so `next build`
+        # needs syntactically valid values. Nothing here contacts Google — the
+        # key is generated per-run, used only to satisfy cert() parsing, and
+        # discarded with the runner. Never point this at a real project.
+        run: echo "FAKE_KEY_B64=$(openssl genrsa 2048 2>/dev/null | base64 -w0)" >> "$GITHUB_ENV"
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ci-placeholder
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ci.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-placeholder
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ci-placeholder.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
+          NEXT_PUBLIC_FIREBASE_APP_ID: '1:000000000000:web:0000000000000000000000'
+          NEXT_PUBLIC_FIREBASE_DATABASE_URL: https://ci-placeholder-default-rtdb.firebaseio.com
+          FIREBASE_PROJECT_ID: ci-placeholder
+          FIREBASE_CLIENT_EMAIL: ci@ci-placeholder.iam.gserviceaccount.com
+          FIREBASE_PRIVATE_KEY_B64: ${{ env.FAKE_KEY_B64 }}
+          FIREBASE_DATABASE_URL: https://ci-placeholder-default-rtdb.firebaseio.com
+          RESEND_API_KEY: ci-placeholder
+          RESEND_FROM_EMAIL: ci@example.com
+        run: npm run build
