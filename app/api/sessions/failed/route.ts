@@ -4,8 +4,22 @@ import { requireRole }             from "@/lib/requireRole";
 import { initializeAdminApp }      from "@/lib/serverAuth";
 import { hasAdminCredentials }     from "@/lib/serverFirestore";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { z } from "zod";
 
 export const runtime = "nodejs";
+
+/**
+ * This endpoint is public (the login page calls it before any token exists), so
+ * the body is fully untrusted. The previous hand-rolled checks were equivalent
+ * for the two fields read, but a schema also rejects non-object payloads and
+ * keeps the shape declared in one place.
+ *
+ * Values are still treated as opaque strings — never used for auth decisions.
+ */
+const failedLoginSchema = z.object({
+  email:  z.string().trim().toLowerCase().max(254).optional(),
+  reason: z.string().max(100).optional(),
+});
 
 // ── UA mini-parser (reused from log route) ────────────────────────────────────
 
@@ -49,24 +63,23 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  let body: { email?: string; reason?: string };
+  let raw: unknown;
   try {
-    body = await request.json();
+    raw = await request.json();
   } catch {
     return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const parsed = failedLoginSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ success: false, error: "Validation error" }, { status: 422 });
   }
 
   const ua = request.headers.get("user-agent") || "";
   const { browser, os, device } = parseUAMinimal(ua);
 
-  // Sanitize email — store as-is but never trust it for auth
-  const safeEmail  = typeof body.email === "string"
-    ? body.email.trim().toLowerCase().slice(0, 254)
-    : null;
-
-  const safeReason = typeof body.reason === "string"
-    ? body.reason.slice(0, 100)
-    : "unknown";
+  const safeEmail  = parsed.data.email  ?? null;
+  const safeReason = parsed.data.reason ?? "unknown";
 
   try {
     await getFirestore().collection("failedLogins").add({

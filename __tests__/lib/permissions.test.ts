@@ -4,8 +4,11 @@ import {
   canDoGranular,
   DEFAULT_GRANULAR_PERMISSIONS,
   granularToFlat,
+  canAssignRole,
+  canManageRole,
+  isKnownRole,
 } from '@/lib/permissions'
-import type { GranularPermissions } from '@/types'
+import type { GranularPermissions, Role } from '@/types'
 
 describe('Permissions', () => {
   describe('getPermissions', () => {
@@ -75,6 +78,73 @@ describe('Permissions', () => {
       expect(flat.canViewAll).toBe(true)
       expect(flat.canDelete).toBe(false)
       expect(flat.canManageUsers).toBe(false)
+    })
+  })
+
+  describe('isKnownRole', () => {
+    it('accepts the three system roles', () => {
+      expect(isKnownRole('owner')).toBe(true)
+      expect(isKnownRole('admin')).toBe(true)
+      expect(isKnownRole('employee')).toBe(true)
+    })
+
+    it('rejects anything else', () => {
+      expect(isKnownRole('superadmin')).toBe(false)
+      expect(isKnownRole('')).toBe(false)
+      expect(isKnownRole(undefined)).toBe(false)
+      expect(isKnownRole(null)).toBe(false)
+      expect(isKnownRole(1)).toBe(false)
+      expect(isKnownRole({})).toBe(false)
+    })
+  })
+
+  describe('canManageRole', () => {
+    it('lets an owner manage every role', () => {
+      expect(canManageRole('owner', 'owner')).toBe(true)
+      expect(canManageRole('owner', 'admin')).toBe(true)
+      expect(canManageRole('owner', 'employee')).toBe(true)
+    })
+
+    it('lets an admin manage only employees', () => {
+      expect(canManageRole('admin', 'employee')).toBe(true)
+      expect(canManageRole('admin', 'admin')).toBe(false)
+      expect(canManageRole('admin', 'owner')).toBe(false)
+    })
+
+    it('lets an employee manage nobody', () => {
+      expect(canManageRole('employee', 'employee')).toBe(false)
+      expect(canManageRole('employee', 'owner')).toBe(false)
+    })
+  })
+
+  describe('canAssignRole', () => {
+    it('lets an owner assign any known role', () => {
+      expect(canAssignRole('owner', 'owner')).toBe(true)
+      expect(canAssignRole('owner', 'admin')).toBe(true)
+      expect(canAssignRole('owner', 'employee')).toBe(true)
+    })
+
+    it('lets an admin assign only the employee role', () => {
+      expect(canAssignRole('admin', 'employee')).toBe(true)
+      expect(canAssignRole('admin', 'admin')).toBe(false)
+      expect(canAssignRole('admin', 'owner')).toBe(false)
+    })
+
+    it('lets an employee assign nothing', () => {
+      expect(canAssignRole('employee', 'employee')).toBe(false)
+    })
+
+    // Regression: the owner branch used to return true unconditionally, so an
+    // unrecognised role from a request body was written straight to the user
+    // document — leaving that account matched by no rule in firestore.rules.
+    it('refuses an unknown role even for an owner', () => {
+      const unknownRoles = ['superadmin', 'root', 'Owner', 'OWNER', '', ' owner']
+      for (const bad of unknownRoles) {
+        expect(canAssignRole('owner', bad as Role)).toBe(false)
+      }
+      expect(canAssignRole('owner', undefined as unknown as Role)).toBe(false)
+      expect(canAssignRole('owner', null as unknown as Role)).toBe(false)
+      expect(canAssignRole('owner', {} as unknown as Role)).toBe(false)
     })
   })
 })

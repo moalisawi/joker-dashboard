@@ -53,17 +53,20 @@ service cloud.firestore {
     // NOTE: userDoc() reads are cached per-request by Firestore, so the
     // call inside canReadSubscriber() does not add a second document read
     // beyond what isOwner/isAdmin/isEmployee already triggered.
+    // NOTE: a rules function must be a single return expression. `if` statements
+    // are not part of the language — an earlier version of this function used one,
+    // which made the whole file fail validation with INVALID_ARGUMENT and is why
+    // it sat undeployed while the weaker previous ruleset stayed live. The two
+    // paths below are the same logic expressed as a ternary.
     function canReadSubscriberAsEmployee() {
-      let uid  = request.auth.uid;
-      let sub  = resource.data;
-      // Path 1 — UID-based (new records)
-      let hasUid = sub.get('convincedByUid', null) != null;
-      if (hasUid) {
-        return sub.get('convincedByUid', '') == uid;
-      }
-      // Path 2 — Name-based fallback (legacy records without convincedByUid)
+      let uid     = request.auth.uid;
+      let sub     = resource.data;
       let empName = userDoc().get('employeeName', '');
-      return empName != '' && sub.get('convincedBy', '') == empName;
+      return sub.get('convincedByUid', null) != null
+        // Path 1 — UID-based (current records)
+        ? sub.get('convincedByUid', '') == uid
+        // Path 2 — Name-based fallback (legacy records without convincedByUid)
+        : (empName != '' && sub.get('convincedBy', '') == empName);
     }
 
     // ─── users ────────────────────────────────────────────────────────────

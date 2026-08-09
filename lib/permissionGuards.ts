@@ -120,8 +120,43 @@ export const canViewFinancialReports = (u: UserProfile | null) => hasPermission(
 export const canExportReports        = (u: UserProfile | null) => hasPermission(u, "export_reports");
 export const canManageAutomations    = (u: UserProfile | null) => hasPermission(u, "manage_automations");
 
-// Sessions — strictly role-based, not delegatable via granular permissions
+// ─── Role-based guards that mirror firestore.rules exactly ────────────────────
+//
+// firestore.rules is the authority: whatever it refuses, the UI must not offer.
+// The guards below are deliberately NOT expressed as granular permissions,
+// because the matching rule is written in terms of the role itself — granting
+// someone the permission would light up buttons that Firestore then rejects
+// with permission-denied.
+//
+// Keep each guard and the rule it mirrors in step. If a rule is widened, widen
+// the guard here rather than adding a role check inside a component.
+
+/** Mirrors `match /loginSessions` + `match /failedLogins` → `allow read: if isStaff()`. */
 export const canViewSessions = (u: UserProfile | null): boolean =>
+  u?.role === "owner" || u?.role === "admin";
+
+/**
+ * Mirrors `match /teams` → `allow create, update: if isOwner()`.
+ *
+ * Team writes were previously gated on canManageUsers (users.manage), which the
+ * owner can delegate to an admin or an employee. Anyone holding it saw the
+ * create / rename / deactivate controls and hit permission-denied on save.
+ */
+export const canManageTeams = (u: UserProfile | null): boolean =>
+  u?.role === "owner";
+
+/** Mirrors `match /teams` → `allow delete: if false` (delete is a soft-delete update). */
+export const canDeleteTeams = (u: UserProfile | null): boolean =>
+  u?.role === "owner";
+
+/**
+ * Mirrors `match /users` → `allow read: if isAuth() && (self || isStaff())`.
+ *
+ * Any page that lists *other* users needs this. Holding users.manage is not
+ * enough: an employee granted it could open the page but every query for the
+ * directory would be denied.
+ */
+export const canReadUserDirectory = (u: UserProfile | null): boolean =>
   u?.role === "owner" || u?.role === "admin";
 
 // Subscriber workflow (Phase 3)

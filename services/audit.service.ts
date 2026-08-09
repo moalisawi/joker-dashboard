@@ -1,5 +1,4 @@
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firestore";
+import { auth } from "@/lib/auth";
 import type { UserProfile } from "@/types";
 import type {
   AuditCategory,
@@ -162,39 +161,47 @@ async function writeLog(params: WriteLogParams): Promise<void> {
   const performer = toPerformedBy(actor);
 
   try {
-    await addDoc(collection(db, "auditLogs"), {
-      action,
-      category,
-      severity,
-      source,
+    // Audit records are written server-side through /api/audit-log.
+    //
+    // firestore.rules sets `allow write: if false` on auditLogs so that a client
+    // can never forge or alter an audit record. Writing with addDoc() from here
+    // was therefore always rejected, and the rejection was swallowed by the
+    // catch below — the trail recorded nothing. The route writes via the Admin
+    // SDK and derives the actor identity from the verified ID token.
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw new Error("Not authenticated");
 
-      entityType,
-      entityId,
-      entityName,
-      description,
+    const response = await fetch("/api/audit-log", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        action,
+        category,
+        severity,
+        source,
 
-      previousData:  previousData ?? null,
-      newData:       newData      ?? null,
-      changedFields: changedFields ?? [],
+        entityType,
+        entityId,
+        entityName,
+        description,
 
-      performedBy: performer,
-      financialData: financialData ?? null,
-      metadata,
-      tags,
+        previousData:  previousData ?? null,
+        newData:       newData      ?? null,
+        changedFields: changedFields ?? [],
 
-      status: "completed",
-
-      // legacy mirror fields (keep for backward compat with old query code)
-      actorUid:   performer.uid,
-      actorName:  performer.name,
-      actorRole:  performer.role,
-      targetType: entityType,
-      targetId:   entityId,
-      targetName: entityName,
-      summary:    description,
-
-      createdAt: serverTimestamp(),
+        performedBy: performer,
+        financialData: financialData ?? null,
+        metadata,
+        tags,
+      }),
     });
+
+    if (!response.ok) {
+      throw new Error(`audit-log responded ${response.status}`);
+    }
 
     // Fire-and-forget: create a notification for notification-worthy actions
     notificationService.createFromAuditAction({
@@ -215,7 +222,10 @@ async function writeLog(params: WriteLogParams): Promise<void> {
       metadata,
     });
   } catch (err) {
-    console.warn("[audit] log failed:", err);
+    // Audit logging must never break the user-facing operation that triggered
+    // it, so the error is contained here — but logged at error level so it is
+    // picked up by monitoring rather than disappearing into a warning.
+    console.error("[audit] log failed:", err);
   }
 }
 

@@ -42,11 +42,21 @@ function _memCheck(key: string, limit: number, windowMs: number): boolean {
 // The NX flag means EXPIRE is only applied when the key is first created,
 // preserving the window boundary for subsequent increments.
 
+/**
+ * Returns whether the request is allowed, or `null` when Redis could not answer.
+ *
+ * `null` rather than `true`: an unreachable Redis used to mean "allow
+ * everything", which silently removed the limiter from every route — including
+ * the financial ones — exactly during an infrastructure incident. The caller
+ * degrades to the in-process counter instead. That counter is per-instance and
+ * so weaker than a shared one, but a weak limit beats no limit, and users are
+ * still not locked out.
+ */
 async function _redisCheck(
   key: string,
   limit: number,
   windowSeconds: number
-): Promise<boolean> {
+): Promise<boolean | null> {
   const url   = process.env.UPSTASH_REDIS_REST_URL!;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN!;
 
@@ -64,17 +74,16 @@ async function _redisCheck(
     });
 
     if (!res.ok) {
-      // Redis unavailable — fail open so users aren't locked out by infra issues.
-      console.error("[rateLimit] Upstash request failed, failing open:", res.status);
-      return true;
+      console.error("[rateLimit] Upstash request failed, degrading to in-memory:", res.status);
+      return null;
     }
 
     const data = await res.json() as [{ result: number }, { result: number }];
     const count = data[0]?.result ?? 1;
     return count <= limit;
   } catch (err) {
-    console.error("[rateLimit] Upstash error, failing open:", err);
-    return true;
+    console.error("[rateLimit] Upstash error, degrading to in-memory:", err);
+    return null;
   }
 }
 
@@ -98,9 +107,11 @@ export async function checkRateLimit(
 
   if (hasRedis) {
     const windowSeconds = Math.ceil(windowMs / 1000);
-    return _redisCheck(key, limit, windowSeconds);
+    const verdict = await _redisCheck(key, limit, windowSeconds);
+    // null means Redis could not answer — degrade rather than wave everything through.
+    if (verdict !== null) return verdict;
   }
-  // Dev fallback
+
   return _memCheck(key, limit, windowMs);
 }
 

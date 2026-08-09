@@ -1,604 +1,917 @@
 {
   "indexes": [
-
-    // ─── payments ─────────────────────────────────────────────────────────
-    // Subscriber payment history (modal, timeline) — sorted by createdAt
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriberId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt",    "order": "DESCENDING" }
+        {
+          "fieldPath": "subscriberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Subscriber payment history — sorted by date (profile page)
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriberId", "order": "ASCENDING" },
-        { "fieldPath": "date",         "order": "DESCENDING" }
+        {
+          "fieldPath": "subscriberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Monthly financial report: filter by date range, sort by amount
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "date",      "order": "ASCENDING" },
-        { "fieldPath": "amountUSD", "order": "DESCENDING" }
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "amountUSD",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Employee performance: filter by employee (legacy createdBy)
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy", "order": "ASCENDING" },
-        { "fieldPath": "date",      "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Employee payment analytics (new UID-based scoping from Firestore rules)
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "convincedByUid", "order": "ASCENDING" },
-        { "fieldPath": "date",           "order": "DESCENDING" }
+        {
+          "fieldPath": "convincedByUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Employee payment analytics + date range
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "convincedByUid", "order": "ASCENDING" },
-        { "fieldPath": "date",           "order": "ASCENDING" }
+        {
+          "fieldPath": "convincedByUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
       ]
     },
-    // Payment method breakdown
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "paymentMethod", "order": "ASCENDING" },
-        { "fieldPath": "date",          "order": "DESCENDING" }
+        {
+          "fieldPath": "paymentMethod",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Renewal analytics
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isRenewalPayment", "order": "ASCENDING" },
-        { "fieldPath": "date",             "order": "DESCENDING" }
+        {
+          "fieldPath": "isRenewalPayment",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Subscriber payments by renewal number (track instalment history)
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriberId",   "order": "ASCENDING" },
-        { "fieldPath": "renewalNumber",  "order": "ASCENDING" },
-        { "fieldPath": "createdAt",      "order": "DESCENDING" }
+        {
+          "fieldPath": "subscriberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "renewalNumber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-
-    // ─── refunds ──────────────────────────────────────────────────────────
-    // Subscriber refund history
     {
       "collectionGroup": "refunds",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriberId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt",    "order": "DESCENDING" }
+        {
+          "fieldPath": "subscriberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Subscriber refund history filtered by date range and sorted by refundDate desc
     {
       "collectionGroup": "refunds",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriberId", "order": "ASCENDING" },
-        { "fieldPath": "refundDate",    "order": "DESCENDING" },
-        { "fieldPath": "__name__",      "order": "ASCENDING" }
+        {
+          "fieldPath": "subscriberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "refundDate",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
       ]
     },
-    // Same query but Firestore cursor uses __name__ DESC (snapshot listener variant)
     {
       "collectionGroup": "refunds",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriberId", "order": "ASCENDING" },
-        { "fieldPath": "refundDate",    "order": "DESCENDING" },
-        { "fieldPath": "__name__",      "order": "DESCENDING" }
+        {
+          "fieldPath": "subscriberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "refundDate",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Monthly refund totals
     {
       "collectionGroup": "refunds",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "refundDate",      "order": "ASCENDING" },
-        { "fieldPath": "refundAmountUSD", "order": "DESCENDING" }
+        {
+          "fieldPath": "refundDate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "refundAmountUSD",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Per-employee refund report
     {
       "collectionGroup": "refunds",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "createdBy",  "order": "ASCENDING" },
-        { "fieldPath": "refundDate", "order": "DESCENDING" }
+        {
+          "fieldPath": "createdBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "refundDate",
+          "order": "DESCENDING"
+        }
       ]
     },
-
-    // ─── auditLogs ────────────────────────────────────────────────────────
-    // User activity feed
     {
       "collectionGroup": "auditLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "actorUid",  "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "actorUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Entity history (e.g. all logs for a subscriber)
     {
       "collectionGroup": "auditLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "targetType", "order": "ASCENDING" },
-        { "fieldPath": "targetId",   "order": "ASCENDING" },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        {
+          "fieldPath": "targetType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "targetId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Filter by action type, sorted by time
     {
       "collectionGroup": "auditLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "action",    "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "action",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // alert-engine checkFailedLogins:
-    //   where("action","==","login_failed") + where("createdAt",">=",hourAgo)
-    // Range filter forces createdAt ASC ordering — needs its own composite index.
     {
       "collectionGroup": "auditLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "action",    "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "action",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
       ]
     },
-    // Role-based audit review
     {
       "collectionGroup": "auditLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "actorRole", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "actorRole",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Combined: action + actor (detailed audit investigation)
     {
       "collectionGroup": "auditLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "actorUid",  "order": "ASCENDING" },
-        { "fieldPath": "action",    "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "actorUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "action",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-
-    // ─── notifications ────────────────────────────────────────────────────
-    // Notification feed: unarchived first, newest first
     {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "archived",  "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Role-targeted notification feed
     {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "targetMinRole", "order": "ASCENDING" },
-        { "fieldPath": "archived",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt",     "order": "DESCENDING" }
+        {
+          "fieldPath": "targetMinRole",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Notification type filter
     {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-
-    // ─── users ────────────────────────────────────────────────────────────
-    // Employee list: filter by isEmployee, sort by name
     {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isEmployee", "order": "ASCENDING" },
-        { "fieldPath": "name",       "order": "ASCENDING" }
+        {
+          "fieldPath": "isEmployee",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
       ]
     },
-    // Active employee list: filter by isEmployee + active, sort by name
     {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isEmployee", "order": "ASCENDING" },
-        { "fieldPath": "active",     "order": "ASCENDING" },
-        { "fieldPath": "name",       "order": "ASCENDING" }
-      ]
-    },
-
-    // ─── paymentMethods ───────────────────────────────────────────────────
-    // getAll(): where(deleted != true).orderBy(name)
-    {
-      "collectionGroup": "paymentMethods",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "deleted", "order": "ASCENDING" },
-        { "fieldPath": "name",    "order": "ASCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "paymentMethods",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "status",  "order": "ASCENDING" },
-        { "fieldPath": "country", "order": "ASCENDING" },
-        { "fieldPath": "name",    "order": "ASCENDING" }
+        {
+          "fieldPath": "isEmployee",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "paymentMethods",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted", "order": "ASCENDING" },
-        { "fieldPath": "status",  "order": "ASCENDING" },
-        { "fieldPath": "name",    "order": "ASCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
       ]
     },
-    // paymentMethodId balance queries
-    // sort DESC for timeline display
+    {
+      "collectionGroup": "paymentMethods",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "country",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "paymentMethods",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "paymentMethodId", "order": "ASCENDING" },
-        { "fieldPath": "date",            "order": "DESCENDING" }
+        {
+          "fieldPath": "paymentMethodId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // range filter (date >= periodStart) requires ASC — used by payers modal
     {
       "collectionGroup": "payments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "paymentMethodId", "order": "ASCENDING" },
-        { "fieldPath": "date",            "order": "ASCENDING" }
+        {
+          "fieldPath": "paymentMethodId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
       ]
     },
-
-    // ─── subscribers ──────────────────────────────────────────────────────
-    // getAll(): where(deleted != true) — inequality filter requires index
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",   "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // where(deleted != true) + orderBy(date)
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted", "order": "ASCENDING" },
-        { "fieldPath": "date",    "order": "DESCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Status dashboard (filter by subscriptionState, sort by date)
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriptionState", "order": "ASCENDING" },
-        { "fieldPath": "date",              "order": "DESCENDING" }
+        {
+          "fieldPath": "subscriptionState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Employee attribution report (legacy name-based)
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "convincedBy", "order": "ASCENDING" },
-        { "fieldPath": "date",        "order": "DESCENDING" }
+        {
+          "fieldPath": "convincedBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Employee scoped query (new UID-based) — useSubscribers for employees
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "convincedByUid", "order": "ASCENDING" },
-        { "fieldPath": "createdAt",      "order": "DESCENDING" }
+        {
+          "fieldPath": "convincedByUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Employee scoped + deleted filter (UID-based)
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "convincedByUid", "order": "ASCENDING" },
-        { "fieldPath": "deleted",        "order": "ASCENDING" },
-        { "fieldPath": "createdAt",      "order": "DESCENDING" }
+        {
+          "fieldPath": "convincedByUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Country / residence breakdown
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "residence", "order": "ASCENDING" },
-        { "fieldPath": "date",      "order": "DESCENDING" }
+        {
+          "fieldPath": "residence",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Package type analysis
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "package", "order": "ASCENDING" },
-        { "fieldPath": "date",    "order": "DESCENDING" }
+        {
+          "fieldPath": "package",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Recently-updated subscribers (admin dashboard)
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status",    "order": "ASCENDING" },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Employee + state combined (who convinced how many active/withdrawn)
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "convincedBy",        "order": "ASCENDING" },
-        { "fieldPath": "subscriptionState",  "order": "ASCENDING" },
-        { "fieldPath": "date",               "order": "DESCENDING" }
+        {
+          "fieldPath": "convincedBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Expiry-based sorting for renewal alerts
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriptionState", "order": "ASCENDING" },
-        { "fieldPath": "endDate",           "order": "ASCENDING" }
+        {
+          "fieldPath": "subscriptionState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endDate",
+          "order": "ASCENDING"
+        }
       ]
     },
-
-    // ─── subscribers (alert-engine + notification service) ────────────────
-    // checkExpiringSubscriptions + notification.service expiry alert:
-    //   where("subscriptionState","==","active")
-    //   + where("expiryDate",">=",today) + where("expiryDate","<=",in3Days)
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriptionState", "order": "ASCENDING" },
-        { "fieldPath": "expiryDate",        "order": "ASCENDING" }
+        {
+          "fieldPath": "subscriptionState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expiryDate",
+          "order": "ASCENDING"
+        }
       ]
     },
-    // checkWithdrawalSpike:
-    //   where("subscriptionState","==","withdrawn") + where("updatedAt",">=",x)
     {
       "collectionGroup": "subscribers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriptionState", "order": "ASCENDING" },
-        { "fieldPath": "updatedAt",         "order": "ASCENDING" }
+        {
+          "fieldPath": "subscriptionState",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "ASCENDING"
+        }
       ]
     },
-
-    // ─── teams ────────────────────────────────────────────────────────────
-    // teamsService.getActive():
-    //   where("active","==",true) + where("deleted","!=",true)
-    // Firestore requires a composite index when mixing equality + inequality
-    // on different fields. The "!=" filter implicitly orders by "deleted".
     {
       "collectionGroup": "teams",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "active",  "order": "ASCENDING" },
-        { "fieldPath": "deleted", "order": "ASCENDING" }
+        {
+          "fieldPath": "active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        }
       ]
     },
-
-    // ─── notifications ────────────────────────────────────────────────────
-    // Dedup check in notification.service.ts:
-    //   where("type","==",x) + where("archived","==",false)
-    //   + where("createdAt",">",twelveHoursAgo) + limit(1)
     {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type",      "order": "ASCENDING" },
-        { "fieldPath": "archived",  "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-
-    // ─── activityLogs ─────────────────────────────────────────────────────
-    // activityLog.service.ts — getByEmployee, getByTeam, getByType
-    {
-      "collectionGroup": "activityLogs",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "employeeId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "activityLogs",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "teamId",    "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activityLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type",      "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "employeeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-
-    // ─── subscriberAssignments ────────────────────────────────────────────
-    // assignment.service.ts — getHistoryBySubscriberId, getHistoryByEmployee
+    {
+      "collectionGroup": "activityLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "teamId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "activityLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
     {
       "collectionGroup": "subscriberAssignments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "subscriberId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt",    "order": "DESCENDING" }
+        {
+          "fieldPath": "subscriberId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "subscriberAssignments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "transferredBy", "order": "ASCENDING" },
-        { "fieldPath": "createdAt",     "order": "DESCENDING" }
+        {
+          "fieldPath": "transferredBy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-
-    // ─── whatsappLeads ────────────────────────────────────────────────────
-    // Main listing: excludeDeleted() + orderBy(lastMessageAt desc)
     {
       "collectionGroup": "whatsappLeads",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",       "order": "ASCENDING"  },
-        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastMessageAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Date-range listing: where(deleted==false) + range on lastMessageAt
     {
       "collectionGroup": "whatsappLeads",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",       "order": "ASCENDING"  },
-        { "fieldPath": "lastMessageAt", "order": "ASCENDING"  }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastMessageAt",
+          "order": "ASCENDING"
+        }
       ]
     },
-    // Status filter: where(deleted==false) + where(status) + orderBy(lastMessageAt)
     {
       "collectionGroup": "whatsappLeads",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",       "order": "ASCENDING"  },
-        { "fieldPath": "status",        "order": "ASCENDING"  },
-        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastMessageAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Country filter
     {
       "collectionGroup": "whatsappLeads",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",       "order": "ASCENDING"  },
-        { "fieldPath": "country",       "order": "ASCENDING"  },
-        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "country",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastMessageAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Assignment filter
     {
       "collectionGroup": "whatsappLeads",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",       "order": "ASCENDING"  },
-        { "fieldPath": "assignedTo",    "order": "ASCENDING"  },
-        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "assignedTo",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastMessageAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Conversation status filter
     {
       "collectionGroup": "whatsappLeads",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",             "order": "ASCENDING"  },
-        { "fieldPath": "conversationStatus",  "order": "ASCENDING"  },
-        { "fieldPath": "lastMessageAt",       "order": "DESCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "conversationStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastMessageAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Conversation history lookup by phone
     {
       "collectionGroup": "whatsappLeads",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",   "order": "ASCENDING"  },
-        { "fieldPath": "phone",     "order": "ASCENDING"  },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "phone",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
-    // Monthly analytics: date range on lastMessageAt
     {
       "collectionGroup": "whatsappLeads",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",       "order": "ASCENDING" },
-        { "fieldPath": "lastMessageAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastMessageAt",
+          "order": "ASCENDING"
+        }
       ]
     },
-
-    // ─── whatsappMessages ─────────────────────────────────────────────────
-    // Load messages for a lead: where(leadId) + where(deleted==false) + orderBy(timestamp)
     {
       "collectionGroup": "whatsappMessages",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "leadId",    "order": "ASCENDING" },
-        { "fieldPath": "deleted",   "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "ASCENDING" }
+        {
+          "fieldPath": "leadId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "ASCENDING"
+        }
       ]
     },
-
-    // ─── cannedResponses ──────────────────────────────────────────────────
     {
       "collectionGroup": "cannedResponses",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "deleted",   "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "deleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "ASCENDING"
+        }
       ]
     }
-
   ],
-
-  "fieldOverrides": [
-    // Disable the default single-field index on monthlyAnalytics.month
-    // because the document ID IS the month — no separate field index needed.
-    // Remove this override if you add a separate `month` field query.
-  ]
+  "fieldOverrides": []
 }

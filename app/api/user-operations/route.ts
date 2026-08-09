@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { hasServerPermission, verifyServerUser } from "@/lib/serverAuth";
 import { hasAdminCredentials } from "@/lib/serverFirestore";
@@ -29,6 +30,66 @@ type Body = {
   operation: Operation;
   payload?: Record<string, unknown>;
 };
+
+// ── Body validation ───────────────────────────────────────────────────────────
+//
+// This endpoint writes to users/ with the Admin SDK, which bypasses
+// firestore.rules entirely — so this schema is the only thing standing between
+// the request body and the user documents.
+//
+// The gap it closes: `newRole` and `newStatus` were read with
+// asString(...) as Role / as AccountStatus, i.e. an unchecked cast. canAssignRole()
+// returns true for *any* value when the actor is an owner, so a typo or a
+// crafted request could persist role: "superadmin" or status: "banana".
+// firestore.rules grants nothing to unknown roles, so the account would silently
+// lose all access rather than gain any — corruption, not escalation, but it had
+// no guard at all.
+//
+// The payload object is intentionally loose: each operation reads a different
+// set of keys, and a strict schema would silently strip fields the handlers
+// need. Only the values that must belong to a closed set are constrained.
+
+const ROLES            = ["owner", "admin", "employee"] as const;
+const ACCOUNT_STATUSES = ["active", "suspended", "disabled", "pending"] as const;
+const EMPLOYEE_ROLES   = ["sales", "followup", "team_leader", "admin", "owner"] as const;
+const DEPARTMENTS      = ["مبيعات", "متابعة", "إدارة", "أخرى"] as const;
+
+const payloadSchema = z.looseObject({
+  targetUid:  z.string().min(1).max(128).optional(),
+  uid:        z.string().min(1).max(128).optional(),
+
+  newRole:    z.enum(ROLES).optional(),
+  targetRole: z.enum(ROLES).optional(),
+  newStatus:  z.enum(ACCOUNT_STATUSES).optional(),
+
+  employeeRole: z.enum(EMPLOYEE_ROLES).optional(),
+  department:   z.enum(DEPARTMENTS).optional(),
+
+  // Empty string is allowed so saveEmployee keeps returning its own
+  // "Missing employee email" domain error instead of a generic 422.
+  email: z.union([z.literal(""), z.string().trim().email().max(254)]).optional(),
+
+  active: z.boolean().optional(),
+  reason: z.string().max(500).optional(),
+  notes:  z.string().max(2000).optional(),
+
+  // GranularPermissions is a two-level map of booleans.
+  permissions: z.record(z.string(), z.record(z.string(), z.boolean())).optional(),
+});
+
+const bodySchema = z.object({
+  operation: z.enum([
+    "setStatus",
+    "setRole",
+    "setGranularPermissions",
+    "resetPermissions",
+    "updateProfile",
+    "saveEmployee",
+    "toggleEmployee",
+    "demoteEmployee",
+  ]),
+  payload: payloadSchema.optional(),
+});
 
 type ServerUser = NonNullable<Awaited<ReturnType<typeof verifyServerUser>>>;
 
@@ -144,13 +205,19 @@ export async function POST(request: Request): Promise<NextResponse> {
     return jsonError("Admin credentials غير مفعّلة على السيرفر", 503);
   }
 
-  let body: Body;
+  let raw: unknown;
   try {
-    body = (await request.json()) as Body;
+    raw = await request.json();
   } catch {
     return jsonError("Invalid JSON body", 400);
   }
 
+  const parsed = bodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return jsonError("Validation error", 422);
+  }
+
+  const body    = parsed.data as Body;
   const payload = asRecord(body.payload);
 
   try {

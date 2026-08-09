@@ -1,10 +1,41 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { emailService } from "@/services/email.service";
 import { hasServerPermission, verifyServerUser } from "@/lib/serverAuth";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import type { SendEmailRequest, EmailResult } from "@/types/email";
 
 export const runtime = "nodejs";
+
+/**
+ * Body schema.
+ *
+ * `to` is the field that matters most: without validation any string reached
+ * the mail provider, so a malformed or attacker-supplied value could be used to
+ * send mail to arbitrary addresses. Recipients are capped so this endpoint
+ * cannot be turned into a bulk mailer.
+ *
+ * `data` stays a loose object on purpose — each email type has its own shape and
+ * the service layer already narrows it. Validating the union here would add
+ * eight schemas that must be kept in sync with types/email.ts for no security
+ * gain.
+ */
+const emailAddress = z.string().trim().email().max(254);
+
+const bodySchema = z.object({
+  type: z.enum([
+    "subscription_expiring",
+    "renewal_success",
+    "refund_created",
+    "withdrawal_notice",
+    "freeze_notification",
+    "security_alert",
+    "failed_login",
+    "account_suspended",
+  ]),
+  to: z.union([emailAddress, z.array(emailAddress).min(1).max(50)]),
+  data: z.record(z.string(), z.unknown()),
+});
 
 /**
  * POST /api/send-email
@@ -56,9 +87,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   // ── Parse body ───────────────────────────────────────────────────────────────
-  let body: SendEmailRequest;
+  let raw: unknown;
   try {
-    body = (await request.json()) as SendEmailRequest;
+    raw = await request.json();
   } catch {
     return NextResponse.json(
       { success: false, error: "Invalid JSON body" },
@@ -66,14 +97,22 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { type, to, data } = body;
-
-  if (!type || !to || !data) {
+  const parsed = bodySchema.safeParse(raw);
+  if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "Missing required fields: type, to, data" },
-      { status: 400 }
+      { success: false, error: "Validation error" },
+      { status: 422 }
     );
   }
+
+  const { type, to } = parsed.data;
+
+  // The schema guarantees `data` is an object; its per-email-type shape is
+  // narrowed by the switch below. Going through `unknown` is deliberate — a
+  // direct cast from Record<string, unknown> to the union is not a valid
+  // narrowing, and the previous code reached the same place implicitly by
+  // casting the raw `any` from request.json().
+  const data = parsed.data.data as unknown as SendEmailRequest["data"];
 
   // ── Dispatch ─────────────────────────────────────────────────────────────────
   let result: EmailResult;

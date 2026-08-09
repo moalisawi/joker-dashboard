@@ -1,9 +1,10 @@
 import {
-  collection, addDoc, updateDoc, doc,
-  serverTimestamp, query, where, getDocs,
+  collection, updateDoc, doc,
+  query, where, getDocs,
   orderBy, limit, Timestamp, arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firestore";
+import { auth } from "@/lib/auth";
 import type {
   AppNotification,
   NotificationCategory,
@@ -135,34 +136,38 @@ interface CreateParams {
   targetUserIds?: string[];
 }
 
+/**
+ * Creates a notification through /api/notifications/create.
+ *
+ * firestore.rules only permits `create` on notifications for staff, so writing
+ * with addDoc() from here dropped every notification raised by an employee —
+ * silently, because the rejection landed in the catch below. The route writes
+ * with the Admin SDK and derives the performer from the verified token.
+ *
+ * markAsRead / archiveNotification still write from the client: the rules allow
+ * any active user to touch readBy and archived.
+ */
 async function create(params: CreateParams): Promise<void> {
   try {
-    const expiresAt = params.expiresInDays
-      ? Timestamp.fromMillis(Date.now() + params.expiresInDays * 86_400_000)
-      : null;
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw new Error("Not authenticated");
 
-    await addDoc(collection(db, "notifications"), {
-      type:         params.type,
-      category:     params.category,
-      severity:     params.severity,
-      title:        params.title,
-      description:  params.description,
-      targetMinRole: params.targetMinRole,
-      targetUserIds: params.targetUserIds ?? null,
-      actionUrl:    params.actionUrl ?? null,
-      entityType:   params.entityType  ?? null,
-      entityId:     params.entityId    ?? null,
-      entityName:   params.entityName  ?? null,
-      performedBy:  params.performedBy ?? null,
-      financialData: params.financialData ?? null,
-      metadata:     params.metadata    ?? {},
-      readBy:       [],
-      archived:     false,
-      expiresAt,
-      createdAt:    serverTimestamp(),
+    const response = await fetch("/api/notifications/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(params),
     });
+
+    if (!response.ok) {
+      throw new Error(`notifications/create responded ${response.status}`);
+    }
   } catch (err) {
-    console.warn("[notification] create failed:", err);
+    // Contained so a failed notification never breaks the action that raised
+    // it, but logged at error level so monitoring picks it up.
+    console.error("[notification] create failed:", err);
   }
 }
 

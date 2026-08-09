@@ -153,8 +153,22 @@ export function canManageRole(actorRole: Role, targetRole: Role): boolean {
   return false;
 }
 
-/** Returns true if actor can assign the given role */
+/** Returns true when the value is one of the three roles the system recognises. */
+export function isKnownRole(value: unknown): value is Role {
+  return value === "owner" || value === "admin" || value === "employee";
+}
+
+/**
+ * Returns true if actor can assign the given role.
+ *
+ * `assignRole` is checked against the known set at runtime, not just by its TS
+ * type: this value arrives from a request body, and the owner branch used to
+ * return true for anything. Persisting an unrecognised role does not grant
+ * access — firestore.rules only matches owner/admin/employee — but it silently
+ * strips the account of every permission, which is worse than a rejection.
+ */
 export function canAssignRole(actorRole: Role, assignRole: Role): boolean {
+  if (!isKnownRole(assignRole)) return false;
   if (actorRole === "owner") return true;
   if (actorRole === "admin" && assignRole === "employee") return true;
   return false;
