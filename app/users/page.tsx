@@ -12,6 +12,7 @@ import {
   canAssignRole,
   getDefaultGranularPermissions,
 } from "@/lib/permissions";
+import { canReadUserDirectory } from "@/lib/permissionGuards";
 import { PERMISSION_LABELS } from "@/types";
 import { formatDateTime } from "@/lib/utils";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
@@ -258,7 +259,22 @@ export default function UsersPage() {
   const [savingName, setSavingName] = useState<string | null>(null);
 
   const isOwner = user?.role === "owner";
-  const canManage = can("canManageUsers") || user?.role === "admin";
+
+  // Reading and mutating are two different permissions, and each mirrors a
+  // different authority:
+  //
+  //  • canView   → firestore.rules `match /users` allows reads for self or
+  //                staff, so any admin may browse the directory.
+  //  • canManage → every mutation goes through /api/user-operations, which
+  //                gates on hasServerPermission(user, "users", "manage").
+  //                That function subjects admins to their granular permissions
+  //                (only the owner is unconditional), and the admin default has
+  //                users.manage = false.
+  //
+  // They used to be one flag with a `|| role === "admin"` escape hatch, which
+  // showed every admin a set of controls the API then answered with 403.
+  const canView   = canReadUserDirectory(user);
+  const canManage = canView && can("canManageUsers");
 
   // Close status dropdown when clicking anywhere outside it
   useEffect(() => {
@@ -273,7 +289,9 @@ export default function UsersPage() {
   }, [openStatusMenu]);
 
   useEffect(() => {
-    if (!canManage) { setLoading(false); return; }
+    // Reading the directory needs staff level only — the same condition
+    // firestore.rules applies to /users reads.
+    if (!canView) { setLoading(false); return; }
     const unsub = onSnapshot(collection(db, "users"), (snap) => {
       const data = snap.docs
         .map((d) => ({ uid: d.id, ...d.data() } as UserProfile))
@@ -290,7 +308,7 @@ export default function UsersPage() {
       setLoading(false);
     });
     return () => unsub();
-  }, [canManage]);
+  }, [canView]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -359,7 +377,7 @@ export default function UsersPage() {
     }
   }
 
-  if (!canManage) {
+  if (!canView) {
     return (
       <ProtectedLayout>
         <div className="p-5 md:p-7 max-w-5xl mx-auto">
@@ -476,7 +494,10 @@ export default function UsersPage() {
                 {filtered.map((u) => {
                   const isSelf    = u.uid === user?.uid;
                   const isTarget  = u.role === "owner" && user?.role !== "owner";
-                  const canEdit   = !isSelf && !isTarget && canManageRole(user?.role ?? "employee", u.role);
+                  // canManage is the gate the API enforces (users.manage);
+                  // canManageRole is the hierarchy check on this specific row.
+                  const canEdit   = canManage && !isSelf && !isTarget
+                                    && canManageRole(user?.role ?? "employee", u.role);
                   const uStatus   = u.status ?? (u.active ? "active" : "disabled");
                   const nameVal   = nameEdits[u.uid] ?? u.name ?? "";
                   const nameChanged = nameVal !== (u.name ?? "");

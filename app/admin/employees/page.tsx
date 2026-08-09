@@ -28,7 +28,7 @@ import {
   type GranularPermissionsInput,
 } from "@/features/users/schemas";
 import { getDefaultGranularPermissions, canManageRole } from "@/lib/permissions";
-import { canManageUsers, canManagePermissions }         from "@/lib/permissionGuards";
+import { canManageUsers, canManagePermissions, canReadUserDirectory } from "@/lib/permissionGuards";
 import { COLLECTIONS } from "@/constants/collections";
 import { PERM }         from "@/constants/permissions";
 import { callUserOperation } from "@/lib/clientUserOperations";
@@ -471,7 +471,13 @@ export default function AdminEmployeesPage() {
   // ── Route guard ───────────────────────────────────────────────────────────────
   const { loading } = useAuthStore();
   useEffect(() => {
-    if (!loading && user && !canManageUsers(user)) router.replace("/");
+    // This page lists the user directory, which firestore.rules restricts to
+    // staff (`match /users` → read if self or isStaff). users.manage alone is
+    // not enough: an employee granted it would load the page and then have
+    // every directory query denied.
+    if (!loading && user && !(canManageUsers(user) && canReadUserDirectory(user))) {
+      router.replace("/");
+    }
   }, [user, loading, router]);
 
   // ── Data ──────────────────────────────────────────────────────────────────────
@@ -491,7 +497,7 @@ export default function AdminEmployeesPage() {
   const [teamFilter, setTeamFilter]     = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">("");
 
-  const canEdit  = canManageUsers(user);
+  const canEdit  = canManageUsers(user) && canReadUserDirectory(user);
   const canPerms = canManagePermissions(user);
   const isOwner  = user?.role === "owner";
 

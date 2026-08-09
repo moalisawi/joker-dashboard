@@ -11,7 +11,6 @@ import PageHeader       from "@/components/layout/PageHeader";
 import ConfirmDialog    from "@/components/ui/ConfirmDialog";
 import EmptyState       from "@/components/ui/EmptyState";
 import TableSkeleton    from "@/components/ui/TableSkeleton";
-import RequirePermission from "@/components/auth/RequirePermission";
 
 import { useAuthStore }    from "@/store/authStore";
 import { useTeams, useCreateTeam, useDeactivateTeam, useActivateTeam, useDeleteTeam, useUpdateTeam } from "@/hooks/useTeams";
@@ -19,8 +18,7 @@ import { useEmployeeList } from "@/features/users/hooks";
 import { useSubscribers }  from "@/hooks/useSubscribers";
 import { createTeamSchema, type CreateTeamInput } from "@/features/users/schemas";
 import { z }               from "zod";
-import { canManageUsers }  from "@/lib/permissionGuards";
-import { PERM }            from "@/constants/permissions";
+import { canManageTeams, canDeleteTeams } from "@/lib/permissionGuards";
 import { auditService }    from "@/services/audit.service";
 import type { Team }       from "@/types";
 import {
@@ -329,7 +327,11 @@ export default function AdminTeamsPage() {
   const { user } = useAuthStore();
   const { loading } = useAuthStore();
   useEffect(() => {
-    if (!loading && user && !canManageUsers(user)) router.replace("/");
+    // Gate on the same condition firestore.rules uses for team writes
+    // (`allow create, update: if isOwner()`). Gating on canManageUsers let an
+    // owner delegate users.manage and hand someone a page whose every save
+    // would be rejected.
+    if (!loading && user && !canManageTeams(user)) router.replace("/");
   }, [user, loading, router]);
 
   const { data: teams = [],    isLoading } = useTeams();
@@ -345,8 +347,8 @@ export default function AdminTeamsPage() {
   const [confirmActivate,setConfirmActivate] = useState<Team | null>(null);
   const [confirmDelete,  setConfirmDelete] = useState<Team | null>(null);
   const [teamOrder,      setTeamOrder]     = useState<string[]>([]);
-  const canEdit  = canManageUsers(user);
-  const isOwner  = user?.role === "owner";
+  const canEdit  = canManageTeams(user);
+  const isOwner  = canDeleteTeams(user);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -435,13 +437,13 @@ export default function AdminTeamsPage() {
             title="الفرق"
             subtitle={`${stats.total} فريق · ${stats.active} نشط`}
             actions={
-              <RequirePermission permission={PERM.MANAGE_USERS}>
+              canEdit && (
                 <button onClick={() => setShowCreate(true)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-bold text-sm shadow transition-all hover:opacity-90"
                   style={{ background:"linear-gradient(135deg,#3B82F6,#5B5FEF)" }}>
                   <Plus size={16}/> إنشاء فريق
                 </button>
-              </RequirePermission>
+              )
             }
           />
 

@@ -56,10 +56,33 @@ export function calculateExpiry(startDate: string, days: number): string {
   return start.toISOString().split("T")[0];
 }
 
+/**
+ * Whole days from today until `expiryDate` (YYYY-MM-DD). 0 on the expiry day,
+ * negative once past.
+ *
+ * Both sides must be compared in the same frame. `new Date("2026-06-10")` is
+ * parsed as *UTC* midnight while `today` is *local* midnight, so the two differ
+ * by the UTC offset — which pushed every countdown a day out in any timezone
+ * ahead of UTC (Palestine, Egypt, Jordan among them): a subscription expiring
+ * today read as "1 day left", and an expired one sat at "ينتهي قريباً" for an
+ * extra day instead of flipping to "منتهي". The date is therefore built from its
+ * parts as a local calendar date.
+ *
+ * Math.round rather than ceil: DST changes make some local days 23 or 25 hours
+ * long, and rounding keeps those days counting as one.
+ */
 export function getDaysRemaining(expiryDate: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return Math.ceil((new Date(expiryDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  const [year, month, day] = String(expiryDate).split("-").map(Number);
+  const expiry =
+    Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)
+      ? new Date(year, month - 1, day)
+      : new Date(expiryDate);
+  expiry.setHours(0, 0, 0, 0);
+
+  return Math.round((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 export function getComputedStatus(s: {
