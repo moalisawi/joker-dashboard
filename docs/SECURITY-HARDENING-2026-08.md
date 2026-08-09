@@ -217,11 +217,22 @@ Zod على `send-email` (صيغة كل مستلم + سقف ٥٠) · `sessions/fa
 | البند | الحالة |
 |---|---|
 | تسجيل App Check | الكود جاهز — يحتاج مفتاح reCAPTCHA وقبول شروط. سجّله بوضع **المراقبة** أياماً قبل الفرض؛ الفرض قبل أن ترسل العملاء توكنات يحجب التطبيق عن بياناته |
-| اختبارات `subscriber-operations` | ١٠٨٢ سطر و٨ معاملات مالية بلا تغطية — أكبر مخاطرة متبقية. تحتاج استخراج الحسابات من الـ route |
 | `UPSTASH_*` | غير مضبوطة — الحد المعدّلي per-instance |
 | Sentry | `reportError` ينتظر DSN |
-| سجل اختباري | `failedLogins/AR2dQOUzWH9hEnrFl51P` بإيميل `test@example.com` — من التحقق، يمكن حذفه |
 | ٢١ مشتركاً بلا وسم | لن يحذفهم `clean:fake-subscribers` |
+| حسابات تجريبية | `asdcasc@wdf.com` (باسم «سسس») موظف **فعّال** له وصول حقيقي · و`profile`ان في `/users` بلا حساب Auth: `9eYJKe16pPeuu04RM2za7vPttpk2` و`uel0u65hLTTYlluZ7Cy7V7rO2Jc2` |
+| `todayString()` | يقرأ تاريخ **UTC**. الخادم على Vercel بـ UTC، فبين منتصف الليل و٢–٣ صباحاً بتوقيت مصر/فلسطين تُسجَّل العمليات بتاريخ **الأمس**. نافذة ضيقة لكنها تمسّ تواريخ الدفع والانتهاء — قرار عمل لا إصلاح تقني |
+
+### ٧. ما أُغلق في ٩ أغسطس ٢٠٢٦
+
+| البند | ما صار |
+|---|---|
+| اختبارات `subscriber-operations` | الحسابات استُخرجت إلى `lib/subscriberFinance.ts` (نقية، بلا Firestore) و`__tests__/lib/subscriberFinance.test.ts` يغطيها بـ٥٧ اختباراً. الإجمالي ٨٨ ← ١٤٥ |
+| خلل في حارس سعر الصرف | `Number(null)` و`Number("")` و`Number([])` كلها `0` وهو رقم منتهٍ، فالـ fallback في `asNumber(rate, 1)` **لا يعمل أبداً** والسعر يهبط إلى `0.000001` — أي دفعة بـ٥٠$ تُسجَّل ٥٠ مليون. غير قابل للاستغلال حالياً لأن Zod يرفض `null` قبل الوصول، لكن الحارس أُصلح في `normalizeExchangeRate` بدل الاعتماد على طبقة فوقه |
+| حساب التواريخ | `addDays`/`daysUsed`/`remainingDays` كانت تخلط `new Date("YYYY-MM-DD")` (منتصف ليل UTC) مع `setDate`/`getDate` (محلي) — صحيحة في UTC وخاطئة بيوم غربه. أُعيدت كحساب UTC خالص، والاختبارات تمر في أربع مناطق زمنية |
+| `unsafe-eval` في الإنتاج | كان يُشحن في `script-src` على الإنتاج، وهو تحديداً ما تمنعه سياسة CSP. صار مقصوراً على التطوير (يحتاجه React Refresh وحده)، وتُحقِّق منه صفحة إنتاج حقيقية بلا أخطاء كونسول |
+| `images.domains` | محذوف في Next 16 وكان يحمل `cdn.example.com` — استُبدل بـ`remotePatterns` لنطاقات Firebase Storage |
+| السجل الاختباري | `failedLogins/AR2dQOUzWH9hEnrFl51P` حُذف |
 
 ### تنبيه للتحقق
 

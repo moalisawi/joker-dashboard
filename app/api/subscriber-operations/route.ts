@@ -4,6 +4,19 @@ import { hasServerPermission, verifyServerUser } from "@/lib/serverAuth";
 import { hasAdminCredentials } from "@/lib/serverFirestore";
 import { createServerNotification } from "@/lib/serverNotification";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import {
+  asNumber,
+  asString,
+  computePaymentUpdate,
+  computeRenewalTotals,
+  computeResumeExpiry,
+  computeWithdrawalRefund,
+  daysUsed,
+  elapsedDaysSince,
+  normalizeExchangeRate,
+  remainingDays,
+  resolveRenewalWindow,
+} from "@/lib/subscriberFinance";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -158,8 +171,6 @@ type OperationBody = {
 
 type ServerUser = Awaited<ReturnType<typeof verifyServerUser>>;
 
-const DAY_MS = 1000 * 60 * 60 * 24;
-
 function jsonError(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status });
 }
@@ -168,15 +179,6 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown, fallback = 0): number {
-  const number = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(number) ? number : fallback;
 }
 
 function todayString() {
@@ -204,20 +206,6 @@ function pickWritableFields(raw: Record<string, unknown>): Record<string, unknow
   return Object.fromEntries(
     Object.entries(raw).filter(([k]) => SUBSCRIBER_WRITABLE_FIELDS.has(k))
   );
-}
-
-function addDays(date: string, days: number) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
-}
-
-function daysUsed(startDate: string, toDate = todayString()) {
-  return Math.max(0, Math.floor((new Date(toDate).getTime() - new Date(startDate).getTime()) / DAY_MS));
-}
-
-function remainingDays(expiryDate: string, fromDate = todayString()) {
-  return Math.max(0, Math.ceil((new Date(expiryDate).getTime() - new Date(fromDate).getTime()) / DAY_MS));
 }
 
 function actorName(user: NonNullable<ServerUser>) {
@@ -389,7 +377,10 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
   const subscriber = asRecord(payload.subscriber);
   const initialPayment = asRecord(payload.initialPayment);
   const amountOriginal = asNumber(initialPayment.amountOriginal);
-  const exchangeRate = Math.max(asNumber(initialPayment.exchangeRate, asNumber(subscriber.lockedRate, 1)), 0.000001);
+  const exchangeRate = normalizeExchangeRate(
+    initialPayment.exchangeRate,
+    normalizeExchangeRate(subscriber.lockedRate)
+  );
   const amountUSD = amountOriginal / exchangeRate;
   const subRef = db.collection("subscribers").doc();
   const paymentRef = db.collection("payments").doc();
@@ -544,7 +535,7 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
   if (!subscriberId) throw new Error("Missing subscriberId");
   const amountOriginal = asNumber(payload.amountOriginal);
   if (amountOriginal <= 0) throw new Error("Payment amount must be greater than zero");
-  const exchangeRate = Math.max(asNumber(payload.exchangeRate, 1), 0.000001);
+  const exchangeRate = normalizeExchangeRate(payload.exchangeRate);
   const amountUSD = amountOriginal / exchangeRate;
   const subRef = db.collection("subscribers").doc(subscriberId);
   const paymentRef = db.collection("payments").doc();
@@ -561,18 +552,19 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
     subscriberName = asString(current.name, subscriberId);
     prevPaidUSD = asNumber(current.paidAmountUSD);
     prevRemainingUSD = asNumber(current.remainingAmountUSD);
-    const paidAmountUSD = prevPaidUSD + amountUSD;
-    const totalPriceUSD = asNumber(current.totalPriceUSD);
-    const refundAmountUSD = asNumber(current.refundAmountUSD);
-    const lockedRate = asNumber(current.lockedRate, 1);
 
-    if (totalPriceUSD > 0 && paidAmountUSD > totalPriceUSD + 0.01) {
-      throw new Error(
-        `المبلغ يتجاوز الإجمالي — المدفوع: $${paidAmountUSD.toFixed(2)}, الإجمالي: $${totalPriceUSD.toFixed(2)}`
-      );
-    }
-
-    const remainingAmountUSD = Math.max(0, totalPriceUSD - paidAmountUSD);
+    // Balance maths lives in lib/subscriberFinance so it can be unit tested
+    // without Firestore. Throws on an overpayment beyond the rounding tolerance.
+    const balance = computePaymentUpdate({
+      amountOriginal,
+      exchangeRate,
+      current: {
+        paidAmountUSD: prevPaidUSD,
+        totalPriceUSD: asNumber(current.totalPriceUSD),
+        refundAmountUSD: asNumber(current.refundAmountUSD),
+        lockedRate: asNumber(current.lockedRate, 1),
+      },
+    });
 
     const pmId = asString(payload.paymentMethodId);
     const subConvincedByUid = asString(current.convincedByUid);
@@ -595,15 +587,15 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
       createdBy: user.uid,
     });
 
-    newPaidUSD = paidAmountUSD;
-    newRemainingUSD = remainingAmountUSD;
+    newPaidUSD = balance.paidAmountUSD;
+    newRemainingUSD = balance.remainingAmountUSD;
 
     tx.update(subRef, {
-      paidAmountUSD,
-      paidAmount: paidAmountUSD * lockedRate,
-      remainingAmountUSD,
-      remainingAmount: remainingAmountUSD * lockedRate,
-      netAmountUSD: Math.max(0, paidAmountUSD - refundAmountUSD),
+      paidAmountUSD: balance.paidAmountUSD,
+      paidAmount: balance.paidAmount,
+      remainingAmountUSD: balance.remainingAmountUSD,
+      remainingAmount: balance.remainingAmount,
+      netAmountUSD: balance.netAmountUSD,
       updatedBy: user.uid,
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -637,13 +629,13 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
 
   const duration = asNumber(payload.duration, 30);
   const currency = asString(payload.currency, "USD");
-  const totalPrice = asNumber(payload.totalPrice);
-  const exchangeRate = Math.max(asNumber(payload.exchangeRate, 1), 0.000001);
-  const totalPriceUSD = totalPrice / exchangeRate;
-  const paidAmount = payload.paidAmount == null ? totalPrice : asNumber(payload.paidAmount);
-  const paidUSD = paidAmount / exchangeRate;
-  const remaining = Math.max(0, totalPrice - paidAmount);
-  const remainingUSD = remaining / exchangeRate;
+  const exchangeRate = normalizeExchangeRate(payload.exchangeRate);
+  const { totalPrice, totalPriceUSD, paidAmount, paidUSD, remaining, remainingUSD, netAmountUSD } =
+    computeRenewalTotals({
+      totalPrice: asNumber(payload.totalPrice),
+      paidAmount: payload.paidAmount as number | null | undefined,
+      exchangeRate,
+    });
   const renewalDate = asString(payload.renewalDate, todayString());
   const subRef = db.collection("subscribers").doc(subscriberId);
   const paymentRef = db.collection("payments").doc();
@@ -672,9 +664,14 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
       renewalCount:       asNumber(current.renewalCount),
     };
     const isWithdrawn = asString(current.subscriptionState) === "withdrawn";
-    const oldExpiryDate = asString(current.expiryDate, renewalDate);
-    const startDate = !isWithdrawn && remainingDays(oldExpiryDate, renewalDate) > 0 ? oldExpiryDate : renewalDate;
-    const endDate = addDays(startDate, duration);
+    // Renewing early appends the new term to the current expiry so the unused
+    // tail of the running cycle is not thrown away.
+    const { startDate, endDate } = resolveRenewalWindow({
+      subscriptionState: asString(current.subscriptionState),
+      currentExpiryDate: asString(current.expiryDate, renewalDate),
+      renewalDate,
+      duration,
+    });
     renewalNumber = asNumber(current.renewalCount) + 1;
 
     // Snapshot of the subscription state BEFORE this renewal
@@ -717,7 +714,7 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
       paidAmountUSD: paidUSD,
       remainingAmount: remaining,
       remainingAmountUSD: remainingUSD,
-      netAmountUSD: Math.max(0, paidUSD),
+      netAmountUSD,
       refundAmount: 0,
       refundAmountUSD: 0,
       payment: asString(payload.paymentMethod, asString(current.payment)),
@@ -797,13 +794,13 @@ async function withdrawSubscriber(user: NonNullable<ServerUser>, payload: Record
 
   const refundAmount = asNumber(payload.refundAmount);
   const refundCurrency = asString(payload.refundCurrency, "USD");
-  const exchangeRate = Math.max(asNumber(payload.exchangeRate, 1), 0.000001);
-  const refundAmountUSD = refundAmount > 0 ? refundAmount / exchangeRate : 0;
-  const hasRefund = refundAmountUSD > 0;
+  const exchangeRate = normalizeExchangeRate(payload.exchangeRate);
   const subRef = db.collection("subscribers").doc(subscriberId);
   const refundRef = db.collection("refunds").doc();
   let subscriberName = "";
   let prevState: Record<string, unknown> = {};
+  let refundAmountUSD = 0;
+  let hasRefund = false;
 
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(subRef);
@@ -822,7 +819,17 @@ async function withdrawSubscriber(user: NonNullable<ServerUser>, payload: Record
       netAmountUSD: asNumber(current.netAmountUSD),
       expiryDate: current.expiryDate,
     };
-    const newRefundAmountUSD = previousRefundUSD + refundAmountUSD;
+
+    // Refunds accumulate across withdrawals, and net revenue floors at zero so
+    // a refund larger than everything paid cannot report negative revenue.
+    const refund = computeWithdrawalRefund({
+      refundAmount,
+      exchangeRate,
+      previousRefundUSD,
+      paidAmountUSD: asNumber(current.paidAmountUSD),
+    });
+    refundAmountUSD = refund.refundAmountUSD;
+    hasRefund = refund.hasRefund;
 
     if (hasRefund) {
       tx.set(refundRef, {
@@ -868,8 +875,8 @@ async function withdrawSubscriber(user: NonNullable<ServerUser>, payload: Record
       },
       withdrawalReason: reason,
       withdrawnAt: today,
-      refundAmountUSD: newRefundAmountUSD,
-      netAmountUSD: Math.max(0, asNumber(current.paidAmountUSD) - newRefundAmountUSD),
+      refundAmountUSD: refund.newRefundAmountUSD,
+      netAmountUSD: refund.netAmountUSD,
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: user.uid,
     });
@@ -905,7 +912,8 @@ async function pauseSubscription(user: NonNullable<ServerUser>, payload: Record<
     if (!snap.exists) throw new Error("Subscriber not found");
     const current = snap.data() ?? {};
     subscriberName = asString(current.name, subscriberId);
-    const remaining = Math.max(0, asNumber(current.daysRemaining, remainingDays(asString(current.expiryDate, todayString()))));
+    const today = todayString();
+    const remaining = Math.max(0, asNumber(current.daysRemaining, remainingDays(asString(current.expiryDate, today), today)));
     tx.update(subRef, {
       subscriptionStatus: "paused",
       status: "موقوف",
@@ -952,7 +960,8 @@ async function freezeSubscription(user: NonNullable<ServerUser>, payload: Record
       throw new Error("لا يمكن تجميد اشتراك منسحب");
     if (asString(current.subscriptionStatus) === "paused")
       throw new Error("يجب استئناف الاشتراك الموقوف قبل التجميد");
-    preservedDays = remainingDays(asString(current.expiryDate, todayString()));
+    const today = todayString();
+    preservedDays = remainingDays(asString(current.expiryDate, today), today);
     tx.update(subRef, {
       freezeData: {
         isFrozen: true,
@@ -1001,9 +1010,11 @@ async function resumePausedSubscription(user: NonNullable<ServerUser>, payload: 
     const current = snap.data() ?? {};
     subscriberName = asString(current.name, subscriberId);
     preservedDays = asNumber(current.remainingDaysAtPause);
-    newExpiryDate = addDays(todayString(), preservedDays);
+    // Days left when the subscription stopped are granted again from today, so
+    // time spent paused is not billed.
+    newExpiryDate = computeResumeExpiry(preservedDays, todayString());
     const pausedAt = current.pausedAt instanceof Timestamp ? current.pausedAt.toDate() : null;
-    pausedDays = pausedAt ? Math.ceil((Date.now() - pausedAt.getTime()) / DAY_MS) : 0;
+    pausedDays = elapsedDaysSince(pausedAt ? pausedAt.getTime() : null, Date.now());
     totalPausedDays = asNumber(current.totalPausedDays) + pausedDays;
 
     tx.update(subRef, {
@@ -1050,9 +1061,9 @@ async function resumeSubscription(user: NonNullable<ServerUser>, payload: Record
     const freezeData = asRecord(current.freezeData);
     if (freezeData.isFrozen !== true) throw new Error("Subscription is not frozen");
     preservedDays = asNumber(freezeData.remainingDays);
-    newExpiryDate = addDays(todayString(), preservedDays);
+    newExpiryDate = computeResumeExpiry(preservedDays, todayString());
     const frozenAt = freezeData.frozenAt instanceof Timestamp ? freezeData.frozenAt.toDate() : null;
-    frozenDays = frozenAt ? Math.ceil((Date.now() - frozenAt.getTime()) / DAY_MS) : 0;
+    frozenDays = elapsedDaysSince(frozenAt ? frozenAt.getTime() : null, Date.now());
 
     tx.update(subRef, {
       freezeData: {
