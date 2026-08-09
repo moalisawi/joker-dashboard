@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/auth";
+import { isFirebaseMisconfigured } from "@/lib/firebase";
 import { logFailedLogin } from "@/lib/sessionLogger";
 import { useAuthStore } from "@/store/authStore";
 
@@ -23,6 +24,14 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
 
+  // Say so up front rather than after the user has typed a password that was
+  // never going to be checked against anything.
+  useEffect(() => {
+    if (isFirebaseMisconfigured) {
+      setError("النظام غير مهيّأ بشكل صحيح على الخادم — تواصل مع المسؤول. (إعدادات Firebase ناقصة)");
+    }
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -33,12 +42,26 @@ export default function LoginPage() {
       const msg  = err instanceof Error ? err.message : "فشل تسجيل الدخول، تحقق من البيانات";
       const code = (err as { code?: string }).code ?? msg;
 
+      // Configuration failures were falling through to the generic branch, so a
+      // deploy built without NEXT_PUBLIC_FIREBASE_* looked to the user exactly
+      // like a mistyped password. It is not something they can fix by retrying,
+      // and the message should not pretend otherwise.
+      const isConfigFailure =
+        msg.includes("api-key-not-valid") ||
+        msg.includes("invalid-api-key") ||
+        msg.includes("configuration-not-found") ||
+        msg.includes("operation-not-allowed") ||
+        msg.includes("unauthorized-domain") ||
+        msg.includes("project-not-found");
+
       if (msg.includes("user-not-found") || msg.includes("wrong-password") || msg.includes("invalid-credential")) {
         setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
       } else if (msg.includes("too-many-requests")) {
         setError("تم تعليق الحساب مؤقتاً بسبب محاولات متعددة، حاول لاحقاً");
       } else if (msg.includes("network") || msg.includes("fetch")) {
         setError("خطأ في الاتصال بالشبكة، يرجى المحاولة مرة أخرى");
+      } else if (isConfigFailure) {
+        setError("النظام غير مهيّأ بشكل صحيح على الخادم — تواصل مع المسؤول. (إعدادات Firebase ناقصة)");
       } else {
         setError("حدث خطأ غير متوقع، يرجى المحاولة مرة أخرى");
       }

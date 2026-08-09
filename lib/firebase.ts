@@ -1,9 +1,19 @@
 import * as firebaseApp from "firebase/app";
 
-// Fallback values allow the build to succeed without Firebase credentials.
-// Set real NEXT_PUBLIC_FIREBASE_* values in .env.local for dev/production.
+// Fallback values allow `next build` to succeed without Firebase credentials,
+// which CI needs — it builds with no secrets. Set the real NEXT_PUBLIC_FIREBASE_*
+// values in .env.local for dev and in the Vercel project for production.
+//
+// NEXT_PUBLIC_* variables are inlined at build time, so a build that ran without
+// them bakes these placeholders into the browser bundle permanently. That is not
+// a hypothetical: it shipped to production once and every login failed with
+// `auth/api-key-not-valid`, which the login page did not recognise and reported
+// as a generic "unexpected error". The guard below turns that silent failure
+// into a loud one — see PLACEHOLDER_API_KEY.
+const PLACEHOLDER_API_KEY = "AIzaSyBuildPlaceholderKeyForCI0000000000";
+
 const firebaseConfig = {
-  apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY            ?? "AIzaSyBuildPlaceholderKeyForCI0000000000",
+  apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY            ?? PLACEHOLDER_API_KEY,
   authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN        ?? "build-placeholder.firebaseapp.com",
   projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID         ?? "build-placeholder",
   storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET     ?? "build-placeholder.appspot.com",
@@ -19,6 +29,26 @@ const firebaseConfig = {
 export const app = firebaseApp.getApps().length
   ? firebaseApp.getApp()
   : firebaseApp.initializeApp(firebaseConfig);
+
+/**
+ * True when the browser bundle was built without Firebase credentials.
+ *
+ * Nothing that talks to Firebase can work in this state — every call fails with
+ * `auth/api-key-not-valid`. Callers surface it as a configuration problem
+ * instead of letting it masquerade as a bad password. Checked in the browser
+ * only: a server render during CI legitimately has no client config.
+ */
+export const isFirebaseMisconfigured =
+  typeof window !== "undefined" && firebaseConfig.apiKey === PLACEHOLDER_API_KEY;
+
+if (isFirebaseMisconfigured) {
+  console.error(
+    "[firebase] This build has no NEXT_PUBLIC_FIREBASE_* configuration — it is " +
+      "running on CI placeholders, so sign-in and all data access will fail. " +
+      "Set the variables in the hosting project and redeploy; they are inlined " +
+      "at build time, so setting them without a rebuild changes nothing."
+  );
+}
 
 // ─── App Check ────────────────────────────────────────────────────────────────
 //
