@@ -1824,3 +1824,60 @@ p { color: inherit; }
 .panel-scroll::-webkit-scrollbar-track { background: transparent; }
 .panel-scroll::-webkit-scrollbar-thumb { background: rgba(107,114,128,0.16); border-radius: 99px; }
 
+/* ═══════════════════════════════════════════════════════════════════
+   STACKING TABLE
+   A data table that becomes a list of labelled cards on narrow screens,
+   instead of forcing a horizontal scroll. Each <td> supplies its field
+   name via data-label; the first cell is the card heading and needs no
+   label. Cells that already span the row (empty states, expanded
+   panels) opt out with .jk-stack-full.
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  .jk-stack-table thead { display: none; }
+
+  .jk-stack-table, .jk-stack-table tbody { display: block; }
+
+  .jk-stack-table tr {
+    display: block;
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 4px 0;
+    margin: 10px;
+    background: var(--surface);
+  }
+
+  .jk-stack-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 14px !important;
+    border: 0;
+    text-align: right;
+  }
+
+  .jk-stack-table td::before {
+    content: attr(data-label);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* First cell is the card heading — avatar, name, email, no field label. */
+  .jk-stack-table td:first-child {
+    justify-content: flex-start;
+    padding-bottom: 4px !important;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 4px;
+  }
+  .jk-stack-table td:first-child::before { content: none; }
+
+  /* The actions cell reads better full width than pinned to one side. */
+  .jk-stack-table td:last-child { justify-content: flex-end; }
+
+  .jk-stack-table td.jk-stack-full { display: block; }
+  .jk-stack-table td.jk-stack-full::before { content: none; }
+  .jk-stack-table tr:has(> td.jk-stack-full) { border: 0; margin: 0; padding: 0; }
+}
+

@@ -310,23 +310,37 @@ export default function UsersPage() {
     return () => unsub();
   }, [canView]);
 
+  // `/users` documents can outlive the Auth account they describe — deleting a
+  // user in the Firebase console does not touch Firestore. Those leftovers were
+  // being rendered as ordinary people, which is how the directory came to show
+  // two "حنان" and two "ميدو" and a third owner who cannot sign in.
+  //
+  // The client cannot query Firebase Auth, so it keys off the one field every
+  // real account must have: sign-in here is email + password, so a profile with
+  // no email address has no account behind it. `npm run audit:accounts` is the
+  // authoritative check and prints exactly which uids these are.
+  const [realUsers, ghostCount] = useMemo(() => {
+    const real = users.filter((u) => Boolean(u.email?.trim()));
+    return [real, users.length - real.length];
+  }, [users]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return users.filter(
+    return realUsers.filter(
       (u) =>
         (!q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)) &&
         (!roleFilter || u.role === roleFilter) &&
         (!statusFilter || (u.status ?? (u.active ? "active" : "disabled")) === statusFilter)
     );
-  }, [users, search, roleFilter, statusFilter]);
+  }, [realUsers, search, roleFilter, statusFilter]);
 
   const stats = useMemo(() => ({
-    total:     users.length,
-    owners:    users.filter((u) => u.role === "owner").length,
-    admins:    users.filter((u) => u.role === "admin").length,
-    employees: users.filter((u) => u.role === "employee").length,
-    active:    users.filter((u) => (u.status ?? (u.active ? "active" : "disabled")) === "active").length,
-  }), [users]);
+    total:     realUsers.length,
+    owners:    realUsers.filter((u) => u.role === "owner").length,
+    admins:    realUsers.filter((u) => u.role === "admin").length,
+    employees: realUsers.filter((u) => u.role === "employee").length,
+    active:    realUsers.filter((u) => (u.status ?? (u.active ? "active" : "disabled")) === "active").length,
+  }), [realUsers]);
 
   async function handleRoleChange(target: UserProfile, newRole: Role) {
     if (!user) return;
@@ -400,44 +414,57 @@ export default function UsersPage() {
           subtitle={`${stats.total} مستخدم · ${stats.active} نشط`}
         />
 
-        {/* Stats row */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+        {/* Stats — one strip rather than five equal cards. These are context for
+            the table below, not the subject of the page, and giving a permanent
+            "0 مديرون" the same weight as the table made the page read as empty. */}
+        <div
+          className="mb-5 flex divide-x divide-x-reverse overflow-hidden"
+          style={{
+            background: "var(--surface)", border: "1px solid var(--border-soft)",
+            borderRadius: 14, boxShadow: "var(--shadow-card)",
+            borderColor: "var(--border-soft)",
+          }}
+        >
           {[
-            { label: "الكل",     value: stats.total,     color: "var(--text-primary)" },
-            { label: "مالكون",   value: stats.owners,    color: "#5B5FEF" },
-            { label: "مديرون",   value: stats.admins,    color: "var(--jk-blue)" },
-            { label: "موظفون",   value: stats.employees, color: "var(--text-secondary)" },
-            { label: "نشطون",    value: stats.active,    color: "#5B5FEF" },
+            { label: "مالكون",  value: stats.owners,    color: "#5B5FEF" },
+            { label: "مديرون",  value: stats.admins,    color: "var(--jk-blue)" },
+            { label: "موظفون",  value: stats.employees, color: "var(--text-primary)" },
+            { label: "نشطون",   value: stats.active,    color: "#22C55E" },
           ].map((s) => (
-            <div key={s.label} style={{
-              background: "var(--surface)", border: "1px solid var(--border-soft)",
-              borderRadius: 12, padding: "12px", boxShadow: "var(--shadow-card)", textAlign: "center",
-            }}>
-              <p style={{ fontSize: 20, fontWeight: 900, color: s.color }}>{s.value}</p>
-              <p style={{ fontSize: 11.5, color: "var(--text-muted)" }}>{s.label}</p>
+            <div key={s.label} className="flex-1 px-4 py-3 text-center" style={{ borderColor: "var(--border-soft)" }}>
+              <p style={{ fontSize: 19, fontWeight: 800, color: s.color, lineHeight: 1.2 }}>{s.value}</p>
+              <p style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>{s.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Filters */}
-        <div className="mb-4 p-4 flex flex-wrap gap-3 items-center" style={{
-          background: "var(--surface)", border: "1px solid var(--border-soft)",
-          borderRadius: 16, boxShadow: "var(--shadow-card)",
-        }}>
-          <div className="relative flex-1 min-w-48">
-            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
+        {/* Filters. Widths are explicit because globals.css sizes every bare
+            `input` and `select` at width:100%/height:44px — the status filter
+            was taking a whole row on its own. */}
+        <div
+          className="mb-4 p-3 flex flex-wrap gap-2.5 items-center"
+          style={{
+            background: "var(--surface)", border: "1px solid var(--border-soft)",
+            borderRadius: 14, boxShadow: "var(--shadow-card)",
+          }}
+        >
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-muted)" }} />
             <input
               type="text"
               placeholder="بحث بالاسم أو الإيميل..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-xl pr-8 pl-3 py-2 text-sm focus:outline-none"
-              style={{ border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text-primary)", fontFamily: "inherit" }}
+              style={{
+                width: "100%", height: 38, borderRadius: 10,
+                padding: "0 34px 0 12px", fontSize: 13,
+                border: "1px solid var(--border-soft)", background: "var(--surface-2)",
+                color: "var(--text-primary)", fontFamily: "inherit",
+              }}
             />
           </div>
 
-          {/* Role filter tabs */}
-          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+          <div className="flex gap-1 rounded-[10px] p-1 shrink-0" style={{ background: "var(--surface-muted)" }}>
             {(["", "owner", "admin", "employee"] as const).map((r) => (
               <button
                 key={r}
@@ -456,7 +483,11 @@ export default function UsersPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as AccountStatus | "")}
-            className="form-input w-auto"
+            style={{
+              width: "auto", height: 38, borderRadius: 10, padding: "0 12px",
+              fontSize: 13, border: "1px solid var(--border-soft)",
+              background: "var(--surface)", color: "var(--text-primary)", flexShrink: 0,
+            }}
           >
             <option value="">كل الحالات</option>
             <option value="active">نشط</option>
@@ -465,28 +496,42 @@ export default function UsersPage() {
             <option value="pending">معلق التفعيل</option>
           </select>
 
-          <span className="text-xs text-slate-400">{filtered.length} من {users.length}</span>
+          <span className="text-xs mr-auto shrink-0" style={{ color: "var(--text-muted)" }}>
+            {filtered.length === realUsers.length
+              ? `${realUsers.length} مستخدم`
+              : `${filtered.length} من ${realUsers.length}`}
+          </span>
         </div>
 
         {/* Users table */}
         {loading ? (
           <div className="text-center py-20 text-slate-400">جاري التحميل...</div>
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
+          <div
+            className="overflow-hidden"
+            style={{
+              background: "var(--surface)", border: "1px solid var(--border-soft)",
+              borderRadius: 16, boxShadow: "var(--shadow-card)",
+            }}
+          >
+            {/* jk-stack-table restacks each row as a labelled card under 768px,
+                so the five columns do not force a horizontal scroll on a phone.
+                The rule lives in globals.css; the data-label on each cell is
+                what it reads for the field name. */}
+            <table className="w-full text-sm jk-stack-table">
               <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs font-semibold">
+                <tr className="text-xs font-semibold" style={{ background: "var(--surface-2)", color: "var(--text-muted)" }}>
                   <th className="px-4 py-3 text-right">المستخدم</th>
                   <th className="px-4 py-3 text-right">الدور</th>
                   <th className="px-4 py-3 text-right">الحالة</th>
                   <th className="px-4 py-3 text-right">آخر دخول</th>
-                  <th className="px-4 py-3 text-right">إجراءات</th>
+                  <th className="px-4 py-3 text-left">إجراءات</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
+                    <td colSpan={5} className="px-4 py-12 text-center jk-stack-full" style={{ color: "var(--text-muted)" }}>
                       لا توجد نتائج
                     </td>
                   </tr>
@@ -510,60 +555,91 @@ export default function UsersPage() {
                           <div className="flex items-center gap-3">
                             <UserAvatar name={u.name || "?"} role={u.role} />
                             <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  value={nameVal}
-                                  onChange={(e) =>
-                                    setNameEdits((prev) => ({ ...prev, [u.uid]: e.target.value }))
-                                  }
-                                  onKeyDown={(e) => e.key === "Enter" && handleSaveName(u)}
-                                  className="font-semibold text-slate-800 text-sm bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-400 focus:outline-none transition w-40"
-                                />
-                                {nameChanged && (
-                                  <button
-                                    onClick={() => handleSaveName(u)}
-                                    disabled={savingName === u.uid}
-                                    className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-lg hover:bg-blue-700 disabled:opacity-60 transition"
-                                  >
-                                    {savingName === u.uid ? "..." : "حفظ"}
-                                  </button>
-                                )}
-                              </div>
-                              <p className="text-xs text-slate-400 truncate max-w-48" dir="ltr">
+                              {/* The name was an <input> for everyone, including
+                                  viewers the API answers with 403. globals.css
+                                  sizes every bare input at 44px with a border, so
+                                  it also made each name look like a form field.
+                                  It is text unless this viewer may actually edit. */}
+                              {canEdit ? (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    value={nameVal}
+                                    onChange={(e) =>
+                                      setNameEdits((prev) => ({ ...prev, [u.uid]: e.target.value }))
+                                    }
+                                    onKeyDown={(e) => e.key === "Enter" && handleSaveName(u)}
+                                    aria-label={`اسم ${u.name}`}
+                                    style={{
+                                      width: 160, height: 28, padding: "0 6px", fontSize: 13.5,
+                                      fontWeight: 600, borderRadius: 7, background: "transparent",
+                                      border: "1px solid transparent", color: "var(--text-primary)",
+                                      fontFamily: "inherit",
+                                    }}
+                                    className="hover:!border-slate-200 focus:!border-indigo-400 focus:!bg-white transition"
+                                  />
+                                  {nameChanged && (
+                                    <button
+                                      onClick={() => handleSaveName(u)}
+                                      disabled={savingName === u.uid}
+                                      className="jk-btn sm"
+                                      style={{ height: 26, padding: "0 10px", fontSize: 11.5 }}
+                                    >
+                                      {savingName === u.uid ? "..." : "حفظ"}
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="font-semibold text-sm truncate" style={{ color: "var(--text-primary)" }}>
+                                  {u.name || "—"}
+                                </p>
+                              )}
+                              <p className="text-xs truncate max-w-[190px]" dir="ltr" style={{ color: "var(--text-muted)" }}>
                                 {u.email}
                               </p>
-                              {isSelf && (
-                                <span className="text-[10px] text-blue-500 font-semibold">أنت</span>
-                              )}
                             </div>
-                          </div>
-                        </td>
-
-                        {/* Role */}
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <RoleBadge role={u.role} />
-                            {canEdit && isOwner && (
-                              <select
-                                value={u.role}
-                                onChange={(e) => handleRoleChange(u, e.target.value as Role)}
-                                className="text-xs border border-slate-200 rounded-lg px-1.5 py-0.5 text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            {isSelf && (
+                              <span
+                                className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                                style={{ background: "#EEF0FF", color: "#5B5FEF" }}
                               >
-                                {(["owner", "admin", "employee"] as Role[])
-                                  .filter((r) => canAssignRole(user?.role ?? "employee", r))
-                                  .map((r) => (
-                                    <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                                  ))}
-                              </select>
+                                أنت
+                              </span>
                             )}
                           </div>
                         </td>
 
-                        {/* Status */}
-                        <td className="px-4 py-3">
+                        {/* Role — one control, not a badge beside a select
+                            showing the same value. */}
+                        <td className="px-4 py-3" data-label="الدور">
+                          {canEdit && isOwner ? (
+                            <select
+                              value={u.role}
+                              onChange={(e) => handleRoleChange(u, e.target.value as Role)}
+                              aria-label={`دور ${u.name}`}
+                              className={`role-${u.role}`}
+                              style={{
+                                width: "auto", height: 28, padding: "0 10px",
+                                fontSize: 12, fontWeight: 600, cursor: "pointer",
+                              }}
+                            >
+                              {(["owner", "admin", "employee"] as Role[])
+                                .filter((r) => canAssignRole(user?.role ?? "employee", r))
+                                .map((r) => (
+                                  <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                                ))}
+                            </select>
+                          ) : (
+                            <RoleBadge role={u.role} />
+                          )}
+                        </td>
+
+                        {/* Status — the badge is the trigger, so there is no
+                            separate chevron duplicating it. */}
+                        <td className="px-4 py-3" data-label="الحالة">
                           <div className="flex items-center gap-2">
-                            <StatusBadge status={u.status} />
-                            {canEdit && (
+                            {!canEdit ? (
+                              <StatusBadge status={u.status} />
+                            ) : (
                               <div
                                 className="relative"
                                 ref={openStatusMenu === u.uid ? statusMenuRef : null}
@@ -572,13 +648,11 @@ export default function UsersPage() {
                                   onClick={() =>
                                     setOpenStatusMenu((prev) => (prev === u.uid ? null : u.uid))
                                   }
-                                  className={`p-1 rounded-lg transition ${
-                                    openStatusMenu === u.uid
-                                      ? "bg-slate-200 text-slate-700"
-                                      : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                                  }`}
+                                  aria-label={`تغيير حالة ${u.name}`}
+                                  className="flex items-center gap-1 rounded-full transition hover:opacity-80"
                                 >
-                                  <ChevronDown size={14} />
+                                  <StatusBadge status={u.status} />
+                                  <ChevronDown size={13} style={{ color: "var(--text-muted)" }} />
                                 </button>
 
                                 {openStatusMenu === u.uid && (
@@ -608,35 +682,34 @@ export default function UsersPage() {
                         </td>
 
                         {/* Last login */}
-                        <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">
-                          {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : "—"}
+                        <td className="px-4 py-3 text-xs whitespace-nowrap" data-label="آخر دخول" style={{ color: "var(--text-muted)" }}>
+                          {u.lastLoginAt ? formatDateTime(u.lastLoginAt) : "لم يسجّل دخولاً"}
                         </td>
 
                         {/* Actions */}
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() =>
-                                setExpandedPerms((p) => (p === u.uid ? null : u.uid))
-                              }
-                              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition ${
-                                expandedPerms === u.uid
-                                  ? "bg-blue-100 text-blue-700"
-                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                              }`}
-                              title="عرض / تعديل الصلاحيات"
-                            >
-                              <Shield size={12} />
-                              {expandedPerms === u.uid ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                            </button>
-                          </div>
+                        <td className="px-4 py-3 text-left">
+                          <button
+                            onClick={() =>
+                              setExpandedPerms((p) => (p === u.uid ? null : u.uid))
+                            }
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                              expandedPerms === u.uid
+                                ? "bg-indigo-50 text-indigo-700"
+                                : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                            }`}
+                            title="عرض / تعديل الصلاحيات"
+                          >
+                            <Shield size={13} />
+                            <span>الصلاحيات</span>
+                            {expandedPerms === u.uid ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                          </button>
                         </td>
                       </tr>
 
                       {/* Permissions panel */}
                       {expandedPerms === u.uid && (
                         <tr>
-                          <td colSpan={5} className="px-4 pb-4">
+                          <td colSpan={5} className="px-4 pb-4 jk-stack-full">
                             <PermissionsEditor
                               targetUser={u}
                               actor={user!}
@@ -651,6 +724,17 @@ export default function UsersPage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* Hiding rows silently would be its own bug — say what was dropped. */}
+        {!loading && ghostCount > 0 && (
+          <p className="mt-3 text-xs flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+            <AlertTriangle size={13} style={{ color: "var(--jk-paused)" }} />
+            {ghostCount === 1
+              ? "سجل واحد مخفي: ملف تعريف بلا حساب دخول."
+              : `${ghostCount} سجلات مخفية: ملفات تعريف بلا حساب دخول.`}
+            <span style={{ opacity: 0.75 }}>شغّل <code>npm run audit:accounts</code> لعرضها.</span>
+          </p>
         )}
       </div>
 
