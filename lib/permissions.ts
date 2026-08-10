@@ -49,11 +49,31 @@ export function hasPermission(role: Role | undefined, name: keyof Permissions): 
   return Boolean(PERMISSIONS[role]?.[name]);
 }
 
-// ─── Granular permission defaults per role ─────────────────────────────────────
+// ─── The ceiling ───────────────────────────────────────────────────────────────
+//
+// Two independent things were being called a "role":
+//
+//   role     — authority: who may manage whom (owner / admin / employee)
+//   jobRole  — occupation: what the person does (sales / followup / team_leader)
+//
+// Each had its own permission table and nothing said which one won. The tables
+// disagreed, so a sales employee — the default for every new hire — could delete
+// subscribers and refund payments while an admin could not. Whether a user got
+// the job table or the role table depended on whether their document happened to
+// carry `granularPermissions`.
+//
+// ROLE_CEILING settles it. It is the maximum any account at that authority level
+// may hold, whatever their job preset or per-user overrides say. Effective
+// permissions are the *intersection* of the ceiling with the grant, so a preset
+// asking for more than the ceiling allows cannot raise anyone: the inversion is
+// impossible by construction rather than by discipline.
+//
+// A ceiling is not a grant. JOB_PRESET decides what a person actually starts
+// with; the ceiling only decides what they may never exceed.
 
-export const DEFAULT_GRANULAR_PERMISSIONS: Record<Role, GranularPermissions> = {
+export const ROLE_CEILING: Record<Role, GranularPermissions> = {
   owner: {
-    subscribers:   { view: true,  create: true,  edit: true,  delete: true  },
+    subscribers:   { view: true,  create: true,  edit: true,   delete: true  },
     subscriptions: { renew: true, freeze: true,  resume: true, withdraw: true },
     payments:      { create: true, edit: true,   refund: true  },
     analytics:     { view: true,  export: true   },
@@ -61,15 +81,91 @@ export const DEFAULT_GRANULAR_PERMISSIONS: Record<Role, GranularPermissions> = {
     users:         { manage: true, changeRoles: true, activateAccounts: true },
     settings:      { manage: true  },
   },
+
+  // Full operational authority. Creating accounts and changing roles stay with
+  // the owner; suspending or reactivating an existing account does not, since
+  // that is day-to-day supervision rather than granting authority.
   admin: {
-    subscribers:   { view: true,  create: true,  edit: true,  delete: false },
+    subscribers:   { view: true,  create: true,  edit: true,   delete: true  },
     subscriptions: { renew: true, freeze: true,  resume: true, withdraw: true },
     payments:      { create: true, edit: true,   refund: true  },
-    analytics:     { view: true,  export: false  },
+    analytics:     { view: true,  export: true   },
     logs:          { view: true   },
     users:         { manage: false, changeRoles: false, activateAccounts: true },
+    settings:      { manage: true  },
+  },
+
+  // The three irreversible money actions — deleting a subscriber, refunding a
+  // payment, withdrawing a subscription — are manager-level and above. Everything
+  // else stays open at the ceiling so job presets can still differentiate:
+  // a team leader reads analytics, a follow-up agent freezes, a salesperson does
+  // neither, and none of them can be granted past this line.
+  employee: {
+    subscribers:   { view: true,  create: true,  edit: true,   delete: false },
+    subscriptions: { renew: true, freeze: true,  resume: true, withdraw: false },
+    payments:      { create: true, edit: true,   refund: false },
+    analytics:     { view: true,  export: true   },
+    logs:          { view: true   },
+    users:         { manage: false, changeRoles: false, activateAccounts: false },
     settings:      { manage: false },
   },
+};
+
+type PermissionMap = Record<string, Record<string, boolean>>;
+
+/**
+ * Both true wins. Any action the ceiling withholds is withheld, whatever the
+ * grant claims; any action the grant does not ask for stays off.
+ */
+export function intersectPermissions(
+  ceiling: GranularPermissions,
+  grant: GranularPermissions
+): GranularPermissions {
+  const c = ceiling as unknown as PermissionMap;
+  const g = grant as unknown as PermissionMap;
+  const out: PermissionMap = {};
+
+  for (const category of Object.keys(c)) {
+    out[category] = {};
+    for (const action of Object.keys(c[category])) {
+      out[category][action] = c[category][action] === true && g?.[category]?.[action] === true;
+    }
+  }
+  return out as unknown as GranularPermissions;
+}
+
+/**
+ * What this account may actually do — the single answer, for the client, the
+ * server, and anything else that asks.
+ *
+ * Grant order: an explicit per-user override, else the preset for their job,
+ * else the role's own defaults. Whichever it is, the ceiling clamps it.
+ */
+export function effectivePermissions(user: {
+  role: Role;
+  employeeRole?: EmployeeRole | null;
+  granularPermissions?: GranularPermissions | null;
+}): GranularPermissions {
+  const ceiling = ROLE_CEILING[user.role] ?? ROLE_CEILING.employee;
+  const grant =
+    user.granularPermissions ??
+    (user.employeeRole ? EMPLOYEE_ROLE_PERMISSIONS[user.employeeRole] : undefined) ??
+    DEFAULT_GRANULAR_PERMISSIONS[user.role] ??
+    DEFAULT_GRANULAR_PERMISSIONS.employee;
+
+  return intersectPermissions(ceiling, grant);
+}
+
+// ─── Granular permission defaults per role ─────────────────────────────────────
+
+export const DEFAULT_GRANULAR_PERMISSIONS: Record<Role, GranularPermissions> = {
+  // Owner and admin start at their ceiling. Keeping a separate, weaker default
+  // for admin is what left a manager below their own staff even after the
+  // ceiling was introduced: the admin default withheld subscribers.delete and
+  // analytics.export, both of which the team_leader and sales presets grant.
+  // An admin who needs less than the ceiling gets a per-user override.
+  owner: ROLE_CEILING.owner,
+  admin: ROLE_CEILING.admin,
   employee: {
     subscribers:   { view: true,  create: true,  edit: true,  delete: false },
     subscriptions: { renew: true, freeze: false, resume: false, withdraw: false },
@@ -93,9 +189,12 @@ export function canDoGranular(
   role: Role,
   granularPermissions: GranularPermissions | undefined,
   category: keyof GranularPermissions,
-  action: string
+  action: string,
+  employeeRole?: EmployeeRole | null
 ): boolean {
-  const gp = granularPermissions ?? DEFAULT_GRANULAR_PERMISSIONS[role];
+  // Routed through effectivePermissions so the role ceiling applies here too.
+  // Reading the stored grant directly was how a preset could out-grant the role.
+  const gp = effectivePermissions({ role, employeeRole, granularPermissions });
   return Boolean((gp as unknown as Record<string, Record<string, boolean>>)[category]?.[action]);
 }
 
@@ -188,10 +287,14 @@ export const EMPLOYEE_ROLE_PERMISSIONS: Record<EmployeeRole, GranularPermissions
     users:         { manage: false, changeRoles: false, activateAccounts: false },
     settings:      { manage: false },
   },
+  // This preset used to grant delete, refund and withdraw, and it is the default
+  // for every employee created through the UI — so the standard new hire outranked
+  // an admin. ROLE_CEILING.employee would clamp those away regardless; they are
+  // removed here too so the preset states what it actually confers.
   sales: {
-    subscribers:   { view: true,  create: true,  edit: true,  delete: true  },
-    subscriptions: { renew: true, freeze: true,  resume: true, withdraw: true },
-    payments:      { create: true, edit: true,   refund: true  },
+    subscribers:   { view: true,  create: true,  edit: true,  delete: false },
+    subscriptions: { renew: true, freeze: true,  resume: true, withdraw: false },
+    payments:      { create: true, edit: true,   refund: false },
     analytics:     { view: true,  export: true   },
     logs:          { view: true   },
     users:         { manage: false, changeRoles: false, activateAccounts: false },

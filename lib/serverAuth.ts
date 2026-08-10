@@ -1,9 +1,9 @@
 import { getApps, initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
-import type { Role } from "@/types";
+import type { Role, EmployeeRole, GranularPermissions } from "@/types";
 import { hasAdminCredentials, fsGet } from "@/lib/serverFirestore";
-import { DEFAULT_GRANULAR_PERMISSIONS } from "@/lib/permissions";
+import { effectivePermissions } from "@/lib/permissions";
 
 type UserDocument = {
   role?: Role;
@@ -72,10 +72,17 @@ export function hasServerPermission(
   // Admins are subject to their configured granular permissions so that
   // per-admin restrictions (e.g. no refunds) are actually enforced.
   if (user.role === "owner") return true;
-  // Fall back to role defaults if the user doc has no granularPermissions yet
-  // (e.g. accounts created before the granular permission system was introduced).
-  const gp = (user.granularPermissions ?? DEFAULT_GRANULAR_PERMISSIONS[user.role]) as
-    Record<string, Record<string, boolean>> | undefined;
+  // effectivePermissions applies ROLE_CEILING and falls back to the job preset,
+  // then role defaults, for accounts predating granular permissions. Reading
+  // user.granularPermissions directly let a job preset grant past the role —
+  // a sales employee could delete subscribers and refund payments.
+  const gp = effectivePermissions({
+    role: user.role,
+    employeeRole: (user as { employeeRole?: EmployeeRole | null }).employeeRole,
+    // The document type models this loosely (it is whatever Firestore holds);
+    // effectivePermissions reads it defensively and clamps it either way.
+    granularPermissions: user.granularPermissions as unknown as GranularPermissions | undefined,
+  }) as unknown as Record<string, Record<string, boolean>>;
   return gp?.[category]?.[action] === true;
 }
 

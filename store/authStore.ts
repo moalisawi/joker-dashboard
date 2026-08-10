@@ -4,9 +4,9 @@ import type { GranularPermissions } from "@/types";
 import { DEFAULT_RATES } from "@/lib/currency";
 import {
   getPermissions,
-  hasPermission,
   granularToFlat,
   canDoGranular,
+  effectivePermissions,
   getDefaultGranularPermissions,
 } from "@/lib/permissions";
 
@@ -44,29 +44,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setLoading:       (loading) => set({ loading }),
   setExchangeRates: (rates) => set({ exchangeRates: rates }),
 
+  // All three answer from effectivePermissions, which clamps the user's grant to
+  // ROLE_CEILING. These used to branch on whether the document carried
+  // granularPermissions and consult a different table in each case — so the same
+  // question got different answers depending on the shape of the record, and a
+  // job preset could grant past the role.
   permissions: () => {
     const user = get().user;
     if (!user) return getPermissions("employee");
-    if (user.granularPermissions) return granularToFlat(user.granularPermissions);
-    return getPermissions(user.role);
+    return granularToFlat(effectivePermissions(user));
   },
 
   can: (name) => {
     const user = get().user;
     if (!user) return false;
-
-    // Granular permissions take precedence when present
-    if (user.granularPermissions) {
-      return granularToFlat(user.granularPermissions)[name] ?? false;
-    }
-
-    return hasPermission(user.role, name);
+    return granularToFlat(effectivePermissions(user))[name] ?? false;
   },
 
   perm: (category, action) => {
     const user = get().user;
     if (!user) return false;
-    return canDoGranular(user.role, user.granularPermissions, category, action);
+    return canDoGranular(user.role, user.granularPermissions, category, action, user.employeeRole);
   },
 }));
 
