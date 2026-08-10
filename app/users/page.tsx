@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firestore";
+import { auth } from "@/lib/auth";
 import { useAuthStore } from "@/store/authStore";
 import { permissionService } from "@/services";
 import {
@@ -54,9 +55,28 @@ function RoleBadge({ role }: { role: Role }) {
 
 function StatusBadge({ status }: { status: AccountStatus | undefined }) {
   const s = status ?? "active";
-  return (
-    <span className={`status-user-${s}`}>{ACCOUNT_STATUS_LABELS[s] ?? s}</span>
-  );
+  // Widened deliberately: Firestore holds statuses AccountStatus does not model
+  // (soft-deleted rows carry "deleted"), and TypeScript would otherwise call the
+  // check below dead code.
+  const raw = s as string;
+  const label = ACCOUNT_STATUS_LABELS[s];
+  // Soft-deleted accounts carry status "deleted", which is not in AccountStatus:
+  // the label came back undefined and the class matched no rule, so the cell
+  // printed a bare unstyled "deleted" in English.
+  if (!label) {
+    return (
+      <span
+        style={{
+          background: "var(--surface-muted)", color: "var(--text-muted)",
+          border: "1px solid var(--border-soft)", borderRadius: 999,
+          padding: "4px 12px", fontSize: 12, fontWeight: 600,
+        }}
+      >
+        {raw === "deleted" ? "محذوف" : raw}
+      </span>
+    );
+  }
+  return <span className={`status-user-${s}`}>{label}</span>;
 }
 
 // ─── Permissions editor ──────────────────────────────────────────────────────
@@ -312,17 +332,43 @@ export default function UsersPage() {
 
   // `/users` documents can outlive the Auth account they describe — deleting a
   // user in the Firebase console does not touch Firestore. Those leftovers were
-  // being rendered as ordinary people, which is how the directory came to show
-  // two "حنان" and two "ميدو" and a third owner who cannot sign in.
+  // rendered as ordinary people, which is how the directory came to show two
+  // "حنان", two "ميدو", and a third owner who cannot sign in.
   //
-  // The client cannot query Firebase Auth, so it keys off the one field every
-  // real account must have: sign-in here is email + password, so a profile with
-  // no email address has no account behind it. `npm run audit:accounts` is the
-  // authoritative check and prints exactly which uids these are.
+  // Which ones are stale is not answerable from the document. No field is a
+  // reliable proxy: one live owner's profile has no `email`, another has no
+  // `createdAt`, and a first guess at filtering on `email` hid a real owner.
+  // The server enumerates Auth and returns the uids that actually exist.
+  //
+  // `null` means the check could not run (Admin credentials absent, request
+  // failed). In that case nothing is hidden — showing a stale row is a much
+  // smaller problem than hiding a real administrator.
+  const [authUids, setAuthUids] = useState<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (!canView) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) return;
+        const res = await fetch("/api/users/auth-uids", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const body = await res.json();
+        if (!cancelled && Array.isArray(body?.uids)) setAuthUids(new Set(body.uids));
+      } catch {
+        // Fail open — leave authUids null so no row is hidden.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [canView]);
+
   const [realUsers, ghostCount] = useMemo(() => {
-    const real = users.filter((u) => Boolean(u.email?.trim()));
+    if (!authUids) return [users, 0];
+    const real = users.filter((u) => authUids.has(u.uid));
     return [real, users.length - real.length];
-  }, [users]);
+  }, [users, authUids]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
