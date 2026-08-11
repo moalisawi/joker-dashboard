@@ -118,10 +118,21 @@ service cloud.firestore {
     }
 
     // ─── refunds ──────────────────────────────────────────────────────────
+    // Was: any authenticated user holding analytics.view OR payments.view could
+    // read every refund in the business — the whole refund ledger, including
+    // amounts and reasons for subscribers they have no connection to. Employee
+    // reads are now scoped the same way payments are.
+    //
+    // withdrawSubscriber denormalises convincedByUid onto new refunds. Refunds
+    // written before that stay staff-only, which is the safe direction to fail;
+    // run scripts/backfill-refund-convinced-by-uid.mjs to restore employee
+    // access to the historical ones.
     match /refunds/{id} {
-      allow read:          if isStaff()
-                           || (isAuth() && hasPerm('analytics', 'view'))
-                           || (isAuth() && hasPerm('payments', 'view'));
+      allow read:   if isStaff()
+                    || (isEmployee()
+                        && (hasPerm('analytics', 'view') || hasPerm('payments', 'view'))
+                        && resource.data.get('convincedByUid', null) != null
+                        && resource.data.get('convincedByUid', '') == request.auth.uid);
       allow create, update, delete: if false;
     }
 
@@ -156,9 +167,28 @@ service cloud.firestore {
     }
 
     // ─── subscriberNotes ─────────────────────────────────────────────────
+    // Was: any active user could read every note on every subscriber, which is
+    // the most sensitive free text in the system — health details, payment
+    // disputes, personal circumstances — while the subscriber records those
+    // notes describe were already scoped to the owning employee. The note was
+    // the way around the subscriber rule.
+    //
+    // Notes are always queried by subscriberId (subscriberNotes.service), so a
+    // denormalised convincedByUid scopes reads without changing any query. An
+    // employee may also always read a note they wrote.
+    //
+    // Creates now require the employee to stamp their own uid, so a note cannot
+    // be filed under someone else's name. Legacy notes carry no uid and are
+    // staff-only until backfilled.
     match /subscriberNotes/{id} {
-      allow read:   if isAnyActive();
-      allow create: if isAnyActive();
+      allow read:   if isStaff()
+                    || (isEmployee()
+                        && (resource.data.get('convincedByUid', '') == request.auth.uid
+                            || resource.data.get('authorId', '') == request.auth.uid));
+      allow create: if isStaff()
+                    || (isEmployee()
+                        && request.resource.data.get('authorId', '') == request.auth.uid
+                        && request.resource.data.get('convincedByUid', '') == request.auth.uid);
       allow update: if isAnyActive() && request.auth.uid == resource.data.authorId;
       allow delete: if false;
     }
@@ -189,8 +219,19 @@ service cloud.firestore {
     }
 
     // ─── subscriberAssignments — server-only writes (Admin SDK) ───────────
+    // Was readable by any active user. This is the transfer ledger: who took a
+    // subscriber from whom, when, and why. It reveals the whole book of business
+    // — every subscriber id and name, and the commercial relationships between
+    // staff — to people who cannot read the subscribers themselves.
+    //
+    // An employee sees only transfers they were a party to. Anything broader is
+    // a supervisor view.
     match /subscriberAssignments/{id} {
-      allow read:  if isAnyActive();
+      allow read:  if isStaff()
+                   || (isEmployee()
+                       && (resource.data.get('fromEmployeeId', '') == request.auth.uid
+                           || resource.data.get('toEmployeeId', '') == request.auth.uid
+                           || resource.data.get('transferredBy', '') == request.auth.uid));
       allow write: if false;
     }
 

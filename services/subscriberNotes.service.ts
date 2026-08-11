@@ -64,11 +64,20 @@ export const subscriberNotesService = {
     subscriberId: string,
     subscriberName: string,
     content: string,
-    noteType: NoteType
+    noteType: NoteType,
+    /** The subscriber's convincedByUid. Falls back to the author when unknown. */
+    subscriberConvincedByUid?: string
   ): Promise<string> {
     const ref = await addDoc(collection(db, COL), {
       subscriberId,
       subscriberName,
+      // Scopes the note to the employee who owns the subscriber, so
+      // firestore.rules can stop every active user reading every note. The
+      // rule requires an employee to stamp their own uid, so a note cannot be
+      // filed under a colleague. Staff stamp the subscriber's owner when known
+      // — otherwise their note would be invisible to the employee working the
+      // record.
+      convincedByUid: subscriberConvincedByUid || actor.uid,
       authorId:   actor.uid,
       authorName: actor.name,
       content:    content.trim(),
