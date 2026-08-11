@@ -381,7 +381,11 @@ export default function SubscriberWorkspacePage() {
               <AssignmentsTab subscriber={s}/>
             )}
             {tab === "notes" && (
-              <NotesPanel subscriberId={s.id} subscriberName={s.name}/>
+              <NotesPanel
+                subscriberId={s.id}
+                subscriberName={s.name}
+                subscriberConvincedByUid={s.convincedByUid ?? undefined}
+              />
             )}
             {tab === "payments" && (
               <PaymentsTab

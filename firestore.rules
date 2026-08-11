@@ -125,8 +125,8 @@ service cloud.firestore {
     //
     // withdrawSubscriber denormalises convincedByUid onto new refunds. Refunds
     // written before that stay staff-only, which is the safe direction to fail;
-    // run scripts/backfill-refund-convinced-by-uid.mjs to restore employee
-    // access to the historical ones.
+    // run scripts/backfill-row-level-uids.mjs to restore employee access to the
+    // historical ones.
     match /refunds/{id} {
       allow read:   if isStaff()
                     || (isEmployee()
@@ -189,7 +189,20 @@ service cloud.firestore {
                     || (isEmployee()
                         && request.resource.data.get('authorId', '') == request.auth.uid
                         && request.resource.data.get('convincedByUid', '') == request.auth.uid);
-      allow update: if isAnyActive() && request.auth.uid == resource.data.authorId;
+      // Update is the author's alone, and only over the fields an edit or a soft
+      // delete actually touches. Without the hasOnly() clause an author could
+      // rewrite authorId, subscriberId or convincedByUid on their own note —
+      // moving it onto another subscriber's timeline, or re-pointing the field
+      // the read rule above depends on. The note would then be readable by
+      // whoever they named, which defeats the scoping this rule set exists for.
+      //
+      // Mirrored by subscriberNotes.service: edit() writes content+updatedAt,
+      // delete() writes deleted+deletedAt+deletedBy+updatedAt. Widening one
+      // without the other is what rulesAlignment.test.ts is there to catch.
+      allow update: if isAnyActive()
+                    && request.auth.uid == resource.data.authorId
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['content', 'updatedAt', 'deleted', 'deletedAt', 'deletedBy']);
       allow delete: if false;
     }
 

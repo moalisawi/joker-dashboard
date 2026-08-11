@@ -85,12 +85,15 @@ function NoteItem({
 interface Props {
   subscriberId:   string;
   subscriberName: string;
+  /** The subscriber's convincedByUid — stamped on new notes so the employee who
+   *  owns the subscriber can read them. See subscriberNotes.service. */
+  subscriberConvincedByUid?: string;
 }
 
-export default function NotesPanel({ subscriberId, subscriberName }: Props) {
+export default function NotesPanel({ subscriberId, subscriberName, subscriberConvincedByUid }: Props) {
   const { user }           = useAuthStore();
   const { notes, loading } = useSubscriberNotesListener(subscriberId);
-  const addNote            = useAddNote(subscriberId, subscriberName);
+  const addNote            = useAddNote(subscriberId, subscriberName, subscriberConvincedByUid);
   const editNote           = useEditNote(subscriberId, subscriberName);
   const deleteNote         = useDeleteNote(subscriberId, subscriberName);
 

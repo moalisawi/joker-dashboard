@@ -19,10 +19,15 @@ type FormValues = z.infer<typeof schema>;
 interface Props {
   subscriberId:   string;
   subscriberName: string;
+  /** The subscriber's convincedByUid — stamped on the note so the employee who
+   *  owns the subscriber can read it. See subscriberNotes.service. */
+  subscriberConvincedByUid?: string;
   onSuccess?:     () => void;
 }
 
-export default function AddNoteForm({ subscriberId, subscriberName, onSuccess }: Props) {
+export default function AddNoteForm({
+  subscriberId, subscriberName, subscriberConvincedByUid, onSuccess,
+}: Props) {
   const addNote   = useAddNote();
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +42,7 @@ export default function AddNoteForm({ subscriberId, subscriberName, onSuccess }:
       await addNote.mutateAsync({
         subscriberId,
         subscriberName,
+        subscriberConvincedByUid,
         content:  data.content,
         noteType: data.noteType,
       });

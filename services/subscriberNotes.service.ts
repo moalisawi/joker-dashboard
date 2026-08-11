@@ -2,9 +2,20 @@
  * Subscriber Notes Service
  *
  * Notes live in the `subscriberNotes` collection (separate documents for
- * scalability and independent queries). Firestore rules allow any active
- * employee to read and create, but only the author can update their own note.
- * Deletion is soft-only (set deleted=true).
+ * scalability and independent queries).
+ *
+ * Firestore rules scope reads to the employee who owns the subscriber (via the
+ * denormalised `convincedByUid`) or the note's own author — they used to allow
+ * any active user to read every note, which made the note a way around the
+ * subscriber rule. Creates require an employee to stamp their own uid, so a
+ * note cannot be filed under a colleague.
+ *
+ * Updates are the author's alone and are restricted to the fields `edit` and
+ * `delete` below actually write: content, updatedAt, deleted, deletedAt,
+ * deletedBy. Adding a field here means widening the rule to match — see
+ * __tests__/lib/rulesAlignment.test.ts, which fails if the two drift.
+ *
+ * Deletion is soft-only (set deleted=true); hard delete is denied outright.
  */
 
 import {
@@ -72,12 +83,15 @@ export const subscriberNotesService = {
       subscriberId,
       subscriberName,
       // Scopes the note to the employee who owns the subscriber, so
-      // firestore.rules can stop every active user reading every note. The
-      // rule requires an employee to stamp their own uid, so a note cannot be
-      // filed under a colleague. Staff stamp the subscriber's owner when known
-      // — otherwise their note would be invisible to the employee working the
-      // record.
-      convincedByUid: subscriberConvincedByUid || actor.uid,
+      // firestore.rules can stop every active user reading every note.
+      //
+      // The subscriber's own convincedByUid is the value that matters: it is
+      // what the read rule matches, so a note stamped with anything else is
+      // invisible to the person working the record. Callers pass it down from
+      // the subscriber they are already displaying. The fallback to actor.uid
+      // covers legacy subscribers that never had an owner recorded — there the
+      // author is the only link available, and the note stays readable to them.
+      convincedByUid: subscriberConvincedByUid?.trim() || actor.uid,
       authorId:   actor.uid,
       authorName: actor.name,
       content:    content.trim(),

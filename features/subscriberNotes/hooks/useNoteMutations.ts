@@ -15,6 +15,9 @@ interface AddNoteVars {
   subscriberName: string;
   content:        string;
   noteType:       NoteType;
+  /** The subscriber's convincedByUid — what firestore.rules matches when
+   *  scoping note reads. See subscriberNotes.service for why it matters. */
+  subscriberConvincedByUid?: string;
 }
 
 export function useAddNote() {
@@ -22,9 +25,11 @@ export function useAddNote() {
   const user = useAuthStore((s) => s.user);
 
   return useMutation({
-    mutationFn: ({ subscriberId, subscriberName, content, noteType }: AddNoteVars) => {
+    mutationFn: ({ subscriberId, subscriberName, content, noteType, subscriberConvincedByUid }: AddNoteVars) => {
       if (!user) throw new Error("Not authenticated");
-      return subscriberNotesService.add(user, subscriberId, subscriberName, content, noteType);
+      return subscriberNotesService.add(
+        user, subscriberId, subscriberName, content, noteType, subscriberConvincedByUid
+      );
     },
     // Optimistic insert
     onMutate: async ({ subscriberId, subscriberName, content, noteType }) => {

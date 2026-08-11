@@ -24,11 +24,28 @@ export function useSubscriberNotesListener(subscriberId: string | undefined) {
   return { notes, loading };
 }
 
-export function useAddNote(subscriberId: string, subscriberName: string) {
+/**
+ * @param subscriberConvincedByUid the subscriber's own convincedByUid. It is
+ * what firestore.rules matches when scoping note reads, so a note stamped with
+ * anything else is invisible to the employee working the record. The caller has
+ * the subscriber on screen already; passing it avoids a second read.
+ */
+export function useAddNote(
+  subscriberId: string,
+  subscriberName: string,
+  subscriberConvincedByUid?: string
+) {
   const user = useAuthStore((s) => s.user);
   return useMutation({
     mutationFn: ({ content, noteType }: { content: string; noteType: NoteType }) =>
-      subscriberNotesService.add(user!, subscriberId, subscriberName, content, noteType),
+      subscriberNotesService.add(
+        user!,
+        subscriberId,
+        subscriberName,
+        content,
+        noteType,
+        subscriberConvincedByUid
+      ),
   });
 }
 

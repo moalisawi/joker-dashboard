@@ -9,6 +9,8 @@
  * If a rule in firestore.rules is widened, widen the guard and update the test
  * — that is the intended way for these to change.
  */
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   canManageTeams,
   canDeleteTeams,
@@ -108,5 +110,97 @@ describe('guards mirror firestore.rules', () => {
     it('holds it once an owner grants it', () => {
       expect(canManageUsers(withUsersManage('admin'))).toBe(true)
     })
+  })
+})
+
+/**
+ * subscriberNotes: the update rule and the service that writes it.
+ *
+ * The rule restricts an author to the fields an edit or a soft delete actually
+ * touches. Without that clause an author could rewrite subscriberId or
+ * convincedByUid on their own note — moving it onto someone else's timeline, or
+ * re-pointing the very field the read rule matches on, making the note readable
+ * by whoever they named.
+ *
+ * These read firestore.rules and subscriberNotes.service.ts as text rather than
+ * asserting a remembered copy of them, so widening one without the other fails
+ * here instead of in production.
+ */
+describe('subscriberNotes rule matches the service', () => {
+  const ROOT = resolve(__dirname, '..', '..')
+  const rules = readFileSync(resolve(ROOT, 'firestore.rules'), 'utf8')
+  const service = readFileSync(resolve(ROOT, 'services/subscriberNotes.service.ts'), 'utf8')
+
+  /** The subscriberNotes block, from its match line to the closing brace. */
+  const notesBlock = (() => {
+    const start = rules.indexOf('match /subscriberNotes/')
+    expect(start).toBeGreaterThan(-1)
+    return rules.slice(start, rules.indexOf('match /', start + 10))
+  })()
+
+  /** Field names inside the update rule's hasOnly([...]). */
+  const allowedUpdateFields = (() => {
+    const match = notesBlock.match(/hasOnly\(\[([^\]]*)\]\)/)
+    expect(match).not.toBeNull()
+    return (match![1].match(/'([^']+)'/g) ?? []).map((s) => s.replace(/'/g, ''))
+  })()
+
+  it('restricts updates to a closed set of fields', () => {
+    expect(allowedUpdateFields.length).toBeGreaterThan(0)
+  })
+
+  it.each(['authorId', 'subscriberId', 'subscriberName', 'convincedByUid', 'createdAt', 'noteType'])(
+    'does not let an author rewrite %s',
+    (field) => {
+      expect(allowedUpdateFields).not.toContain(field)
+    }
+  )
+
+  it('allows exactly what edit() and delete() write', () => {
+    // edit(): content + updatedAt. delete(): deleted, deletedAt, deletedBy, updatedAt.
+    expect(new Set(allowedUpdateFields)).toEqual(
+      new Set(['content', 'updatedAt', 'deleted', 'deletedAt', 'deletedBy'])
+    )
+  })
+
+  it('keeps update author-only', () => {
+    expect(notesBlock).toMatch(/allow update:[\s\S]*resource\.data\.authorId/)
+  })
+
+  it('denies hard delete — deletion is soft-only', () => {
+    expect(notesBlock).toMatch(/allow delete:\s*if false/)
+  })
+
+  it('scopes reads rather than allowing every active user', () => {
+    // The rule used to be `allow read: if isAnyActive()`, which made the note a
+    // way around the subscribers rule.
+    expect(notesBlock).not.toMatch(/allow read:\s*if isAnyActive\(\)/)
+    expect(notesBlock).toMatch(/convincedByUid/)
+  })
+
+  it('requires a creating employee to stamp their own uid', () => {
+    expect(notesBlock).toMatch(/allow create:[\s\S]*authorId[\s\S]*request\.auth\.uid/)
+  })
+
+  it('writes no field on update that the rule would reject', () => {
+    // Every `field: value` inside edit() and delete() must be permitted.
+    for (const fn of ['async edit(', 'async delete(']) {
+      const start = service.indexOf(fn)
+      expect(start).toBeGreaterThan(-1)
+      const body = service.slice(start, start + 600)
+      const updateCall = body.slice(body.indexOf('updateDoc('), body.indexOf('});'))
+      for (const [, field] of updateCall.matchAll(/^\s{4,}(\w+):/gm)) {
+        expect(allowedUpdateFields).toContain(field)
+      }
+    }
+  })
+
+  it('names the backfill script that actually exists', () => {
+    // The comment pointed at scripts/backfill-refund-convinced-by-uid.mjs,
+    // which was never written; the real one covers both collections.
+    const referenced = rules.match(/scripts\/[\w.-]+\.mjs/g) ?? []
+    for (const path of referenced) {
+      expect(existsSync(resolve(ROOT, path))).toBe(true)
+    }
   })
 })
