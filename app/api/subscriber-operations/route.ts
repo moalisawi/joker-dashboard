@@ -5,6 +5,11 @@ import { hasAdminCredentials } from "@/lib/serverFirestore";
 import { createServerNotification } from "@/lib/serverNotification";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import {
+  canMutateSubscriber,
+  type SubscriberAction,
+  type SubscriberLinkFields,
+} from "@/lib/serverSubscriberAccess";
+import {
   asNumber,
   asString,
   computePaymentUpdate,
@@ -294,6 +299,61 @@ function requirePermission(user: NonNullable<ServerUser>, operation: Operation) 
   return required ? hasServerPermission(user, required[0], required[1]) : false;
 }
 
+/**
+ * Which row-level action each operation represents.
+ *
+ * `requirePermission` above answers "may this person renew subscriptions?".
+ * This answers the separate question the route never asked: "may they renew
+ * *this* subscription?". Holding the capability is not the same as the
+ * capability reaching a colleague's record, and firestore.rules cannot help
+ * here — every write below goes through the Admin SDK, which bypasses rules.
+ *
+ * createSubscriber is absent deliberately: there is no existing record to own.
+ */
+const OPERATION_ACTIONS: Partial<Record<Operation, SubscriberAction>> = {
+  updateSubscriber:         "edit",
+  deleteSubscriber:         "delete",
+  addPayment:               "payment",
+  renewSubscription:        "renew",
+  withdrawSubscriber:       "withdraw",
+  pauseSubscription:        "pause",
+  resumePausedSubscription: "resume",
+  freezeSubscription:       "freeze",
+  resumeSubscription:       "resume",
+};
+
+/**
+ * Returns an error response when the actor may not touch this subscriber, or
+ * null to proceed.
+ *
+ * Costs one document read for employees; owner and admin short-circuit before
+ * it. The handler re-reads inside its transaction, so a concurrent reassignment
+ * between the two reads could in principle slip through — reassignment is
+ * itself gated by this module, and the window is a single round trip.
+ */
+async function denyIfNotOwned(
+  user: NonNullable<ServerUser>,
+  operation: Operation,
+  payload: Record<string, unknown>
+): Promise<NextResponse | null> {
+  const action = OPERATION_ACTIONS[operation];
+  if (!action) return null;
+  if (user.role === "owner" || user.role === "admin") return null;
+
+  const subscriberId = asString(payload.subscriberId);
+  if (!subscriberId) return jsonError("Missing subscriberId", 400);
+
+  const snap = await getFirestore().collection("subscribers").doc(subscriberId).get();
+  if (!snap.exists) return jsonError("Subscriber not found", 404);
+
+  const decision = canMutateSubscriber(
+    user,
+    snap.data() as SubscriberLinkFields,
+    action
+  );
+  return decision.allowed ? null : jsonError(decision.reason ?? "Forbidden", 403);
+}
+
 export async function POST(request: Request): Promise<NextResponse> {
   // Rate limit: 120 operations per IP per minute (generous for normal use,
   // blocks automated abuse / rapid-fire mutation loops).
@@ -337,6 +397,10 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const payload = schemaResult.data as Record<string, unknown>;
 
+  // Capability granted above; this checks it reaches this particular record.
+  const notOwned = await denyIfNotOwned(user, body.operation, payload);
+  if (notOwned) return notOwned;
+
   try {
     switch (body.operation) {
       case "createSubscriber":
@@ -365,6 +429,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[subscriber-operations] operation failed:", message);
+    // Authorization failures thrown from inside a handler carry their own status
+    // so they answer 403 rather than the 500 a bare throw would produce.
+    const status = (err as { status?: number })?.status;
+    if (status === 403) return jsonError(message, 403);
     // Expose domain-level validation errors (short, user-facing messages) to the client.
     // Suppress raw Firestore/internal error strings.
     const isSafeMessage = message.length < 200 && !/firestore|grpc|google|internal/i.test(message);
@@ -381,7 +449,6 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
     initialPayment.exchangeRate,
     normalizeExchangeRate(subscriber.lockedRate)
   );
-  const amountUSD = amountOriginal / exchangeRate;
   const subRef = db.collection("subscribers").doc();
   const paymentRef = db.collection("payments").doc();
 
@@ -397,7 +464,46 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
       .get();
     if (!empSnap.empty) convincedByUid = empSnap.docs[0].id;
   }
+
+  // An employee creates subscribers for themselves. Without this they could
+  // attribute a new record to a colleague — and, since convincedByUid is what
+  // row-level access reads, create a subscriber they then could not touch, or
+  // quietly move a sale onto someone else's numbers.
+  if (user.role !== "owner" && user.role !== "admin") {
+    if (convincedByUid && convincedByUid !== user.uid) {
+      const error = new Error("لا يمكنك إنشاء مشترك منسوب لموظف آخر") as Error & { status?: number };
+      error.status = 403;
+      throw error;
+    }
+    convincedByUid = user.uid;
+  }
+
   if (convincedByUid) safeSubscriber.convincedByUid = convincedByUid;
+
+  // The initial payment was written as a payments document but never applied to
+  // the subscriber's balance: the record was saved with paidAmountUSD 0 and
+  // remainingAmountUSD equal to the full price, so a subscriber who had just
+  // paid in full showed as owing everything. computePaymentUpdate is the same
+  // function addPayment uses, so the two paths now agree — including its
+  // overpayment guard, which this path had no equivalent of.
+  const totalPriceUSD = asNumber(safeSubscriber.totalPriceUSD);
+  const lockedRate = normalizeExchangeRate(safeSubscriber.lockedRate, exchangeRate);
+  const opening =
+    amountOriginal > 0
+      ? computePaymentUpdate({
+          amountOriginal,
+          exchangeRate,
+          current: { paidAmountUSD: 0, totalPriceUSD, refundAmountUSD: 0, lockedRate },
+        })
+      : {
+          amountUSD: 0,
+          paidAmountUSD: 0,
+          paidAmount: 0,
+          remainingAmountUSD: Math.max(0, totalPriceUSD),
+          remainingAmount: Math.max(0, totalPriceUSD) * lockedRate,
+          netAmountUSD: 0,
+        };
+  const amountUSD = opening.amountUSD;
 
   await db.runTransaction(async (tx) => {
     tx.set(subRef, {
@@ -405,11 +511,13 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
       // حفظ startDate صراحةً لضمان اتساق البيانات مع renewals
       startDate: asString(safeSubscriber.startDate) || asString(safeSubscriber.date) || todayString(),
       subscriptionState: "active",
-      paidAmountUSD: 0,
-      totalPriceUSD: asNumber(safeSubscriber.totalPriceUSD),
-      remainingAmountUSD: asNumber(safeSubscriber.totalPriceUSD),
-      netAmountUSD: 0,
-      lifetimeValueUSD: 0,
+      paidAmount: opening.paidAmount,
+      paidAmountUSD: opening.paidAmountUSD,
+      totalPriceUSD,
+      remainingAmount: opening.remainingAmount,
+      remainingAmountUSD: opening.remainingAmountUSD,
+      netAmountUSD: opening.netAmountUSD,
+      lifetimeValueUSD: opening.paidAmountUSD,
       refundAmount: 0,
       refundAmountUSD: 0,
       renewalCount: 0,
@@ -832,9 +940,15 @@ async function withdrawSubscriber(user: NonNullable<ServerUser>, payload: Record
     hasRefund = refund.hasRefund;
 
     if (hasRefund) {
+      const refundConvincedByUid = asString(current.convincedByUid);
       tx.set(refundRef, {
         subscriberId,
         subscriberName,
+        // Denormalised so firestore.rules can scope refund reads to the employee
+        // who owns the subscriber, the same way payments are scoped. Refunds
+        // written before this carry no uid and stay staff-only until the
+        // backfill script runs — see docs/CHANGELOG-2026-08-10.md.
+        ...(refundConvincedByUid ? { convincedByUid: refundConvincedByUid } : {}),
         refundAmount,
         refundCurrency,
         exchangeRate,

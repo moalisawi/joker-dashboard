@@ -9,6 +9,8 @@ type UserDocument = {
   role?: Role;
   status?: string;
   active?: boolean;
+  employeeName?: string;
+  employeeRole?: EmployeeRole;
   granularPermissions?: Record<string, Record<string, boolean>>;
 };
 
@@ -17,6 +19,18 @@ export type VerifiedServerUser = {
   email?: string;
   role: Role;
   active: boolean;
+  /**
+   * The display name subscribers were tagged with before `convincedByUid`
+   * existed. Row-level ownership falls back to it for legacy records, exactly as
+   * `canReadSubscriberAsEmployee()` does in firestore.rules.
+   */
+  employeeName?: string;
+  /**
+   * The job (sales / followup / team_leader). hasServerPermission needs it to
+   * resolve the job preset; without it every account fell through to the role
+   * default, so the server and the client could disagree about the same user.
+   */
+  employeeRole?: EmployeeRole;
   granularPermissions?: Record<string, Record<string, boolean>>;
 };
 
@@ -78,7 +92,7 @@ export function hasServerPermission(
   // a sales employee could delete subscribers and refund payments.
   const gp = effectivePermissions({
     role: user.role,
-    employeeRole: (user as { employeeRole?: EmployeeRole | null }).employeeRole,
+    employeeRole: user.employeeRole,
     // The document type models this loosely (it is whatever Firestore holds);
     // effectivePermissions reads it defensively and clamps it either way.
     granularPermissions: user.granularPermissions as unknown as GranularPermissions | undefined,
@@ -121,6 +135,8 @@ export async function verifyServerUser(request: Request): Promise<VerifiedServer
       role:                 raw.role                 as Role | undefined,
       status:               raw.status               as string | undefined,
       active:               raw.active               as boolean | undefined,
+      employeeName:         raw.employeeName         as string | undefined,
+      employeeRole:         raw.employeeRole         as EmployeeRole | undefined,
       granularPermissions:  raw.granularPermissions  as Record<string, Record<string, boolean>> | undefined,
     };
   }
@@ -132,6 +148,8 @@ export async function verifyServerUser(request: Request): Promise<VerifiedServer
     email,
     role:                data.role ?? "employee",
     active:              true,
+    employeeName:        data.employeeName,
+    employeeRole:        data.employeeRole,
     granularPermissions: data.granularPermissions,
   };
 }

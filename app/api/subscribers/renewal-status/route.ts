@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { verifyServerUser, hasServerPermission, getBearerToken } from "@/lib/serverAuth";
-import { hasAdminCredentials, fsPatch, fsAdd } from "@/lib/serverFirestore";
+import { hasAdminCredentials, fsGet, fsPatch, fsAdd } from "@/lib/serverFirestore";
+import { canMutateSubscriber, type SubscriberLinkFields } from "@/lib/serverSubscriberAccess";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { z } from "zod";
 import { RENEWAL_STATUS } from "@/constants/subscriberWorkflow";
@@ -45,6 +46,23 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Validation error", 422);
 
   const { subscriberId, subscriberName, renewalWorkflowStatus, renewalNote, renewalHandledBy, renewalHandledByName } = parsed.data;
+
+  // Row-level check — the capability above says the actor may manage renewals,
+  // not that they may manage this subscriber's renewal. Admin SDK writes bypass
+  // firestore.rules, so the route has to enforce it.
+  if (actor.role !== "owner" && actor.role !== "admin") {
+    const snap = hasAdminCredentials()
+      ? await getFirestore().collection("subscribers").doc(subscriberId).get()
+      : null;
+    const data = snap
+      ? (snap.exists ? (snap.data() as SubscriberLinkFields) : null)
+      : ((await fsGet("subscribers", subscriberId, token)) as SubscriberLinkFields | null);
+    if (!data) return jsonError("Subscriber not found", 404);
+
+    const decision = canMutateSubscriber(actor, data, "renew");
+    if (!decision.allowed) return jsonError(decision.reason ?? "Forbidden", 403);
+  }
+
   const now = new Date().toISOString();
 
   const updates: Record<string, unknown> = {

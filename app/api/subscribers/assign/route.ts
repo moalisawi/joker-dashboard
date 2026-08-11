@@ -2,6 +2,7 @@ import { NextResponse }  from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { verifyServerUser, hasServerPermission, getBearerToken } from "@/lib/serverAuth";
 import { hasAdminCredentials, fsGet, fsPatch, fsAdd }           from "@/lib/serverFirestore";
+import { canAssignSubscriberTo, type SubscriberLinkFields }     from "@/lib/serverSubscriberAccess";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { z } from "zod";
 import { ASSIGNMENT_TYPE } from "@/constants/subscriberWorkflow";
@@ -68,6 +69,19 @@ export async function POST(request: Request): Promise<NextResponse> {
     before = await fsGet("subscribers", subscriberId, token);
     if (!before) return jsonError("Subscriber not found", 404);
   }
+
+  // Reassignment is the sharpest of these operations: the route wrote whatever
+  // ids the body carried, so an employee holding subscribers.assign could point
+  // any subscriber at themselves — taking over a colleague's record — or hand
+  // one to a third party. Ownership of the record is required, and an employee
+  // may only assign to themselves or unassign; moving a subscriber between
+  // people is a supervisor action.
+  const assignDecision = canAssignSubscriberTo(
+    actor,
+    before as SubscriberLinkFields,
+    [assignedSalesId, assignedNutritionistId]
+  );
+  if (!assignDecision.allowed) return jsonError(assignDecision.reason ?? "Forbidden", 403);
 
   // ── Build history entry ───────────────────────────────────────────────────────
   const historyEntry = {

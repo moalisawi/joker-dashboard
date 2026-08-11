@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
-import { verifyServerUser } from "@/lib/serverAuth";
+import { verifyServerUser, hasServerPermission } from "@/lib/serverAuth";
 import { hasAdminCredentials } from "@/lib/serverFirestore";
+import {
+  LEAD_OPERATION_PERMISSION,
+  canAssignLeadTo,
+  canMutateLead,
+  type LeadLinkFields,
+  type LeadOperation,
+} from "@/lib/serverLeadAccess";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { whatsappOperationSchema } from "@/features/whatsapp-leads/schemas/operations.schema";
 import { ConversationStatus, LeadStatus } from "@/types/whatsapp-lead";
@@ -108,6 +115,37 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const payload = parsed.data;
+
+  // ── Authorization ───────────────────────────────────────────────────────────
+  // Until now the only gate was "is this a valid session". Two checks replace
+  // that: does the actor hold the capability, and does it reach this lead.
+  const operation = payload.operation as LeadOperation;
+
+  const required = LEAD_OPERATION_PERMISSION[
+    operation as Exclude<LeadOperation, "markAsRead">
+  ];
+  if (required && !hasServerPermission(user, required[0], required[1])) {
+    return jsonError("Forbidden", 403);
+  }
+
+  // createLead has no existing record to own; markAsRead changes no business state.
+  const leadId =
+    operation === "createLead" || operation === "markAsRead"
+      ? null
+      : ("leadId" in payload ? asString(payload.leadId) : asString((payload as { id?: string }).id));
+
+  if (leadId) {
+    const snap = await getFirestore().collection("whatsappLeads").doc(leadId).get();
+    if (!snap.exists) return jsonError("Lead not found", 404);
+    const lead = snap.data() as LeadLinkFields;
+
+    const decision =
+      operation === "assignLead"
+        ? canAssignLeadTo(user, lead, (payload as { uid?: string }).uid)
+        : canMutateLead(user, lead, operation);
+
+    if (!decision.allowed) return jsonError(decision.reason ?? "Forbidden", 403);
+  }
 
   try {
     switch (payload.operation) {
