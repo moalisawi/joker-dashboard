@@ -37,9 +37,19 @@ export type LeadOperation =
 /**
  * The granular permission each operation requires, as [category, action].
  *
- * `markAsRead` is deliberately absent: marking a conversation you can already
- * see as read changes no business state, and gating it would make the inbox
- * unusable for anyone who may read leads at all.
+ * `markAsRead` is absent because it needs no *capability* — but it is still
+ * ownership-checked, see canMutateLead. Clearing someone else's unread badge
+ * destroys their signal that a customer is waiting.
+ *
+ * Everything here uses categories the permission model actually defines.
+ * `subscribers.assign` looked like the natural gate for assignLead and is
+ * declared in types/permissions.ts — but no table populates it: not
+ * ROLE_CEILING, not DEFAULT_GRANULAR_PERMISSIONS, not any job preset. So
+ * hasServerPermission returned false for every admin (owner short-circuits on
+ * role), and admins silently could not assign a lead at all. Assignment is
+ * gated on `edit` and constrained by canAssignLeadTo below, which is where the
+ * supervisor/employee distinction actually belongs: an employee holding `edit`
+ * still cannot push a lead onto a colleague.
  */
 export const LEAD_OPERATION_PERMISSION: Record<
   Exclude<LeadOperation, "markAsRead">,
@@ -52,9 +62,7 @@ export const LEAD_OPERATION_PERMISSION: Record<
   updateTags:               ["subscribers", "edit"],
   updateConversationStatus: ["subscribers", "edit"],
   createLead:               ["subscribers", "create"],
-  // Handing a lead to someone else is a supervisor action, the same way
-  // reassigning a subscriber is.
-  assignLead:               ["subscribers", "assign"],
+  assignLead:               ["subscribers", "edit"],
 } as const;
 
 export interface LeadAccessActor {
@@ -90,6 +98,11 @@ export function leadOwnerUid(lead: LeadLinkFields | null | undefined): string {
  * how the pipeline works: leads arrive unowned and whoever picks one up works
  * it. Once assigned it belongs to that person, and other employees are out.
  * owner and admin are unscoped.
+ *
+ * markAsRead goes through here too. It carries no capability requirement, but
+ * it is not read-only: it zeroes unreadCount, which is how the assigned
+ * employee knows a customer is waiting on them. Letting anyone clear a badge on
+ * a conversation they do not own turns a queue into a lottery.
  */
 export function canMutateLead(
   actor: LeadAccessActor,
@@ -103,13 +116,12 @@ export function canMutateLead(
   const owner = leadOwnerUid(lead);
   if (owner === "" || owner === str(actor.uid)) return { allowed: true };
 
-  return {
-    allowed: false,
-    reason:
-      operation === "assignLead"
-        ? "لا يمكنك إعادة تعيين محادثة مسندة لموظف آخر"
-        : "هذه المحادثة مسندة لموظف آخر",
+  const reasons: Partial<Record<LeadOperation, string>> = {
+    assignLead: "لا يمكنك إعادة تعيين محادثة مسندة لموظف آخر",
+    markAsRead: "لا يمكنك تعليم محادثة موظف آخر كمقروءة",
   };
+
+  return { allowed: false, reason: reasons[operation] ?? "هذه المحادثة مسندة لموظف آخر" };
 }
 
 /**

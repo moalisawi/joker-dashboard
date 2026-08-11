@@ -128,9 +128,12 @@ export async function POST(request: Request): Promise<NextResponse> {
     return jsonError("Forbidden", 403);
   }
 
-  // createLead has no existing record to own; markAsRead changes no business state.
+  // createLead is the only operation with no existing record to own. markAsRead
+  // is checked like the rest: it zeroes unreadCount, which is how the assigned
+  // employee knows a customer is waiting, so clearing it on someone else's
+  // conversation is a mutation of their queue, not a read.
   const leadId =
-    operation === "createLead" || operation === "markAsRead"
+    operation === "createLead"
       ? null
       : ("leadId" in payload ? asString(payload.leadId) : asString((payload as { id?: string }).id));
 
