@@ -2,10 +2,9 @@
 
 import { motion } from "framer-motion";
 import {
-  DollarSign, RefreshCw, Clock, CreditCard, Calendar,
-  Globe, Phone, AlertCircle, CheckCircle2, XCircle,
-  PauseCircle, Snowflake, User,
-} from "lucide-react";
+  DollarSign, RefreshCw, Clock, CreditCard, 
+   Phone, AlertCircle, CheckCircle2, XCircle,
+  PauseCircle, Snowflake} from "lucide-react";
 import { formatDate, formatNumber, getWhatsAppLink, RESIDENCE_COUNTRIES, PHONE_COUNTRIES } from "@/lib/utils";
 import type { Subscriber } from "@/types";
 import type { PaymentTransaction } from "@/types";

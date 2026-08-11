@@ -35,12 +35,22 @@ export async function POST(request: Request): Promise<NextResponse> {
   try { actor = await verifyServerUser(request); } catch { return jsonError("Unauthorized", 401); }
   if (!actor) return jsonError("Unauthorized", 401);
 
-  const canAssign   = hasServerPermission(actor, "subscribers", "assign")
-                   || hasServerPermission(actor, "subscribers", "edit");
-  const canTransfer = hasServerPermission(actor, "subscribers", "transfer")
-                   || actor.role === "owner"
-                   || actor.role === "admin";
-  if (!canAssign && !canTransfer) return jsonError("Forbidden", 403);
+  // `subscribers.assign` and `subscribers.transfer` are declared in
+  // types/permissions.ts but no table populates them — not ROLE_CEILING, not
+  // DEFAULT_GRANULAR_PERMISSIONS, not any job preset. Both checks were
+  // therefore always false, and the route ran entirely on the `|| edit` and
+  // `|| owner || admin` fallbacks beside them. Keeping dead conditions in an
+  // authorization path is how someone later concludes a permission is enforced
+  // when it is not; the same mistake silently locked admins out of assigning a
+  // WhatsApp lead.
+  //
+  // The capability is `edit`; who may be assigned to whom is canAssignSubscriberTo
+  // below, which is enforceable and tested.
+  if (!hasServerPermission(actor, "subscribers", "edit")
+      && actor.role !== "owner"
+      && actor.role !== "admin") {
+    return jsonError("Forbidden", 403);
+  }
 
   const token = getBearerToken(request)!;
 

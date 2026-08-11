@@ -27,9 +27,8 @@ import {
   type CreateEmployeeInput, type UpdateEmployeeInput,
   type GranularPermissionsInput,
 } from "@/features/users/schemas";
-import { getDefaultGranularPermissions, canManageRole } from "@/lib/permissions";
+import { getDefaultGranularPermissions} from "@/lib/permissions";
 import { canManageUsers, canManagePermissions, canReadUserDirectory } from "@/lib/permissionGuards";
-import { COLLECTIONS } from "@/constants/collections";
 import { PERM }         from "@/constants/permissions";
 import { callUserOperation } from "@/lib/clientUserOperations";
 import type { UserProfile, EmployeeRole, EmployeeDepartment, GranularPermissions, Team } from "@/types";

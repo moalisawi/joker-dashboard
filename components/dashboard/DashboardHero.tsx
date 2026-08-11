@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { Users, Activity, TrendingUp, Zap, ArrowUpRight, Shield } from "lucide-react";
+import { Users,  TrendingUp, Zap, ArrowUpRight, Shield } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import type { Subscriber, PaymentTransaction } from "@/types";
 import { formatNumber } from "@/lib/utils";

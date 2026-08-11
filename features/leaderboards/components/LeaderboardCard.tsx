@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { formatNumber } from "@/lib/utils";
 import type { LeaderboardEntry } from "@/features/leaderboards/lib/leaderboardMetrics";
 import { Trophy, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -13,7 +12,7 @@ const MEDAL: Record<number, { emoji: string; color: string }> = {
   3: { emoji:"🥉", color:"#b45309" },
 };
 
-const ACC_INDIGO = "#5B5FEF";
+
 const PREVIEW = 3;
 
 interface Props {

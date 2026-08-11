@@ -5,7 +5,6 @@ import { hasAdminCredentials, fsGet, fsPatch, fsAdd } from "@/lib/serverFirestor
 import { canMutateSubscriber, type SubscriberLinkFields } from "@/lib/serverSubscriberAccess";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { z } from "zod";
-import { RENEWAL_STATUS } from "@/constants/subscriberWorkflow";
 
 export const runtime = "nodejs";
 
@@ -30,8 +29,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   try { actor = await verifyServerUser(request); } catch { return jsonError("Unauthorized", 401); }
   if (!actor) return jsonError("Unauthorized", 401);
 
+  // `subscriptions.manageRenewals` was checked here but no permission table
+  // defines it, so that clause was always false and the route ran on `renew`
+  // alone. See the phantom-permission test in rulesAlignment.
   const canManage =
-    hasServerPermission(actor, "subscriptions", "manageRenewals") ||
     hasServerPermission(actor, "subscriptions", "renew") ||
     actor.role === "owner" ||
     actor.role === "admin";

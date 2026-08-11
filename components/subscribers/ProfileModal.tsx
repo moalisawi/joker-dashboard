@@ -16,7 +16,7 @@ import {
   TrendingUp, AlertTriangle, CheckCircle, RotateCcw,
   Pencil, MessageCircle, Banknote,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion} from "framer-motion";
 
 interface Payment {
   id: string;
@@ -366,7 +366,7 @@ export default function ProfileModal({ subscriber: s, onClose, onEdit, onRenew, 
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {[
-                      { label: "تاريخ التجميد", value: s.freezeData.frozenAt ? formatDate(((s.freezeData.frozenAt as any)?.toDate?.() || new Date(s.freezeData.frozenAt as any)).toISOString().split("T")[0]) : "—" },
+                      { label: "تاريخ التجميد", value: s.freezeData.frozenAt ? formatDate(((s.freezeData.frozenAt as unknown as { toDate?: () => Date })?.toDate?.() ?? new Date(s.freezeData.frozenAt as unknown as string)).toISOString().split("T")[0]) : "—" },
                       { label: "الأيام المحفوظة", value: `${s.freezeData.remainingDays} يوم` },
                       { label: "الانتهاء الأصلي", value: s.freezeData.originalExpiryDate ? formatDate(s.freezeData.originalExpiryDate) : "—" },
                       { label: "سبب التجميد", value: s.freezeData.freezeReason || "—" },

@@ -5,7 +5,6 @@ import { hasAdminCredentials, fsGet, fsPatch, fsAdd } from "@/lib/serverFirestor
 import { canMutateSubscriber, type SubscriberLinkFields } from "@/lib/serverSubscriberAccess";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { z } from "zod";
-import { WORKFLOW_STATUS } from "@/constants/subscriberWorkflow";
 
 export const runtime = "nodejs";
 
@@ -29,8 +28,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   try { actor = await verifyServerUser(request); } catch { return jsonError("Unauthorized", 401); }
   if (!actor) return jsonError("Unauthorized", 401);
 
-  const canChange = hasServerPermission(actor, "subscribers", "changeStatus")
-                 || hasServerPermission(actor, "subscribers", "edit")
+  // `subscribers.changeStatus` was checked here but no permission table defines
+  // it, so that clause was always false and the route ran on `edit` alone.
+  // Dead conditions in an authorization path read like enforcement — see the
+  // phantom-permission test in __tests__/lib/rulesAlignment.test.ts.
+  const canChange = hasServerPermission(actor, "subscribers", "edit")
                  || actor.role === "owner"
                  || actor.role === "admin";
   if (!canChange) return jsonError("Forbidden", 403);

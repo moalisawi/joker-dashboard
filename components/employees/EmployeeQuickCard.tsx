@@ -11,9 +11,7 @@ import { useAuthStore }            from "@/store/authStore";
 import EmployeeStatusBadge         from "@/components/ui/EmployeeStatusBadge";
 import { formatNumber }            from "@/lib/utils";
 import {
-  X, ExternalLink, Mail, Phone, Users2,
-  Users, TrendingUp, DollarSign, RefreshCw,
-} from "lucide-react";
+  X, ExternalLink, Mail, Phone, Users2} from "lucide-react";
 
 // ─── tokens ───────────────────────────────────────────────────────────────────
 

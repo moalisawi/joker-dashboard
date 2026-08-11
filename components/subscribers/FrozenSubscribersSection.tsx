@@ -67,7 +67,7 @@ export default function FrozenSubscribersSection({
               const fd = s.freezeData!;
               const frozenDays = freezeService.getFreezeDuration(fd);
               const frozenAtStr = fd.frozenAt
-                ? ((fd.frozenAt as any)?.toDate?.() || new Date(fd.frozenAt as any))
+                ? ((fd.frozenAt as unknown as { toDate?: () => Date })?.toDate?.() ?? new Date(fd.frozenAt as unknown as string))
                     .toISOString()
                     .split("T")[0]
                 : null;

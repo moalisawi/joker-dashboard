@@ -10,9 +10,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  Dot,
-} from "recharts";
+  ResponsiveContainer} from "recharts";
 import {
   ChevronLeft,
   ChevronRight,

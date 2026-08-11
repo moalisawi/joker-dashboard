@@ -17,7 +17,7 @@ function statusColor(status: string): string {
 
 export default function GlobalSearch() {
   const router = useRouter();
-  const { can } = useAuthStore();
+
   const { subscribers } = useSubscribers();
   const { open, closeSearch, toggleSearch } = useSearchStore();
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Subscriber } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { formatDate} from "@/lib/utils";
 import { X, PauseCircle } from "lucide-react";
 
 interface Props {

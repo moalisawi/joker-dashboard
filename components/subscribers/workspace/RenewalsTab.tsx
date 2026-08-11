@@ -24,9 +24,8 @@ function fmtDate(raw: unknown): string {
 }
 import type { Subscriber } from "@/types";
 import {
-  RefreshCw, Clock, Check, AlertCircle, PhoneCall,
-  XCircle, CheckCircle2, ChevronDown, ChevronUp, User,
-} from "lucide-react";
+  RefreshCw, Clock, Check,  PhoneCall,
+  XCircle, CheckCircle2, ChevronDown, ChevronUp, User} from "lucide-react";
 
 const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444", sky:"#3B82F6" };
 const fadeUp = { hidden:{opacity:0,y:10}, show:{opacity:1,y:0} };

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { formatNumber } from "@/lib/utils";
 import type { SalesEmployeeMetrics } from "@/features/sales/lib/salesMetrics";
-import { Users, TrendingUp, DollarSign, RefreshCw, ArrowLeft } from "lucide-react";
+import {   DollarSign, RefreshCw, ArrowLeft } from "lucide-react";
 import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
 const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444" };

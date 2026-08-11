@@ -77,8 +77,6 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
       const initStr      = initPayment.trim();
       const paidAmount   = initStr === "" ? totalPriceN : parseFloat(initStr) || 0;
       const remaining    = Math.max(0, totalPriceN - paidAmount);
-      const paidUSD      = paidAmount / lockedRate;
-      const remainingUSD = remaining / lockedRate;
       const by           = renewedBy || user.employeeName || user.name || "";
 
       await callSubscriberOperation("renewSubscription", {

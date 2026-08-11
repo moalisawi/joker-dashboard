@@ -18,7 +18,6 @@ export default function ResumeModal({
   isOpen,
   onClose,
   onResumed,
-  currentUser,
 }: ResumeModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -31,7 +30,7 @@ export default function ResumeModal({
   const newExpiryDate = freezeService.addDaysToDate(today, freezeData.remainingDays);
 
   // Get freeze date
-  const frozenAtDate = (freezeData.frozenAt as any)?.toDate?.() || new Date(freezeData.frozenAt as any);
+  const frozenAtDate = (freezeData.frozenAt as unknown as { toDate?: () => Date })?.toDate?.() ?? new Date(freezeData.frozenAt as unknown as string);
   const frozenAtString = frozenAtDate.toISOString().split("T")[0];
 
   const handleResume = async () => {
@@ -45,9 +44,9 @@ export default function ResumeModal({
 
       onResumed?.();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error resuming subscription:", err);
-      setError(err.message || "Failed to resume subscription");
+      setError(err instanceof Error ? err.message : "Failed to resume subscription");
     } finally {
       setLoading(false);
     }

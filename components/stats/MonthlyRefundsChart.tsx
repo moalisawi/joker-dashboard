@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import type { MonthlyAnalytics } from "@/types";
 import { formatNumber, ARABIC_MONTHS } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useMonthlyAnalytics } from "@/hooks/useMonthlyAnalytics";
@@ -51,7 +50,6 @@ export default function MonthlyRefundsChart() {
   // Find max values for scaling
   const maxPayment = Math.max(...chartData.map((d) => d.payments), 1);
   const maxRefund = Math.max(...chartData.map((d) => d.refunds), 1);
-  const scale = 100 / Math.max(maxPayment, maxRefund);
 
   const totalPayments = chartData.reduce((s, d) => s + Number(d.payments), 0);
   const totalRefunds = chartData.reduce((s, d) => s + Number(d.refunds), 0);

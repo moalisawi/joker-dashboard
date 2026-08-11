@@ -18,7 +18,6 @@ export default function FreezeModal({
   isOpen,
   onClose,
   onFrozen,
-  currentUser,
 }: FreezeModalProps) {
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
@@ -55,9 +54,9 @@ export default function FreezeModal({
       setNotes("");
       onFrozen?.();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error freezing subscription:", err);
-      setError(err.message || "Failed to freeze subscription");
+      setError(err instanceof Error ? err.message : "Failed to freeze subscription");
     } finally {
       setLoading(false);
     }

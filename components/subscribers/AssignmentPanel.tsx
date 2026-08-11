@@ -13,7 +13,7 @@ import {
 } from "@/constants/subscriberWorkflow";
 import type { Subscriber } from "@/types";
 import type { AssignmentHistoryEntry } from "@/types";
-import { UserCheck, Users2, ChevronDown, Clock, User } from "lucide-react";
+import { UserCheck, Users2,  Clock, User } from "lucide-react";
 import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
 // ─── History entry ────────────────────────────────────────────────────────────

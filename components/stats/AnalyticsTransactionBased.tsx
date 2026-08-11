@@ -1,12 +1,25 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import type { MonthlyAnalytics } from "@/types";
-import { formatNumber, ARABIC_MONTHS, RESIDENCE_COUNTRIES, PHONE_COUNTRIES } from "@/lib/utils";
+import { formatNumber, ARABIC_MONTHS} from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useMonthlyAnalytics, calculateAnalyticsSummary } from "@/hooks/useMonthlyAnalytics";
 import { useEmployeeNames } from "@/hooks/useEmployeeNames";
 import { SlidersHorizontal } from "lucide-react";
+
+/**
+ * The accumulator both breakdowns build: the four figures the chart renders,
+ * keyed by employee name or package name. It was `Record<string, any>`, which
+ * meant a typo in one of the four `+=` lines below would have compiled.
+ */
+interface BreakdownRow {
+  name: string;
+  paymentCount: number;
+  refundCount: number;
+  /** Only the employee breakdown tracks withdrawals; the package one does not. */
+  withdrawalCount?: number;
+  netRevenue: number;
+}
 
 export default function AnalyticsTransactionBased() {
   const { can } = useAuthStore();
@@ -49,7 +62,7 @@ export default function AnalyticsTransactionBased() {
 
   // Employee breakdown
   const empStats = useMemo(() => {
-    const byEmp: Record<string, any> = {};
+    const byEmp: Record<string, BreakdownRow> = {};
 
     filteredAnalytics.forEach((analytics) => {
       if (analytics.byEmployee) {
@@ -65,7 +78,7 @@ export default function AnalyticsTransactionBased() {
           }
           byEmp[emp].paymentCount += data.paymentCount || 0;
           byEmp[emp].refundCount += data.refundCount || 0;
-          byEmp[emp].withdrawalCount += data.withdrawalCount || 0;
+          byEmp[emp].withdrawalCount = (byEmp[emp].withdrawalCount ?? 0) + (data.withdrawalCount || 0);
           byEmp[emp].netRevenue += data.netRevenueUSD || 0;
         });
       }
@@ -78,7 +91,7 @@ export default function AnalyticsTransactionBased() {
 
   // Package breakdown
   const pkgStats = useMemo(() => {
-    const byPkg: Record<string, any> = {};
+    const byPkg: Record<string, BreakdownRow> = {};
 
     filteredAnalytics.forEach((analytics) => {
       if (analytics.byPackage) {

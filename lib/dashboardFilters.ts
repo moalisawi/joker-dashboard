@@ -123,7 +123,6 @@ export function getDashboardWidgets(user: UserProfile | null): DashboardWidgets 
   const isOwner  = role === "owner";
   const isAdmin  = role === "owner" || role === "admin";
   const isSales  = dept === "sales";
-  const isFollowUp = dept === "followup";
 
   return {
     showRevenue:            isAdmin || (gp?.analytics?.view ?? false),

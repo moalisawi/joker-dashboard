@@ -20,10 +20,9 @@ import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import PageHeader from "@/components/layout/PageHeader";
 import type { UserProfile, Role, AccountStatus, GranularPermissions } from "@/types";
 import {
-  Users, Search, Shield, ChevronDown, ChevronUp,
-  RotateCcw, Save, X, AlertTriangle, Crown,
-  UserCheck, UserX, Clock,
-} from "lucide-react";
+   Search, Shield, ChevronDown, ChevronUp,
+  RotateCcw, Save, X, AlertTriangle, 
+  UserCheck, UserX, Clock} from "lucide-react";
 import { toast } from "@/lib/toast";
 
 function UserAvatar({ name, role }: { name: string; role: Role }) {

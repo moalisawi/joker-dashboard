@@ -6,13 +6,11 @@ import { useAuthStore }  from "@/store/authStore";
 import { usePayments }   from "@/hooks/usePayments";
 import { useRefunds }    from "@/hooks/useRefunds";
 import {
-  canCreatePayments, canRefundPayments,
-  canFreezeSubscriptions,
+  canCreatePayments,
 } from "@/lib/permissionGuards";
 import { formatNumber } from "@/lib/utils";
 import type { Subscriber } from "@/types";
 import type { PaymentTransaction } from "@/types";
-import type { RefundTransaction } from "@/types";
 import {
   DollarSign, TrendingDown, AlertCircle, CheckCircle2,
   RotateCcw, Plus, CreditCard, Calendar, Receipt,
@@ -83,7 +81,6 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
   const { refunds,  loading: rLoad } = useRefunds ({ subscriberId: s.id });
 
   const canPay    = canCreatePayments(user)    || user?.role === "owner" || user?.role === "admin";
-  const canRefund = canRefundPayments(user)    || user?.role === "owner";
   const canRev    = user?.role === "owner" || user?.role === "admin" ||
     (user?.granularPermissions?.analytics?.view ?? false);
 

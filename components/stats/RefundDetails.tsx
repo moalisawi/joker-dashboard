@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { RefundTransaction } from "@/types";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useRefunds } from "@/hooks/useRefunds";

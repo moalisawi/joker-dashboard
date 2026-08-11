@@ -144,13 +144,17 @@ export function usePresence() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
-  // Update currentPage in RTDB whenever pathname changes
+  // Update currentPage in RTDB whenever pathname changes.
+  // Reads uid rather than user so the dependency list is honest: the effect
+  // only ever needed the id, but depending on the whole object would re-run it
+  // on every unrelated store update.
+  const uid = user?.uid;
   useEffect(() => {
-    if (!user || !rtdb) return;
+    if (!uid || !rtdb) return;
     const sessionId = getSessionId();
     if (!sessionId) return;
-    update(ref(rtdb, `presence/${user.uid}/${sessionId}`), {
+    update(ref(rtdb, `presence/${uid}/${sessionId}`), {
       currentPage: pathname,
     }).catch(() => {});
-  }, [pathname, user?.uid]);
+  }, [pathname, uid]);
 }

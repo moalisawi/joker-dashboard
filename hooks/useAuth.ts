@@ -155,6 +155,7 @@ export function useAuthListener() {
     };
   // Empty dep array: this effect is intentionally a singleton.
   // Auth/Firestore listeners manage their own lifecycle internally.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // (No eslint-disable needed — the effect closes over nothing reactive. One
+  // was here and ESLint reported it as an unused directive.)
   }, []);
 }

@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore";
-import { Currency, PackageType } from "./subscriber";
+import { Currency} from "./subscriber";
 
 export type PaymentType = "initial" | "installment" | "renewal" | "refund";
 

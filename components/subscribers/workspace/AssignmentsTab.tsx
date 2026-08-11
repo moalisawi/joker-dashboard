@@ -12,16 +12,14 @@ import {
 } from "@/lib/permissionGuards";
 import {
   ASSIGNMENT_TYPE_LABELS, ASSIGNMENT_TYPE,
-  WORKFLOW_LABELS, WORKFLOW_COLORS,
-  type AssignmentType,
-} from "@/constants/subscriberWorkflow";
+   
+  type AssignmentType} from "@/constants/subscriberWorkflow";
 import WorkflowStatusPanel from "@/components/subscribers/WorkflowStatusPanel";
 import type { Subscriber } from "@/types";
 import type { SubscriberAssignmentRecord } from "@/features/subscriberAssignments";
 import {
-  UserCheck, Users2, Clock, ArrowLeft, ArrowRight,
-  User, RotateCcw, AlertTriangle, Check,
-} from "lucide-react";
+  UserCheck, Users2, Clock, ArrowLeft, 
+  User, RotateCcw, AlertTriangle, Check} from "lucide-react";
 import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
 const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444" };

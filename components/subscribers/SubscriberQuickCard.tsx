@@ -4,9 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, ExternalLink, Phone, Calendar, Package,
-  TrendingUp, DollarSign, Clock, User,
-} from "lucide-react";
+  X, ExternalLink, Phone, Calendar, 
+  TrendingUp, DollarSign, Clock, User} from "lucide-react";
 import { useSubscriberCardStore } from "@/store/subscriberCardStore";
 import { useAuthStore } from "@/store/authStore";
 import { useActiveEmployees } from "@/features/users/hooks";

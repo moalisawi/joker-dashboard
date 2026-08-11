@@ -9,7 +9,6 @@
  */
 
 import { createInterface } from "readline";
-import { createServer }    from "http";
 
 const API_KEY   = "AIzaSyAB_RIpmKxbTpVXDpMWsLUMCxafocxjwaQ";
 const BASE_URL  = "http://localhost:3000";

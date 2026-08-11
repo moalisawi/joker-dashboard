@@ -7,8 +7,7 @@ import type { Payment } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import {
   TrendingUp, AlertTriangle, Trophy, Zap, Clock,
-  Users, DollarSign, ArrowUpRight, ArrowDownRight,
-} from "lucide-react";
+   DollarSign, ArrowUpRight, ArrowDownRight} from "lucide-react";
 
 interface Props {
   subscribers: Subscriber[];

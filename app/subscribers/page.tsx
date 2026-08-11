@@ -4,10 +4,9 @@ import { useState, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Download, SlidersHorizontal, Eye, Pencil, RotateCcw,
-  CreditCard, Snowflake, PauseCircle, Play, UserMinus, Phone, Trash2,
+  CreditCard, Snowflake, PauseCircle, Play, UserMinus,  Trash2,
   MoreHorizontal, MessageCircle, ChevronLeft, ChevronRight,
-  ArrowUp, ArrowDown, ArrowUpDown, X, Plus, Users,
-} from "lucide-react";
+  ArrowUp, ArrowDown, ArrowUpDown, X, Plus, Users} from "lucide-react";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { useAuthStore } from "@/store/authStore";

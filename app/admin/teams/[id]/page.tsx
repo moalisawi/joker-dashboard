@@ -11,17 +11,16 @@ import EmptyState       from "@/components/ui/EmptyState";
 
 import { useAuthStore }    from "@/store/authStore";
 import { useTeamDetail, useTeamMembers } from "@/features/teams";
-import { useUpdateEmployee, useAssignTeam } from "@/features/users/hooks";
+import {  useAssignTeam } from "@/features/users/hooks";
 import { useSubscribers }  from "@/hooks/useSubscribers";
 import { canManageUsers }  from "@/lib/permissionGuards";
 import { auditService }    from "@/services/audit.service";
 import { formatNumber }    from "@/lib/utils";
-import type { UserProfile, Subscriber } from "@/types";
+import type { UserProfile} from "@/types";
 import {
-  ArrowRight, Users2, Briefcase, User, Phone, Clock,
-  ShieldCheck, ShieldOff, UserMinus, CheckCircle2, XCircle,
-  Crown, TrendingUp, DollarSign, Search,
-} from "lucide-react";
+  ArrowRight, Users2, Briefcase, User,  
+  ShieldCheck,  UserMinus, CheckCircle2, XCircle,
+   TrendingUp,  Search} from "lucide-react";
 import EmployeeNameChip from "@/components/employees/EmployeeNameChip";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

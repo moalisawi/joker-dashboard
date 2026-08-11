@@ -1,16 +1,14 @@
 import {
   collection, updateDoc, doc,
   query, where, getDocs,
-  orderBy, limit, Timestamp, arrayUnion,
-} from "firebase/firestore";
+   limit, Timestamp, arrayUnion} from "firebase/firestore";
 import { db } from "@/lib/firestore";
 import { auth } from "@/lib/auth";
 import type {
-  AppNotification,
+  
   NotificationCategory,
   NotificationSeverity,
-  NotificationMinRole,
-} from "@/types";
+  NotificationMinRole} from "@/types";
 
 // ─── action → notification config map ────────────────────────────────────────
 

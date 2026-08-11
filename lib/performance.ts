@@ -6,7 +6,7 @@
  * Debounce function to reduce unnecessary calls
  * مثال: عند البحث في الجدول
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: never[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -27,7 +27,7 @@ export function debounce<T extends (...args: any[]) => any>(
  * Throttle function to limit function calls
  * مثال: عند scroll
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: never[]) => unknown>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
@@ -160,7 +160,7 @@ export const bundleOptimizations = {
   /**
    * dynamic imports
    */
-  lazyComponent: (importFn: () => Promise<any>) => {
+  lazyComponent: (importFn: () => Promise<unknown>) => {
     return importFn()
   },
 

@@ -4,9 +4,8 @@ import {
   CheckCircle2, AlertTriangle, Info, XCircle,
   UserPlus, UserMinus, RefreshCw, Snowflake,
   PlayCircle, CreditCard, Undo2, Shield,
-  ShieldAlert, LogIn, Bell, Settings2,
-  Archive, Check, ExternalLink,
-} from "lucide-react";
+  ShieldAlert,  Bell, 
+  Archive, Check, ExternalLink} from "lucide-react";
 import Link from "next/link";
 import type { AppNotification, NotificationSeverity } from "@/types";
 

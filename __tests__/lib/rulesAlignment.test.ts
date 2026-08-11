@@ -18,7 +18,7 @@ import {
   canReadUserDirectory,
   canManageUsers,
 } from '@/lib/permissionGuards'
-import { DEFAULT_GRANULAR_PERMISSIONS } from '@/lib/permissions'
+import { DEFAULT_GRANULAR_PERMISSIONS, ROLE_CEILING } from '@/lib/permissions'
 import type { UserProfile, GranularPermissions, Role } from '@/types'
 
 function user(role: Role, granularPermissions?: GranularPermissions): UserProfile {
@@ -110,6 +110,56 @@ describe('guards mirror firestore.rules', () => {
     it('holds it once an owner grants it', () => {
       expect(canManageUsers(withUsersManage('admin'))).toBe(true)
     })
+  })
+})
+
+/**
+ * API routes must not gate on permissions that no table defines.
+ *
+ * types/permissions.ts declares `subscribers.assign` and `subscribers.transfer`,
+ * but ROLE_CEILING, DEFAULT_GRANULAR_PERMISSIONS and the job presets all omit
+ * them — so hasServerPermission returns false for every non-owner, always.
+ * A check written against one is dead code that reads like enforcement. It
+ * already cost a real bug: gating WhatsApp assignLead on subscribers.assign
+ * meant admins silently could not assign a lead at all.
+ *
+ * This walks the route files and fails on any hasServerPermission call naming a
+ * (category, action) pair the model does not populate.
+ */
+describe('routes only gate on permissions the model defines', () => {
+  const ROOT = resolve(__dirname, '..', '..')
+
+  /** Every category.action ROLE_CEILING actually carries. */
+  const defined = (() => {
+    const set = new Set<string>()
+    const owner = ROLE_CEILING.owner as unknown as Record<string, Record<string, boolean>>
+    for (const category of Object.keys(owner)) {
+      for (const action of Object.keys(owner[category])) set.add(`${category}.${action}`)
+    }
+    return set
+  })()
+
+  const ROUTES = [
+    'app/api/subscribers/assign/route.ts',
+    'app/api/subscribers/workflow-status/route.ts',
+    'app/api/subscribers/renewal-status/route.ts',
+    'app/api/subscriber-operations/route.ts',
+    'app/api/whatsapp-operations/route.ts',
+  ]
+
+  it.each(ROUTES)('%s', (route) => {
+    const src = readFileSync(resolve(ROOT, route), 'utf8')
+    const calls = [...src.matchAll(/hasServerPermission\(\s*\w+\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"/g)]
+    for (const [, category, action] of calls) {
+      expect(defined.has(`${category}.${action}`)).toBe(true)
+    }
+  })
+
+  it('confirms the two phantom permissions are still absent', () => {
+    // If a later change populates them, this fails and the routes above can
+    // legitimately start using them again.
+    expect(defined.has('subscribers.assign')).toBe(false)
+    expect(defined.has('subscribers.transfer')).toBe(false)
   })
 })
 

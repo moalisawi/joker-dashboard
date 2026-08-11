@@ -13,7 +13,7 @@ import { auth } from "@/lib/auth";
 import { COLLECTIONS } from "@/constants/collections";
 import { excludeDeleted } from "@/lib/softDelete";
 import {
-  ConversationStatus,
+  
   LeadStatus,
   type CannedResponse,
   type ConversationStatus as ConvStatus,
@@ -23,8 +23,7 @@ import {
   type LeadNote,
   type LeadTag,
   type WhatsappLead,
-  type WhatsappMessage,
-} from "@/types/whatsapp-lead";
+  type WhatsappMessage} from "@/types/whatsapp-lead";
 
 // ── Auth token helper ─────────────────────────────────────────────────────────
 

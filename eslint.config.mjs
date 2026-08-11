@@ -29,6 +29,16 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-explicit-any": "warn",
       "react-hooks/purity": "warn",
       "react-hooks/set-state-in-effect": "warn",
+      // The codebase already writes `_name` for a binding it must declare but
+      // does not read — a positional callback parameter, a destructured field
+      // kept for shape. The rule was flagging those anyway, so the convention
+      // carried no weight and the warnings were noise that hid real ones.
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern:         "^_",
+        varsIgnorePattern:         "^_",
+        caughtErrorsIgnorePattern: "^_",
+        destructuredArrayIgnorePattern: "^_",
+      }],
     },
   },
   {

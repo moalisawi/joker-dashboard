@@ -3,10 +3,9 @@
 import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, Phone, CreditCard, Calendar, Clock, RotateCcw,
+  X,  CreditCard, Calendar, Clock, RotateCcw,
   Pencil, Snowflake, Play, PauseCircle, UserMinus, Trash2,
-  MessageCircle, User, TrendingUp, Hash, MapPin, Banknote, Eye, Star,
-} from "lucide-react";
+  MessageCircle, User, TrendingUp, Hash, MapPin, Banknote, Eye, Star} from "lucide-react";
 import { formatDate, formatNumber, getWhatsAppLink } from "@/lib/utils";
 import type { Subscriber } from "@/types";
 

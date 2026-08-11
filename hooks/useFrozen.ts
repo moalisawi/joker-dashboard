@@ -31,7 +31,6 @@ export function useFrozen(subscriber: Subscriber | null): UseFrozenReturn {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuthStore();
 
-  const isFrozen = subscriber ? freezeService.isFrozen(subscriber) : false;
   const freezeInfo = subscriber
     ? freezeService.getFreezeInfo(subscriber)
     : { isFrozen: false, frozenSinceDays: 0, remainingDays: 0, preservedExpiryDate: null };
@@ -48,9 +47,9 @@ export function useFrozen(subscriber: Subscriber | null): UseFrozenReturn {
           subscriberId: subscriber.id,
           reason,
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error freezing:", err);
-        setError(err.message || "Failed to freeze subscription");
+        setError(err instanceof Error ? err.message : "Failed to freeze subscription");
         throw err;
       } finally {
         setLoading(false);
@@ -69,9 +68,9 @@ export function useFrozen(subscriber: Subscriber | null): UseFrozenReturn {
       await callSubscriberOperation("resumeSubscription", {
         subscriberId: subscriber.id,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error resuming:", err);
-      setError(err.message || "Failed to resume subscription");
+      setError(err instanceof Error ? err.message : "Failed to resume subscription");
       throw err;
     } finally {
       setLoading(false);

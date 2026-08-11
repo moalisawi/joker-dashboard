@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useRef, useCallback, startTransition } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, startTransition } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -124,8 +124,16 @@ export default function SubscriberModal({
   const { data: allTeams = [] }     = useTeams(false);
   const { data: allSubscribers = [] } = useSubscribersQuery();
 
-  const salesEmployees = allEmployees.filter(
-    (e) => e.employeeRole === "sales" || e.employeeRole === "admin" || e.employeeRole === "owner"
+  // Memoised so it can be a dependency of onSubmit without re-creating the
+  // callback on every render. onSubmit reads it to resolve convincedByUid, and
+  // omitting it from the deps meant the callback could close over the list as
+  // it was before useEmployees resolved — saving a subscriber with no
+  // convincedByUid, which is the field row-level access reads.
+  const salesEmployees = useMemo(
+    () => allEmployees.filter(
+      (e) => e.employeeRole === "sales" || e.employeeRole === "admin" || e.employeeRole === "owner"
+    ),
+    [allEmployees]
   );
   const nutritionTeams = allTeams.filter((t) => t.type === "nutrition" && t.active !== false);
   const allActiveNames = allEmployees.map((e) => e.name);
@@ -431,7 +439,7 @@ export default function SubscriberModal({
     } finally {
       setLoading(false);
     }
-  }, [user, isEdit, subscriber, phoneE164, paymentMethodId, openPaymentAfterSave, lockedRate, totalPrice, totalPriceUSD, selectedFiles, onClose, onSaved, onOpenPayment]);
+  }, [user, isEdit, subscriber, phoneE164, paymentMethodId, openPaymentAfterSave, lockedRate, totalPrice, totalPriceUSD, selectedFiles, salesEmployees, onClose, onSaved, onOpenPayment]);
 
   const formSubmit = handleSubmit(onSubmit);
 

@@ -3,9 +3,8 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line,
-} from "recharts";
-import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer} from "recharts";
+import { motion, AnimatePresence} from "framer-motion";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import PageHeader from "@/components/layout/PageHeader";
 import { useSubscribers } from "@/hooks/useSubscribers";
@@ -19,8 +18,7 @@ import {
   ArrowUpRight, ArrowDownRight, Activity, Zap, Medal, Lightbulb,
   AlertTriangle, CheckCircle2, Info, XCircle, Download,
   UserMinus, Target, BarChart2, Sparkles, Crown, Star,
-  CreditCard, Globe, Radio, Eye,
-} from "lucide-react";
+  CreditCard, Globe} from "lucide-react";
 import { useEmployeePerformance } from "@/hooks/useEmployeePerformance";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { useRefunds } from "@/hooks/useRefunds";
@@ -55,10 +53,10 @@ const PALETTE = [C.primary, C.success, C.warning, C.purple, C.cyan, C.danger, "#
    ANIMATION PRESETS
    ───────────────────────────────────────────────────────────────────── */
 const fadeUp   = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { duration: 0.40, ease: [0.25, 0.46, 0.45, 0.94] as [number,number,number,number] } } };
-const fadeIn   = { hidden: { opacity: 0        }, show: { opacity: 1,     transition: { duration: 0.30 } } };
+
 const stagger  = { show: { transition: { staggerChildren: 0.06 } } };
 const stagger2 = { show: { transition: { staggerChildren: 0.10 } } };
-const spring   = { type: "spring", stiffness: 400, damping: 28 } as const;
+
 const fast     = { duration: 0.16, ease: "easeOut" } as const;
 
 /* ─────────────────────────────────────────────────────────────────────

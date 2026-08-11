@@ -5,9 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Shield, Monitor, Smartphone, Tablet,
   RefreshCw, Search, AlertTriangle, LogOut,
-  Clock, Wifi, WifiOff, X, Activity, Radio,
-  Users, TrendingUp, Zap,
-} from "lucide-react";
+  Clock, Wifi, WifiOff, X, Activity} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore }         from "@/store/authStore";
 import ProtectedLayout          from "@/components/layout/ProtectedLayout";

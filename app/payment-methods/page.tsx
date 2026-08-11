@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Spinner } from "@heroui/react";
 import { toast } from "@heroui/react";
-import { Plus, CreditCard, AlertCircle } from "lucide-react";
+import { Plus,  AlertCircle } from "lucide-react";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import PageHeader from "@/components/layout/PageHeader";
 import { useAuthStore } from "@/store/authStore";

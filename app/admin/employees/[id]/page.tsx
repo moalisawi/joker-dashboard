@@ -28,12 +28,11 @@ import { getDefaultGranularPermissions } from "@/lib/permissions";
 import { canManageUsers, canManagePermissions } from "@/lib/permissionGuards";
 import { formatNumber } from "@/lib/utils";
 import { toast } from "@/lib/toast";
-import type { GranularPermissions, EmployeeRole, EmployeeDepartment } from "@/types";
+import type { GranularPermissions, EmployeeRole} from "@/types";
 import {
   ArrowRight, Users, DollarSign, TrendingUp, RefreshCw, Target,
-  ShieldCheck, UserMinus, UserCheck, AlertCircle, Phone, Mail,
-  Building2, CalendarDays, Trash2, Users2, CheckCircle2,
-} from "lucide-react";
+   UserMinus, UserCheck, AlertCircle, Phone, Mail,
+  Building2, CalendarDays, Trash2, Users2, CheckCircle2} from "lucide-react";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 

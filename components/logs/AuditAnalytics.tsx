@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useMemo } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie} from "recharts";
 import type { NormalizedAuditLog } from "@/types";
 
 interface AuditAnalyticsProps {

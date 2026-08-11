@@ -6,13 +6,12 @@
 import {
   collection,
   query,
-  where,
+  
   getDocs,
   doc,
-  getDoc,
-} from "firebase/firestore";
+  getDoc} from "firebase/firestore";
 import { db } from "@/lib/firestore";
-import { MonthlyAnalytics, PaymentTransaction, RefundTransaction } from "@/types";
+import type { MonthlyAnalytics, AnalyticsBreakdown } from "@/types";
 
 export const analyticsService = {
   /**
@@ -73,7 +72,7 @@ export const analyticsService = {
   /**
    * Get analytics breakdown by employee
    */
-  async getByEmployee(month: string): Promise<Record<string, any> | null> {
+  async getByEmployee(month: string): Promise<Record<string, AnalyticsBreakdown> | null> {
     const analytics = await this.getByMonth(month);
     return analytics?.byEmployee || null;
   },
@@ -81,7 +80,7 @@ export const analyticsService = {
   /**
    * Get analytics breakdown by package
    */
-  async getByPackage(month: string): Promise<Record<string, any> | null> {
+  async getByPackage(month: string): Promise<Record<string, AnalyticsBreakdown> | null> {
     const analytics = await this.getByMonth(month);
     return analytics?.byPackage || null;
   },
@@ -89,7 +88,7 @@ export const analyticsService = {
   /**
    * Get analytics breakdown by country
    */
-  async getByCountry(month: string): Promise<Record<string, any> | null> {
+  async getByCountry(month: string): Promise<Record<string, AnalyticsBreakdown> | null> {
     const analytics = await this.getByMonth(month);
     return analytics?.byCountry || null;
   },
@@ -110,18 +109,18 @@ export const analyticsService = {
     const analytics = await this.getByDateRange(startMonth, endMonth);
     
     // Merge employee data across months
-    const merged: Record<string, any> = {};
+    const merged: Record<string, AnalyticsBreakdown> = {};
     analytics.forEach((a) => {
       if (a.byEmployee) {
         Object.entries(a.byEmployee).forEach(([employeeId, data]) => {
           if (!merged[employeeId]) {
             merged[employeeId] = { ...data };
           } else {
-            merged[employeeId].totalPaymentsUSD += (data as any).totalPaymentsUSD;
-            merged[employeeId].totalRefundsUSD += (data as any).totalRefundsUSD;
-            merged[employeeId].netRevenueUSD += (data as any).netRevenueUSD;
-            merged[employeeId].paymentCount += (data as any).paymentCount;
-            merged[employeeId].refundCount += (data as any).refundCount;
+            merged[employeeId].totalPaymentsUSD += (data as AnalyticsBreakdown).totalPaymentsUSD;
+            merged[employeeId].totalRefundsUSD += (data as AnalyticsBreakdown).totalRefundsUSD;
+            merged[employeeId].netRevenueUSD += (data as AnalyticsBreakdown).netRevenueUSD;
+            merged[employeeId].paymentCount += (data as AnalyticsBreakdown).paymentCount;
+            merged[employeeId].refundCount += (data as AnalyticsBreakdown).refundCount;
           }
         });
       }
@@ -130,7 +129,7 @@ export const analyticsService = {
     // Sort by net revenue and return top N
     return Object.entries(merged)
       .sort(
-        (a, b) => (b[1] as any).netRevenueUSD - (a[1] as any).netRevenueUSD
+        (a, b) => (b[1] as AnalyticsBreakdown).netRevenueUSD - (a[1] as AnalyticsBreakdown).netRevenueUSD
       )
       .slice(0, limit);
   },

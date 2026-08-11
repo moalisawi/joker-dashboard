@@ -10,6 +10,7 @@ import {
   orderBy,
   onSnapshot,
   Query,
+  type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "@/lib/firestore";
 import { MonthlyAnalytics } from "@/types";
@@ -32,7 +33,10 @@ export function useMonthlyAnalytics(options: UseMonthlyAnalyticsOptions = {}) {
         // Fetch specific months
         const unsubscribers: (() => void)[] = [];
 
-        const monthDocs = options.months.map((month) => {
+        // forEach, not map: the callback exists for its side effect — it opens
+        // an onSnapshot listener per month and collects the unsubscribers. The
+        // mapped array was never read, so it only allocated a list of undefined.
+        options.months.forEach((month) => {
           const q = query(
             collection(db, "monthlyAnalytics"),
             where("month", "==", month)
@@ -64,7 +68,7 @@ export function useMonthlyAnalytics(options: UseMonthlyAnalyticsOptions = {}) {
         return () => unsubscribers.forEach((unsub) => unsub());
       } else if (options.dateRange) {
         // Fetch month range
-        const constraints: any[] = [
+        const constraints: QueryConstraint[] = [
           where("month", ">=", options.dateRange.start.slice(0, 7)),
           where("month", "<=", options.dateRange.end.slice(0, 7)),
           orderBy("month", "desc"),
@@ -119,9 +123,9 @@ export function useMonthlyAnalytics(options: UseMonthlyAnalyticsOptions = {}) {
 
         return () => unsubscribe();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error setting up analytics listener:", err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
   }, [

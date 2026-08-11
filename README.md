@@ -238,10 +238,20 @@ npm run dev
 | `npm run build` | Production build |
 | `npm run start` | Serve production build |
 | `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Jest unit tests |
 | `npm run test:coverage` | Jest with coverage report |
 | `npm run test:e2e` | Playwright end-to-end tests |
+| `npm run audit:accounts` | Report Auth accounts vs `/users` profiles |
 | `npm run seed:whatsapp` | Seed WhatsApp leads data |
+
+**None of these depend on a prior build.** `tsconfig.json` includes
+`.next/types/**/*.ts` — Next generates route types there — but that entry is a
+glob, so it matches nothing when `.next` is absent and `typecheck` passes either
+way. Running it *after* a build additionally checks the generated route types,
+which is why CI builds before it, but the reverse order is not broken. Jest
+excludes `.next` outright (`jest.config.js`); it used to walk into it and fail
+depending on whether a build had happened first.
 
 ---
 

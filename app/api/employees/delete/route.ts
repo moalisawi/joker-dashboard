@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
-import { verifyServerUser, hasServerPermission, getBearerToken } from "@/lib/serverAuth";
+import { verifyServerUser,  getBearerToken } from "@/lib/serverAuth";
 import { hasAdminCredentials, fsGet, fsPatch, fsAdd } from "@/lib/serverFirestore";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import type { Role } from "@/types";

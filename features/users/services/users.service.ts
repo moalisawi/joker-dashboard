@@ -17,9 +17,7 @@ import {
   where,
   getDocs,
   doc,
-  getDoc,
-  orderBy,
-} from "firebase/firestore";
+  getDoc} from "firebase/firestore";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/firestore";
 import { COLLECTIONS } from "@/constants/collections";

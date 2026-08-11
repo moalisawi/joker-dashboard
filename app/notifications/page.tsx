@@ -21,8 +21,7 @@ import type {
 import {
   CheckCircle2, AlertTriangle, Info, XCircle,
   UserPlus, UserMinus, Snowflake, PlayCircle,
-  CreditCard, Undo2, Shield, ShieldAlert, Settings2,
-} from "lucide-react";
+  CreditCard, Undo2, Shield, ShieldAlert} from "lucide-react";
 import Link from "next/link";
 
 // ─── timestamp helper ─────────────────────────────────────────────────────────
