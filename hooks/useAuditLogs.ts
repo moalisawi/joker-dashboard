@@ -185,7 +185,6 @@ export function useAuditLogs() {
 
   // quick stats computed from allLogs (unfiltered)
   const stats = useMemo(() => {
-    const now   = Date.now();
     const today = new Date(new Date().setHours(0, 0, 0, 0)).getTime();
     let todayCount    = 0;
     let criticalCount = 0;

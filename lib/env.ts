@@ -1,17 +1,24 @@
 /**
- * Centralized, validated environment configuration.
+ * Environment validation.
  *
- * Import this module (not process.env directly) everywhere you need env vars.
- * The Zod parse runs once at module load time and throws immediately if any
- * required variable is absent, so misconfigured deployments fail at startup
- * rather than at runtime inside a request handler.
+ * This module used to parse and throw at import time, and the README described
+ * it as validating the environment at startup. It did neither, because nothing
+ * imported it — and it could not have, safely: `next build` imports every route
+ * module to collect metadata, so a module-load throw would have failed CI, which
+ * builds with no secrets on purpose. The dead code and the documentation
+ * disagreed with the running system in both directions.
  *
- * Client vs. server distinction:
- *  - clientEnv  → NEXT_PUBLIC_* vars, safe to expose in the browser bundle
- *  - serverEnv  → secret vars, only accessed in API routes / server components
+ * So validation is now explicit and lazy. Nothing here runs unless called:
  *
- * Usage:
- *   import { clientEnv, serverEnv } from "@/lib/env";
+ *   validateClientEnv()  → issues with the NEXT_PUBLIC_* bundle values
+ *   validateServerEnv()  → issues with the secret values
+ *   assertServerEnv()    → throws; call from a request path, never at module load
+ *
+ * Production runtime already fails clearly on absent credentials without this:
+ * `hasAdminCredentials()` is false and the mutation routes answer 503. What this
+ * adds is a precise account of *which* variables are missing, for a diagnostic
+ * that can say so rather than leaving someone to guess — which is exactly the
+ * failure mode that cost this project months (docs/CHANGELOG-2026-08-10.md).
  */
 
 import { z } from "zod";
@@ -56,7 +63,8 @@ const serverSchema = z.object({
 
 // ─── Parse & export ───────────────────────────────────────────────────────────
 
-function parseClientEnv() {
+/** Names of the variables that are missing or malformed. Empty means healthy. */
+export function validateClientEnv(): string[] {
   const result = clientSchema.safeParse({
     NEXT_PUBLIC_FIREBASE_API_KEY:             process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:         process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -68,16 +76,13 @@ function parseClientEnv() {
     NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID:      process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
   });
 
-  if (!result.success) {
-    const issues = result.error.issues.map((i) => `  • ${i.path.join(".")}: ${i.message}`).join("\n");
-    throw new Error(`[env] Missing or invalid client environment variables:\n${issues}`);
-  }
-  return result.data;
+  return result.success ? [] : result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
 }
 
-function parseServerEnv() {
-  // Skip server-side validation in browser bundles
-  if (typeof window !== "undefined") return null;
+/** Names of the server variables that are missing or malformed. Empty means healthy. */
+export function validateServerEnv(): string[] {
+  // Server secrets are not present in a browser bundle and never should be.
+  if (typeof window !== "undefined") return [];
 
   const result = serverSchema.safeParse({
     FIREBASE_PROJECT_ID:      process.env.FIREBASE_PROJECT_ID,
@@ -91,23 +96,37 @@ function parseServerEnv() {
     UPSTASH_REDIS_REST_TOKEN:  process.env.UPSTASH_REDIS_REST_TOKEN,
   });
 
-  if (!result.success) {
-    const issues = result.error.issues.map((i) => `  • ${i.path.join(".")}: ${i.message}`).join("\n");
-    // Log but don't crash — some env vars are optional in dev (e.g. Upstash)
-    const criticalPaths = ["FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY_B64"];
-    const hasCritical = result.error.issues.some((i) => criticalPaths.includes(String(i.path[0])));
-    if (hasCritical) {
-      throw new Error(`[env] Missing critical server environment variables:\n${issues}`);
-    }
-    console.warn(`[env] Non-critical server env warnings:\n${issues}`);
-  }
-
-  return result.success ? result.data : (result as unknown as { data: z.infer<typeof serverSchema> }).data;
+  return result.success ? [] : result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
 }
 
-export const clientEnv = parseClientEnv();
+/**
+ * The variables without which the server cannot do its job at all. Upstash and
+ * Resend are absent deliberately: the app degrades honestly without them (local
+ * rate limiting, no email), while these three mean no data access whatsoever.
+ */
+const CRITICAL_SERVER_VARS = [
+  "FIREBASE_PROJECT_ID",
+  "FIREBASE_CLIENT_EMAIL",
+  "FIREBASE_PRIVATE_KEY_B64",
+];
 
-export const serverEnv = parseServerEnv();
+/**
+ * Throws when a critical server variable is absent.
+ *
+ * Call from inside a request handler. Never at module load — `next build`
+ * imports route modules, and a throw there fails CI builds, which run without
+ * secrets on purpose.
+ */
+export function assertServerEnv(): void {
+  const issues = validateServerEnv().filter((issue) =>
+    CRITICAL_SERVER_VARS.some((name) => issue.startsWith(name))
+  );
+  if (issues.length > 0) {
+    throw new Error(
+      `[env] Missing critical server environment variables:\n${issues.map((i) => `  • ${i}`).join("\n")}`
+    );
+  }
+}
 
 // ─── Convenience helpers ──────────────────────────────────────────────────────
 

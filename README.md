@@ -9,7 +9,7 @@ A full-featured Arabic-RTL subscription management system built with Next.js 16,
 ### Security Hardening
 - **Firestore rules** — employees now have row-level scoping: they can only read subscribers where they are the `convincedBy` party. Uses `convincedByUid` (UID-based, tamper-proof) for new records, with a name-based fallback for legacy records.
 - **Rate limiting** — upgraded from in-process to Upstash Redis (shared across all serverless instances). Configure via `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`. Falls back to in-memory for local dev.
-- **Env validation** — new `lib/env.ts` validates all env vars at startup with Zod. Deployments with missing credentials fail immediately rather than at runtime.
+- **Env validation** — `lib/env.ts` exposes Zod-backed checks (`validateClientEnv`, `validateServerEnv`, `assertServerEnv`). They are explicit calls, not a module-load side effect: `next build` imports every route module, so throwing at import would fail CI builds, which run without secrets deliberately. A deployment missing Admin credentials is caught at request time by `hasAdminCredentials()`, and the mutation routes answer 503.
 
 ### `convincedByUid` End-to-End Migration
 - All new subscriber records now store `convincedByUid` (Firebase UID) alongside the `convincedBy` display name.
@@ -292,7 +292,7 @@ Every privileged operation (create, edit, delete, withdraw, role change) writes 
 - `NEXT_PUBLIC_*` vars are safe to expose (they are Firebase client credentials, protected by Firestore rules and authorized domains)
 - `FIREBASE_PRIVATE_KEY_B64` (base64-encoded) or `FIREBASE_PRIVATE_KEY` (raw PEM with `\n`) for the Admin SDK private key
 - `RESEND_API_KEY` is server-only — never prefix it with `NEXT_PUBLIC_`
-- All server env vars are validated at startup via `lib/env.ts` (Zod schema) — misconfigured deployments fail immediately rather than at request time
+- Server env vars have Zod schemas in `lib/env.ts`, validated on demand rather than at startup — see above for why. Missing Admin credentials surface as a 503 from the mutation routes; missing `NEXT_PUBLIC_FIREBASE_*` surface on the login page, since `lib/firebase.ts` detects the CI placeholder it would otherwise ship silently
 - Never commit `.env.local` — it is in `.gitignore`
 
 ### Soft Deletes

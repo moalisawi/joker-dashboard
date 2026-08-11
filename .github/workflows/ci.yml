@@ -56,10 +56,13 @@ jobs:
         run: npm ci
 
       - name: Generate throwaway service-account key
-        # lib/env.ts validates the Firebase env at module load, so `next build`
-        # needs syntactically valid values. Nothing here contacts Google — the
-        # key is generated per-run, used only to satisfy cert() parsing, and
-        # discarded with the runner. Never point this at a real project.
+        # serverAuth initialises the Admin SDK at module load, and `next build`
+        # imports every route module — so cert() must get something it can parse.
+        # (An earlier comment here credited lib/env.ts with validating at module
+        # load. It never did: nothing imported it. See lib/env.ts.)
+        # Nothing contacts Google — the key is generated per run, used only to
+        # satisfy parsing, and discarded with the runner. Never point this at a
+        # real project.
         run: echo "FAKE_KEY_B64=$(openssl genrsa 2048 2>/dev/null | base64 -w0)" >> "$GITHUB_ENV"
 
       - name: Build
