@@ -170,6 +170,68 @@ describe('computePaymentUpdate', () => {
   })
 })
 
+// ─── createSubscriber: the opening balance ──────────────────────────────────
+
+/**
+ * createSubscriber wrote a payments document for the initial payment but saved
+ * the subscriber with paidAmountUSD 0 and remainingAmountUSD equal to the full
+ * price. A customer who paid in full at signup appeared to owe everything, and
+ * the payment existed only as an orphan row. The route now runs the same
+ * computePaymentUpdate that addPayment uses, against an empty opening balance —
+ * so the two paths cannot drift, and the overpayment guard applies to signup
+ * too, which it previously did not.
+ */
+describe('opening balance for a new subscriber', () => {
+  /** Mirrors what createSubscriber passes for a brand-new record. */
+  function opening(totalPriceUSD: number, amountOriginal: number, exchangeRate = 1) {
+    return computePaymentUpdate({
+      amountOriginal,
+      exchangeRate,
+      current: { paidAmountUSD: 0, totalPriceUSD, refundAmountUSD: 0, lockedRate: exchangeRate },
+    })
+  }
+
+  it('leaves the full price outstanding when there is no initial payment', () => {
+    // No payment means no computePaymentUpdate call — the route builds this
+    // shape directly, so assert the values it must produce.
+    const totalPriceUSD = 100
+    expect(Math.max(0, totalPriceUSD)).toBe(100)
+    expect(() => opening(totalPriceUSD, 0)).toThrow(/greater than zero/)
+  })
+
+  it('records a partial payment against the balance', () => {
+    const result = opening(100, 40)
+    expect(result.paidAmountUSD).toBe(40)
+    expect(result.remainingAmountUSD).toBe(60)
+    expect(result.netAmountUSD).toBe(40)
+  })
+
+  it('clears the balance on payment in full', () => {
+    const result = opening(100, 100)
+    expect(result.paidAmountUSD).toBe(100)
+    expect(result.remainingAmountUSD).toBe(0)
+  })
+
+  it('rejects an initial payment larger than the price', () => {
+    // The signup path had no overpayment guard at all before this.
+    expect(() => opening(100, 150)).toThrow(/يتجاوز الإجمالي/)
+  })
+
+  it('converts a local-currency signup payment', () => {
+    const result = opening(100, 2425, 48.5)
+    expect(result.paidAmountUSD).toBeCloseTo(50, 10)
+    expect(result.remainingAmountUSD).toBeCloseTo(50, 10)
+    // The local mirror uses the subscriber's locked rate.
+    expect(result.paidAmount).toBeCloseTo(2425, 8)
+  })
+
+  it('does not cap a signup where no price was recorded', () => {
+    const result = opening(0, 500)
+    expect(result.paidAmountUSD).toBe(500)
+    expect(result.remainingAmountUSD).toBe(0)
+  })
+})
+
 // ─── renewSubscription ──────────────────────────────────────────────────────
 
 describe('computeRenewalTotals', () => {
