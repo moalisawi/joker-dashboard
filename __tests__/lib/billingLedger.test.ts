@@ -204,15 +204,54 @@ describe('transaction write budget', () => {
     expect(MAX_INSTALLMENTS).toBeLessThan(500 - 12)
   })
 
-  it('applies a down payment to the schedule instead of leaving it floating', () => {
+  /**
+   * REGRESSION — the down payment was being spent twice.
+   *
+   * This test previously asserted the opposite: that a $200 down payment
+   * settled the first two instalments. That was wrong, and asserting it kept
+   * a real defect green.
+   *
+   * generateInstallmentSchedule() is always called with `downPaymentOriginal`,
+   * so the schedule already covers only the *unpaid* remainder — $300 with $100
+   * down produces instalments summing to $200. Allocating the down payment on
+   * top then spends it a second time, and the invoice and its own instalments
+   * stop describing the same debt: the E2E run showed invoice "remaining $200"
+   * beside instalments with only $100 outstanding.
+   *
+   * The invariant that matters: **instalments outstanding == invoice
+   * remaining**, always, at the moment an invoice is issued.
+   */
+  it('does not spend the down payment twice — instalments start unpaid', () => {
     const { tx, writes } = fakeTx()
-    stageInvoice(tx as never, fakeDb() as never, {
-      ...base, paidUSD: 200, schedule: schedule(6), // 6 × 100
+    // $600 total, $200 down → schedule covers the $400 still owed.
+    const financed = generateInstallmentSchedule({
+      totalOriginal: 600, downPaymentOriginal: 200, exchangeRate: 1,
+      count: 4, firstDueDate: '2026-09-01', frequency: 'monthly',
     })
+    stageInvoice(tx as never, fakeDb() as never, {
+      ...base, paidUSD: 200, schedule: financed,
+    })
+
     const installments = writes.filter((w) => w.path.startsWith('installments/'))
-    expect(installments[0].data).toMatchObject({ paidUSD: 100, status: 'paid' })
-    expect(installments[1].data).toMatchObject({ paidUSD: 100, status: 'paid' })
-    expect(installments[2].data).toMatchObject({ paidUSD: 0 })
+    expect(installments.every((w) => w.data.paidUSD === 0)).toBe(true)
+    expect(installments.every((w) => w.data.status !== 'paid')).toBe(true)
+  })
+
+  it('keeps instalments outstanding equal to invoice remaining', () => {
+    const { tx, writes } = fakeTx()
+    const financed = generateInstallmentSchedule({
+      totalOriginal: 600, downPaymentOriginal: 200, exchangeRate: 1,
+      count: 4, firstDueDate: '2026-09-01', frequency: 'monthly',
+    })
+    stageInvoice(tx as never, fakeDb() as never, { ...base, paidUSD: 200, schedule: financed })
+
+    const outstanding = writes
+      .filter((w) => w.path.startsWith('installments/'))
+      .reduce((n, w) => n + (w.data.remainingUSD as number), 0)
+    const invoice = writes.find((w) => w.path.startsWith('invoices/'))!
+
+    expect(outstanding).toBeCloseTo(invoice.data.remainingUSD as number, 6)
+    expect(outstanding).toBeCloseTo(400, 6)
   })
 
   it('marks an unscheduled invoice paid when it was settled up front', () => {

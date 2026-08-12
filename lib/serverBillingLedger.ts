@@ -230,29 +230,30 @@ export function stageInvoice(
   const linkFields = input.convincedByUid ? { convincedByUid: input.convincedByUid } : {};
 
   const installmentIds: string[] = [];
-  let allocations: Allocation[] = [];
 
   if (input.schedule.length > 0) {
-    // Ids are needed before allocation so each allocation can name its target.
     const refs = input.schedule.map(() => db.collection(INSTALLMENTS).doc());
 
-    const allocatable: AllocatableInstallment[] = input.schedule.map((s, i) => ({
-      id: refs[i].id,
-      installmentNumber: s.installmentNumber,
-      dueDate: s.dueDate,
-      amountUSD: s.amountUSD,
-      paidUSD: 0,
-      status: "pending",
-    }));
-
-    allocations = allocatePaymentToInstallments(input.paidUSD, allocatable).allocations;
-    const byId = new Map(allocations.map((a) => [a.installmentId, a]));
-
+    /*
+     * Instalments start unpaid, even when a down payment was taken.
+     *
+     * generateInstallmentSchedule() is always called with
+     * `downPaymentOriginal` set, so the schedule already covers only what is
+     * still owed — $300 with $100 down produces three instalments summing to
+     * $200, not $300. Allocating the down payment on top of that spends it
+     * twice: it is subtracted once to size the schedule and then applied again
+     * to settle the first instalment.
+     *
+     * The E2E run that caught this showed the damage plainly — invoice
+     * "remaining $200" beside instalments totalling $100 outstanding, so $100
+     * had silently left the schedule. The invoice and its own instalments have
+     * to describe the same debt, and they only do if the down payment touches
+     * the invoice total alone.
+     */
     input.schedule.forEach((s, i) => {
       const ref = refs[i];
-      const alloc = byId.get(ref.id);
-      const paidUSD = alloc?.paidUSD ?? 0;
-      const remainingUSD = Math.max(0, s.amountUSD - paidUSD);
+      const paidUSD = 0;
+      const remainingUSD = s.amountUSD;
 
       tx.set(ref, {
         invoiceId:      invoiceRef.id,
