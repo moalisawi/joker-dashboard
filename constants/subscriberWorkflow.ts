@@ -89,6 +89,15 @@ export const NOTE_TYPE_COLORS: Record<NoteType, string> = {
 export const RENEWAL_STATUS = {
   PENDING:   "pending",
   CONTACTED: "contacted",
+  /**
+   * The customer said yes but has not paid yet.
+   *
+   * Previously this collapsed into "contacted", which made the follow-up queue
+   * unusable at exactly the point it matters: someone who promised to pay on
+   * Thursday and someone who answered the phone once are entirely different
+   * work, and the queue sorted them together.
+   */
+  PROMISED:  "promised",
   RENEWED:   "renewed",
   DECLINED:  "declined",
 } as const;
@@ -98,6 +107,7 @@ export type RenewalWorkflowStatus = (typeof RENEWAL_STATUS)[keyof typeof RENEWAL
 export const RENEWAL_STATUS_LABELS: Record<RenewalWorkflowStatus, string> = {
   pending:   "قيد الانتظار",
   contacted: "تم التواصل",
+  promised:  "وعد بالدفع",
   renewed:   "تم التجديد",
   declined:  "رفض التجديد",
 };
@@ -105,6 +115,7 @@ export const RENEWAL_STATUS_LABELS: Record<RenewalWorkflowStatus, string> = {
 export const RENEWAL_STATUS_COLORS: Record<RenewalWorkflowStatus, { bg: string; color: string }> = {
   pending:   { bg: "#fef3c718", color: "#d97706" },
   contacted: { bg: "#ede9fe18", color: "#7c3aed" },
+  promised:  { bg: "#dbeafe18", color: "#2563eb" },
   renewed:   { bg: "#d1fae518", color: "#059669" },
   declined:  { bg: "#fee2e218", color: "#dc2626" },
 };

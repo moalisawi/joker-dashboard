@@ -23,7 +23,7 @@ export type { UserProfile, Role, Permissions } from "./user";
 
 // Permission types
 export type { AccountStatus, GranularPermissions } from "./permissions";
-export { PERMISSION_LABELS } from "./permissions";
+export { PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "./permissions";
 
 // Analytics types
 export type { MonthlyAnalytics, AnalyticsBreakdown } from "./analytics";
@@ -57,6 +57,29 @@ export type {
 
 // Employee types
 export type { EmployeeRole, EmployeeDepartment } from "./employee";
+
+// Billing ledger types (cycles / invoices / instalments)
+export type {
+  SubscriptionCycle,
+  Invoice,
+  Installment,
+  SettlementBatch,
+  CycleStatus,
+  InvoiceStatus,
+  InstallmentStatus,
+  InstallmentFrequency,
+  PaymentPlanType,
+  ReceiptStatus,
+  SettlementStatus,
+} from "./billing";
+export {
+  CYCLE_STATUS_LABELS,
+  INVOICE_STATUS_LABELS,
+  INSTALLMENT_STATUS_LABELS,
+  INSTALLMENT_FREQUENCY_LABELS,
+  RECEIPT_STATUS_LABELS,
+  SETTLEMENT_STATUS_LABELS,
+} from "./billing";
 
 // Session types
 export type { LoginSession, FailedLoginAttempt, SessionSummary, DeviceType, SessionStatus } from "./session";

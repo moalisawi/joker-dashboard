@@ -11,6 +11,9 @@ import { storage } from "@/lib/storage";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuthStore } from "@/store/authStore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
+import PaymentPlanPicker, {
+  defaultPaymentPlan, toPaymentPlanPayload, type PaymentPlanValue,
+} from "@/components/subscribers/PaymentPlanPicker";
 import { calculateExpiry, todayString, PHONE_COUNTRIES, RESIDENCE_COUNTRIES } from "@/lib/utils";
 import PhoneInput from "@/components/ui/PhoneInput";
 import { SOURCES } from "@/lib/permissions";
@@ -190,6 +193,10 @@ export default function SubscriberModal({
   const watchedResidence      = useWatch({ control, name: "residence"       });
   const watchedSource         = useWatch({ control, name: "source"          });
   const watchedCurrency       = useWatch({ control, name: "currencyOriginal"});
+  // The plan lives outside react-hook-form: it is a compound value with its
+  // own preview, and the form schema validates the money fields, not the
+  // schedule (the generator does that and reports its own error).
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlanValue>(() => defaultPaymentPlan(""));
   const watchedTotalPrice     = useWatch({ control, name: "totalPrice"      });
   const watchedDate           = useWatch({ control, name: "date"            });
   const watchedDurationPreset = useWatch({ control, name: "durationPreset"  });
@@ -426,6 +433,7 @@ export default function SubscriberModal({
           initialPayment: paidAmount > 0
             ? { amountOriginal: paidAmount, currencyOriginal: data.currencyOriginal, exchangeRate: lockedRate, paymentMethod: data.payment, paymentMethodId: paymentMethodId || undefined, receiptUrl, date: data.date, notes: null }
             : null,
+          paymentPlan: toPaymentPlanPayload(paymentPlan, totalPrice - paidAmount),
         });
         newSubscriberId = result.subscriberId;
       }
@@ -754,6 +762,22 @@ export default function SubscriberModal({
                         )}
                       </div>
                     </Field>
+                  )}
+
+                  {!isEdit && totalPrice > 0 && (
+                    <PaymentPlanPicker
+                      totalOriginal={totalPrice}
+                      downPaymentOriginal={
+                        (watchedAll.initialPayment ?? "").trim() === ""
+                          ? totalPrice
+                          : parseFloat(watchedAll.initialPayment ?? "0") || 0
+                      }
+                      exchangeRate={lockedRate}
+                      currency={watchedCurrency}
+                      startDate={watchedAll.date ?? ""}
+                      value={paymentPlan}
+                      onChange={setPaymentPlan}
+                    />
                   )}
 
                   <Field label="طريقة الدفع *" error={errors.payment?.message}>

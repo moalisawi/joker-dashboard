@@ -85,12 +85,15 @@ export const PERM = {
   EXPORT_REPORTS:           "export_reports",
   MANAGE_AUTOMATIONS:       "manage_automations",
 
-  // Subscriber workflow (Phase 3) — ASSIGN_SUBSCRIBERS already defined above
-  TRANSFER_SUBSCRIBERS:       "transfer_subscribers",
-  CHANGE_SUBSCRIBER_STATUS:   "change_subscriber_status",
-  VIEW_INTERNAL_NOTES:        "view_internal_notes",
-  ADD_INTERNAL_NOTES:         "add_internal_notes",
-  MANAGE_RENEWALS:            "manage_renewals",
+  // Subscriber workflow (Phase 3) — ASSIGN_SUBSCRIBERS already defined above.
+  //
+  // transfer_subscribers, change_subscriber_status, view_internal_notes,
+  // add_internal_notes and manage_renewals used to live here. Nothing could
+  // grant them: they were absent from ROLE_CEILING and from the save schema, so
+  // the checkbox an owner ticked was discarded and the guard answered false for
+  // every employee forever. Their call sites all read
+  // `guard(user) || role === "owner" || role === "admin"`, so the behaviour was
+  // "staff only" — which is now what the guards in permissionGuards.ts say.
 } as const;
 
 export type PermKey = (typeof PERM)[keyof typeof PERM];

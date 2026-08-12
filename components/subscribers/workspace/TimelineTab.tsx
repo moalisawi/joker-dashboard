@@ -5,9 +5,11 @@ import { motion } from "framer-motion";
 import {
   DollarSign, RefreshCw, StickyNote, UserCheck,
   PauseCircle, Snowflake, UserMinus,
-  Plus, RotateCcw, AlertCircle, PlayCircle,
+  Plus, RotateCcw, AlertCircle, PlayCircle, Scale,
 } from "lucide-react";
 import { useSubscriberNotes } from "@/features/subscriberNotes/hooks/useSubscriberNotes";
+import { useAdjustments } from "@/features/billing/hooks";
+import { ADJUSTMENT_TYPE_LABELS, type AdjustmentType } from "@/constants/billing";
 import { formatNumber } from "@/lib/utils";
 import type { Subscriber }        from "@/types";
 import type { PaymentTransaction } from "@/types";
@@ -18,7 +20,7 @@ import type { RefundTransaction }  from "@/types";
 type EventKind =
   | "created"    | "payment"  | "refund"   | "renewal"
   | "paused"     | "resumed"  | "frozen"   | "unfrozen"
-  | "withdrawn"  | "assigned" | "note";
+  | "withdrawn"  | "assigned" | "note"      | "adjustment";
 
 interface TimelineEvent {
   id:      string;
@@ -76,6 +78,10 @@ export default function TimelineTab({ subscriber: s, payments, refunds, canRev }
   const t = { card: "var(--surface)", border: "rgba(15,23,42,0.08)", t1: "var(--text-primary)", t2: "#6b7280", line: "rgba(15,23,42,0.08)" };
 
   const { data: notes = [] } = useSubscriberNotes(s.id);
+  // Corrections belong on the timeline for the same reason they belong beside
+  // the payments: they are the only entry that can move the balance without a
+  // payment row to explain it.
+  const { data: adjustments = [] } = useAdjustments(s.id);
 
   const events = useMemo<TimelineEvent[]>(() => {
     const list: TimelineEvent[] = [];
@@ -117,6 +123,21 @@ export default function TimelineTab({ subscriber: s, payments, refunds, canRev }
         amount: r.refundAmountUSD,
         color:  ACC.rose,
         icon:   <RefreshCw size={13} />,
+      });
+    });
+
+    // 3b. Adjustments
+    adjustments.forEach((a) => {
+      const signed = Number(a.amountUSD) || 0;
+      list.push({
+        id:     `adj-${a.id}`,
+        kind:   "adjustment",
+        date:   toIso(a.createdAt) || a.date || "",
+        label:  ADJUSTMENT_TYPE_LABELS[a.adjustmentType as AdjustmentType] ?? "تسوية",
+        sub:    a.reason ?? "",
+        amount: Math.abs(signed),
+        color:  signed < 0 ? ACC.rose : ACC.emerald,
+        icon:   <Scale size={13} />,
       });
     });
 
@@ -222,7 +243,7 @@ export default function TimelineTab({ subscriber: s, payments, refunds, canRev }
     return list
       .filter((e) => !!e.date)
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [s, payments, refunds, notes]);
+  }, [s, payments, refunds, notes, adjustments]);
 
   if (events.length === 0) {
     return (

@@ -12,14 +12,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Users, ScrollText, LogOut, Menu, X,
   BarChart3, Bell, Briefcase, Users2, FileText, BookOpen, Shield, CreditCard,
-  MessageSquare, MessageCircle,
+  MessageSquare, MessageCircle, Scale,
 } from "lucide-react";
 
 interface NavItem {
   href:        string;
   label:       string;
   icon:        React.ReactNode;
-  permission?: "canManageUsers" | "canViewLogs" | "canManagePaymentMethods";
+  permission?: "canManageUsers" | "canViewLogs" | "canManagePaymentMethods" | "canViewRevenue";
   badge?:      () => number;
   roles?:      string[];
 }
@@ -48,10 +48,12 @@ export default function Sidebar() {
     { href: "/payment-methods",  label: "طرق الدفع",      icon: <CreditCard     size={18} />, permission: "canManagePaymentMethods" },
     { href: "/analytics",        label: "التحليلات",      icon: <BarChart3  size={18} /> },
     { href: "/reports",          label: "التقارير",       icon: <FileText   size={18} />, roles: ["owner", "admin"] },
+    { href: "/finance",          label: "المالية",        icon: <Scale      size={18} />, permission: "canViewRevenue" },
     { href: "/notifications",    label: "الإشعارات",      icon: <Bell       size={18} />, badge: () => unreadCount(uid) },
-    { href: "/admin/employees",  label: "الموظفون",       icon: <Briefcase  size={18} />, permission: "canManageUsers" },
+    // One entry, not two. "الموظفون" and "المستخدمون" pointed at two consoles
+    // for the same job; /users is now a redirect here.
+    { href: "/admin/employees",  label: "المستخدمون",     icon: <Briefcase  size={18} />, permission: "canManageUsers" },
     { href: "/admin/teams",      label: "الفرق",          icon: <Users2     size={18} />, permission: "canManageUsers" },
-    { href: "/users",            label: "المستخدمون",     icon: <Users      size={18} />, permission: "canManageUsers" },
     { href: "/logs",             label: "سجل العمليات",   icon: <ScrollText size={18} />, permission: "canViewLogs" },
     { href: "/sessions",         label: "سجل الجلسات",   icon: <Shield     size={18} />, roles: ["owner", "admin"] },
     { href: "/guide",            label: "دليل الاستخدام", icon: <BookOpen   size={18} /> },

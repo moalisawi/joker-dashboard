@@ -87,7 +87,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   const parsed = createEmployeeSchema.safeParse(raw);
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Validation error", 422);
 
-  const { email, password, fullName, phone, employeeRole, department, teamId, notes } = parsed.data;
+  const {
+    email, password, fullName, phone, employeeRole, department, teamId, notes, initialStatus,
+  } = parsed.data;
   const targetRole        = EMPLOYEE_AUTH_ROLE[employeeRole];
   const granularPerms     = EMPLOYEE_ROLE_PERMISSIONS[employeeRole];
 
@@ -122,8 +124,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     notes:               notes    ?? "",
     role:                targetRole,
     granularPermissions: granularPerms,
-    status:              "active",
-    active:              true,
+    // A `pending` account is fully provisioned and fully locked out:
+    // verifyServerUser() and firestore.rules both require status === "active",
+    // so it exists, holds its permissions, and can do nothing until someone
+    // reactivates it. That is the shape an invite flow needs, and it works today
+    // without one — the temporary password is simply handed over out of band.
+    status:              initialStatus ?? "active",
+    active:              (initialStatus ?? "active") === "active",
     createdBy:           actor.uid,
     createdAt:           now,
     updatedAt:           now,
@@ -153,9 +160,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     entityType:  "user",
     entityId:    uid,
     entityName:  fullName,
-    description: `Employee created: ${fullName} (${email}) — role: ${employeeRole}`,
+    description: `Employee created: ${fullName} (${email}) — role: ${employeeRole}, status: ${initialStatus ?? "active"}`,
     performedBy: { uid: actor.uid, name: actor.email ?? actor.uid, email: actor.email ?? "", role: actor.role },
-    metadata:    { employeeRole, department, teamId: teamId ?? null },
+    metadata:    { employeeRole, department, teamId: teamId ?? null, initialStatus: initialStatus ?? "active" },
     tags:        ["employee", "created"],
     status:      "completed",
     actorUid:    actor.uid,

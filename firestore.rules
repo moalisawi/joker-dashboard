@@ -136,6 +136,67 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // ─── billing ledger: cycles / invoices / instalments ──────────────────
+    //
+    // Scoped exactly like payments and refunds, and for the same reason: an
+    // invoice states what a named person owes and an instalment states when
+    // they are late, which is no less sensitive than the payment itself. All
+    // three carry a denormalised convincedByUid written by the server at
+    // creation, so an employee reads only the billing of subscribers they own.
+    //
+    // No `hasPerm` clause here, unlike payments. Reading your own subscriber's
+    // balance is part of doing the job — the employee already sees
+    // remainingAmountUSD on the subscriber document — whereas payments.view
+    // gates the transaction-level detail.
+    //
+    // Writes are `if false` throughout. Every cycle, invoice and instalment is
+    // written by the Admin SDK inside a transaction in
+    // /api/subscriber-operations, which bypasses these rules by design. There is
+    // no client path that should ever create or amend a financial record, and an
+    // instalment a client could mark paid is not an instalment.
+    function ownsBillingRow() {
+      return isEmployee()
+             && resource.data.get('convincedByUid', null) != null
+             && resource.data.get('convincedByUid', '') == request.auth.uid;
+    }
+
+    match /subscriptionCycles/{id} {
+      allow read:                   if isStaff() || ownsBillingRow();
+      allow create, update, delete: if false;
+    }
+
+    match /invoices/{id} {
+      allow read:                   if isStaff() || ownsBillingRow();
+      allow create, update, delete: if false;
+    }
+
+    match /installments/{id} {
+      allow read:                   if isStaff() || ownsBillingRow();
+      allow create, update, delete: if false;
+    }
+
+    // Corrections to money already counted. Readable by whoever can already see
+    // the payment being corrected — hiding the correction while showing the
+    // original is how a balance stops reconciling for the person looking at it.
+    match /paymentAdjustments/{id} {
+      allow read:                   if isStaff() || ownsBillingRow();
+      allow create, update, delete: if false;
+    }
+
+    // Reconciliation is a finance-desk view of every payment method at once, so
+    // it is staff-only with no per-employee scoping to apply.
+    match /settlementBatches/{id} {
+      allow read:                   if isStaff();
+      allow create, update, delete: if false;
+    }
+
+    // Invoice number sequences. Server-only in both directions: the counter is
+    // read and incremented inside the same transaction that issues the invoice,
+    // and nothing in the UI has any reason to see it.
+    match /counters/{id} {
+      allow read, write: if false;
+    }
+
     // ─── auditLogs — server-only writes (Admin SDK) ───────────────────────────
     match /auditLogs/{id} {
       allow read:  if isStaff() || (isAuth() && hasPerm('logs', 'view'));

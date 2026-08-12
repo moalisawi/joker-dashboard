@@ -27,6 +27,7 @@ import OverviewTab    from "@/components/subscribers/workspace/OverviewTab";
 import AssignmentsTab from "@/components/subscribers/workspace/AssignmentsTab";
 import NotesPanel     from "@/components/subscribers/NotesPanel";
 import PaymentsTab    from "@/components/subscribers/workspace/PaymentsTab";
+import BillingTab     from "@/components/subscribers/workspace/BillingTab";
 import RenewalsTab    from "@/components/subscribers/workspace/RenewalsTab";
 import ActivityTab    from "@/components/subscribers/workspace/ActivityTab";
 import TimelineTab    from "@/components/subscribers/workspace/TimelineTab";
@@ -37,7 +38,7 @@ import {
   AlertCircle, CheckCircle2, XCircle, PauseCircle,
   Snowflake, MessageCircle, LayoutDashboard, UserCheck,
   StickyNote, CreditCard, RotateCcw, Activity, GitBranch,
-  Play, UserMinus,
+  Play, UserMinus, FileText,
 } from "lucide-react";
 
 // ── Theme tokens ──────────────────────────────────────────────────────────────
@@ -76,10 +77,14 @@ function statusColor(status: string) {
 }
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
-type TabKey = "overview" | "assignments" | "notes" | "payments" | "renewals" | "activity" | "timeline";
+type TabKey = "overview" | "billing" | "assignments" | "notes" | "payments" | "renewals" | "activity" | "timeline";
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key:"overview",     label:"نظرة عامة",    icon:<LayoutDashboard size={13}/> },
+  // Billing sits next to the overview, before the transaction-level tabs: the
+  // first question about money is "what is owed and when", not "list every
+  // payment ever made".
+  { key:"billing",      label:"الفوترة",       icon:<FileText   size={13}/> },
   { key:"timeline",     label:"التسلسل الزمني", icon:<GitBranch  size={13}/> },
   { key:"assignments",  label:"التعيين",       icon:<UserCheck  size={13}/> },
   { key:"notes",        label:"الملاحظات",    icon:<StickyNote size={13}/> },
@@ -373,6 +378,9 @@ export default function SubscriberWorkspacePage() {
           <div className="pb-10">
             {tab === "overview" && (
               <OverviewTab subscriber={s} payments={payments} refunds={refunds} canRev={canRev}/>
+            )}
+            {tab === "billing" && (
+              <BillingTab subscriber={s} onAddPayment={() => setModal("pay")} canRev={canRev}/>
             )}
             {tab === "timeline" && (
               <TimelineTab subscriber={s} payments={payments} refunds={refunds} canRev={canRev}/>

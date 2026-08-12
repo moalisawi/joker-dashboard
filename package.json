@@ -16,7 +16,8 @@
     "seed:whatsapp": "tsx scripts/seed-whatsapp.ts",
     "seed:fake-subscribers": "node scripts/seed-fake-subscribers.mjs",
     "clean:fake-subscribers": "node scripts/delete-fake-subscribers.mjs",
-    "audit:accounts": "node scripts/audit-accounts.mjs"
+    "audit:accounts": "node scripts/audit-accounts.mjs",
+    "backfill:cycles": "node scripts/backfill-subscription-cycles.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

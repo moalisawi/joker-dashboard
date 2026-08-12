@@ -1,89 +1,114 @@
 import { NextResponse } from "next/server";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
-import { verifyServerUser, hasServerPermission, getBearerToken } from "@/lib/serverAuth";
-import { hasAdminCredentials, fsGet, fsPatch, fsAdd } from "@/lib/serverFirestore";
-import { canManageRole } from "@/lib/permissions";
+import { revokeAuthAccess } from "@/lib/revokeAccess";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
+import { guardTargetedRoute, jsonError, loadTargetUser } from "@/lib/employeeAdminGuard";
 import { deactivateEmployeeSchema } from "@/features/users/schemas";
-import type { Role } from "@/types";
+import { writeUserAudit } from "@/lib/serverAudit";
+import { runTransfer } from "@/lib/transferData";
+import { buildImpactSummary } from "@/lib/userImpact";
+import { COLLECTIONS } from "@/constants/collections";
 
 export const runtime = "nodejs";
 
-function jsonError(msg: string, status: number) {
-  return NextResponse.json({ success: false, error: msg }, { status });
-}
-
+/**
+ * Withdraw a person's access without touching anything they produced.
+ *
+ * Deactivation is the reversible half of the lifecycle: nothing is deleted,
+ * every uid reference stays valid, and /api/employees/reactivate puts it all
+ * back. What changes is the three places access is decided —
+ *
+ *   status/active   read by verifyServerUser() and by firestore.rules
+ *   Auth `disabled` stops a new sign-in
+ *   refresh tokens  stops the sessions already open
+ *
+ * — and it is the third that used to be missing. Flipping the Firestore flag
+ * alone left anyone already signed in with a valid ID token for up to an hour,
+ * which is the whole window that matters when someone is being walked out.
+ *
+ * Optionally hands the account's assigned work over first; see
+ * transferToUid in deactivateEmployeeSchema.
+ */
 export async function POST(request: Request): Promise<NextResponse> {
   const ip = getClientIp(request);
-  if (!(await checkRateLimit(`emp-deactivate:${ip}`, 10, 60 * 1000))) return jsonError("Too many requests", 429);
+  if (!(await checkRateLimit(`emp-deactivate:${ip}`, 10, 60 * 1000))) {
+    return jsonError("Too many requests", 429);
+  }
 
-  // ── 1. Auth ──────────────────────────────────────────────────────────────────
-  let actor;
-  try { actor = await verifyServerUser(request); } catch { return jsonError("Unauthorized", 401); }
-  if (!actor) return jsonError("Unauthorized", 401);
-  if (!hasServerPermission(actor, "users", "activateAccounts")) return jsonError("Forbidden", 403);
-
-  const token = getBearerToken(request)!;
-
-  // ── 2. Validate ──────────────────────────────────────────────────────────────
   let raw: unknown;
   try { raw = await request.json(); } catch { return jsonError("Invalid JSON", 400); }
 
   const parsed = deactivateEmployeeSchema.safeParse(raw);
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message ?? "Validation error", 422);
 
-  const { uid, reason } = parsed.data;
-  if (uid === actor.uid) return jsonError("Cannot deactivate your own account", 400);
+  const { uid, reason, transferToUid, transferScopes } = parsed.data;
 
-  // ── 3. Fetch target ──────────────────────────────────────────────────────────
-  type TargetData = { role?: Role; name?: string };
-  let targetData: TargetData | null = null;
+  const guard = await guardTargetedRoute(request, uid, {
+    permission:   ["users", "activateAccounts"],
+    forbidSelf:   true,
+    protectOwner: true,
+  });
+  if (guard instanceof NextResponse) return guard;
+  const { actor, target } = guard;
 
-  if (hasAdminCredentials()) {
-    const snap = await getFirestore().collection("users").doc(uid).get();
-    if (!snap.exists) return jsonError("User not found", 404);
-    targetData = snap.data() as TargetData;
-  } else {
-    const raw = await fsGet("users", uid, token);
-    if (!raw) return jsonError("User not found", 404);
-    targetData = raw as TargetData;
-  }
+  if (target.deleted) return jsonError("الحساب مؤرشف بالفعل", 400);
 
-  if (!canManageRole(actor.role, targetData.role ?? "employee")) {
-    return jsonError("Forbidden: insufficient rank", 403);
-  }
-
-  // ── 4. Deactivate ────────────────────────────────────────────────────────────
-  const now = new Date().toISOString();
-  const update = { active: false, status: "disabled", updatedAt: now, updatedBy: actor.uid };
-
-  if (hasAdminCredentials()) {
-    await getFirestore().collection("users").doc(uid).update({
-      ...update,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  } else {
-    await fsPatch("users", uid, update, token);
-  }
-
-  // ── 5. Audit ─────────────────────────────────────────────────────────────────
-  const auditDoc = {
-    action: "account_disabled", category: "user", severity: "warning", source: "server",
-    entityType: "user", entityId: uid, entityName: targetData.name ?? uid,
-    description: reason ? `Employee deactivated — reason: ${reason}` : "Employee deactivated",
-    performedBy: { uid: actor.uid, name: actor.email ?? actor.uid, email: actor.email ?? "", role: actor.role },
-    metadata: { reason: reason ?? null }, tags: ["employee", "deactivated"], status: "completed",
-    actorUid: actor.uid, actorName: actor.email ?? actor.uid, actorRole: actor.role,
-    targetType: "user", targetId: uid, targetName: targetData.name ?? uid,
-    summary: `Employee ${targetData.name ?? uid} deactivated`, createdAt: now,
-  };
-  try {
-    if (hasAdminCredentials()) {
-      await getFirestore().collection("auditLogs").add({ ...auditDoc, createdAt: FieldValue.serverTimestamp() });
-    } else {
-      await fsAdd("auditLogs", auditDoc, token);
+  // ── Optional hand-over, before access is withdrawn ──────────────────────────
+  let transferred: { scope: string; label: string; moved: number }[] = [];
+  if (transferToUid && transferScopes?.length) {
+    const recipient = await loadTargetUser(transferToUid);
+    if (!recipient) return jsonError("الموظف المستلم غير موجود", 404);
+    if (recipient.deleted || recipient.status !== "active") {
+      return jsonError("لا يمكن النقل إلى حساب غير نشط", 400);
     }
-  } catch { /* non-fatal */ }
+    if (recipient.uid === uid) return jsonError("لا يمكن النقل إلى نفس الموظف", 400);
 
-  return NextResponse.json({ success: true });
+    transferred = await runTransfer(actor, {
+      fromUid: uid, fromName: target.name,
+      toUid: transferToUid, toName: recipient.name,
+      scopes: transferScopes, reason, context: "deactivate",
+    });
+  }
+
+  // Recorded in the audit entry so the log says what was left attached, not just
+  // that an account was switched off.
+  const impact = await buildImpactSummary(uid);
+
+  await getFirestore().collection(COLLECTIONS.USERS).doc(uid).update({
+    status:    "disabled",
+    active:    false,
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedBy: actor.uid,
+  });
+
+  const revocation = await revokeAuthAccess(uid);
+
+  await writeUserAudit(actor, {
+    action:      "account_disabled",
+    severity:    "warning",
+    targetUid:   uid,
+    targetName:  target.name,
+    description: reason
+      ? `تم تعطيل حساب ${target.name} — السبب: ${reason}`
+      : `تم تعطيل حساب ${target.name}`,
+    metadata: {
+      reason: reason ?? null,
+      authDisabled:  revocation.authDisabled,
+      tokensRevoked: revocation.tokensRevoked,
+      previousStatus: target.status,
+      remainingAssignments: impact.transferableTotal,
+      ledTeams: impact.ledTeams.map((t) => t.name),
+      transferred: transferred.length
+        ? Object.fromEntries(transferred.map((t) => [t.scope, t.moved]))
+        : null,
+    },
+    tags: ["user", "deactivated"],
+  });
+
+  return NextResponse.json({
+    success: true,
+    ...revocation,
+    transferred,
+    remainingAssignments: impact.transferableTotal,
+  });
 }

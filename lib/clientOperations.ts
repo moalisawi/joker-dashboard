@@ -12,7 +12,9 @@ type SubscriberOperation =
   | "pauseSubscription"
   | "resumePausedSubscription"
   | "freezeSubscription"
-  | "resumeSubscription";
+  | "resumeSubscription"
+  | "verifyReceipt"
+  | "adjustPayment";
 
 type OperationResponse<T> = T & {
   success: boolean;

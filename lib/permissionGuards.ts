@@ -8,13 +8,27 @@
  */
 
 import type { UserProfile, GranularPermissions } from "@/types";
-import { getDefaultGranularPermissions } from "@/lib/permissions";
+import { effectivePermissions } from "@/lib/permissions";
 import type { PermKey } from "@/constants/permissions";
 
 // ─── Internal: resolve effective GranularPermissions for a user ───────────────
 
+/**
+ * The same answer the server gives.
+ *
+ * This used to read `user.granularPermissions ?? role defaults`, which differs
+ * from hasServerPermission() in two ways that both produce wrong buttons: it
+ * skipped ROLE_CEILING, so a stale stored grant could light up an action the
+ * server clamps away, and it ignored the job preset, so an employee with an
+ * employeeRole but no stored grant saw fewer controls than the API would let
+ * them use. effectivePermissions() is the single answer for both sides.
+ */
 function resolveGP(user: UserProfile): GranularPermissions {
-  return user.granularPermissions ?? getDefaultGranularPermissions(user.role);
+  return effectivePermissions({
+    role:                user.role,
+    employeeRole:        user.employeeRole,
+    granularPermissions: user.granularPermissions,
+  });
 }
 
 // ─── Flat string → GranularPermissions check map ─────────────────────────────
@@ -25,7 +39,11 @@ const PERM_MAP: Record<PermKey, (gp: GranularPermissions) => boolean> = {
   create_subscribers:    (gp) => gp.subscribers.create,
   edit_subscribers:      (gp) => gp.subscribers.edit,
   delete_subscribers:    (gp) => gp.subscribers.delete,
-  assign_subscribers:    (gp) => gp.subscribers.assign ?? gp.subscribers.edit, // explicit or fallback to edit
+  // Assigning a subscriber to an employee is an edit of that subscriber. It had
+  // a `subscribers.assign` field of its own, but nothing could ever store one —
+  // the save schema and the role ceiling both omit it — so the `?? edit`
+  // fallback was the only branch that ever ran.
+  assign_subscribers:    (gp) => gp.subscribers.edit,
 
   // Subscriptions
   renew_subscriptions:   (gp) => gp.subscriptions.renew,
@@ -58,14 +76,6 @@ const PERM_MAP: Record<PermKey, (gp: GranularPermissions) => boolean> = {
   view_financial_reports:  (gp) => gp.analytics.view,
   export_reports:          (gp) => gp.analytics.export,
   manage_automations:      (gp) => gp.settings.manage,
-
-  // Subscriber workflow (Phase 3) — optional fields default to false
-  // assign_subscribers is already defined above (updated mapping)
-  transfer_subscribers:      (gp) => gp.subscribers.transfer     ?? false,
-  change_subscriber_status:  (gp) => gp.subscribers.changeStatus ?? false,
-  view_internal_notes:       (gp) => gp.subscribers.viewNotes    ?? false,
-  add_internal_notes:        (gp) => gp.subscribers.addNotes     ?? false,
-  manage_renewals:           (gp) => gp.subscriptions.manageRenewals ?? false,
 };
 
 // ─── Generic guards ───────────────────────────────────────────────────────────
@@ -159,10 +169,20 @@ export const canDeleteTeams = (u: UserProfile | null): boolean =>
 export const canReadUserDirectory = (u: UserProfile | null): boolean =>
   u?.role === "owner" || u?.role === "admin";
 
-// Subscriber workflow (Phase 3)
+// ─── Subscriber workflow (Phase 3) ────────────────────────────────────────────
+//
+// These five were declared as granular permissions but no path could ever grant
+// one — see the note in constants/permissions.ts. Every call site already
+// widened them to `|| owner || admin`, so staff-level is what they have always
+// meant in practice; saying so here is the whole change. If one of them should
+// become delegable, add it to GranularPermissions, ROLE_CEILING, the presets and
+// granularPermissionsSchema together, then route it back through hasPermission.
+
+const isStaff = (u: UserProfile | null): boolean => u?.role === "owner" || u?.role === "admin";
+
 export const canAssignSubscribers       = (u: UserProfile | null) => hasPermission(u, "assign_subscribers");
-export const canTransferSubscribers     = (u: UserProfile | null) => hasPermission(u, "transfer_subscribers");
-export const canChangeSubscriberStatus  = (u: UserProfile | null) => hasPermission(u, "change_subscriber_status");
-export const canViewInternalNotes       = (u: UserProfile | null) => hasPermission(u, "view_internal_notes");
-export const canAddInternalNotes        = (u: UserProfile | null) => hasPermission(u, "add_internal_notes");
-export const canManageRenewals          = (u: UserProfile | null) => hasPermission(u, "manage_renewals");
+export const canTransferSubscribers     = isStaff;
+export const canChangeSubscriberStatus  = isStaff;
+export const canViewInternalNotes       = isStaff;
+export const canAddInternalNotes        = isStaff;
+export const canManageRenewals          = isStaff;

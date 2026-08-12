@@ -1,9 +1,31 @@
 /**
  * Granular, structured permission model.
  * Stored optionally on each user document; when present it overrides role defaults.
+ *
+ * Every action listed here is real: it appears in ROLE_CEILING, in the role and
+ * job presets, in granularPermissionsSchema (so it survives a save), and in
+ * PERMISSION_LABELS (so it is offered in the editor). Those four lists are kept
+ * in step by __tests__/lib/permissionSurface.test.ts.
+ *
+ * They were not always in step. `subscribers.assign / transfer / changeStatus /
+ * viewNotes / addNotes` and `subscriptions.manageRenewals` were declared here and
+ * rendered as checkboxes, but the ceiling did not carry them, the save schema
+ * stripped them, and effectivePermissions — which iterates the ceiling — dropped
+ * them. An owner could tick "نقل" for an employee, see it saved, and the
+ * employee would still hold nothing. Do not add an action here without adding it
+ * to the other three.
  */
 
-export type AccountStatus = "active" | "suspended" | "disabled" | "pending";
+/**
+ * Account lifecycle state.
+ *
+ * `deleted` is a soft-delete/archive marker, not a row that has gone away: the
+ * uid is kept so historical records that reference it stay legible. It is listed
+ * here because Firestore has been storing it since the delete route was written
+ * — leaving it out of the union only meant every consumer had to special-case an
+ * unknown string.
+ */
+export type AccountStatus = "active" | "suspended" | "disabled" | "pending" | "deleted";
 
 export interface GranularPermissions {
   subscribers: {
@@ -11,24 +33,12 @@ export interface GranularPermissions {
     create: boolean;
     edit: boolean;
     delete: boolean;
-    /** Assign a subscriber to a sales/nutrition employee */
-    assign?: boolean;
-    /** Transfer an already-assigned subscriber to another employee */
-    transfer?: boolean;
-    /** Change workflow status (new → interested → follow_up …) */
-    changeStatus?: boolean;
-    /** View internal notes on a subscriber */
-    viewNotes?: boolean;
-    /** Add internal notes on a subscriber */
-    addNotes?: boolean;
   };
   subscriptions: {
     renew: boolean;
     freeze: boolean;
     resume: boolean;
     withdraw: boolean;
-    /** Manage the renewal workflow (suggest, contact, track outcome) */
-    manageRenewals?: boolean;
   };
   payments: {
     create: boolean;
@@ -64,11 +74,6 @@ export const PERMISSION_LABELS: Record<
       create:      "إضافة",
       edit:        "تعديل",
       delete:      "حذف",
-      assign:      "تعيين",
-      transfer:    "نقل",
-      changeStatus:"تغيير الحالة",
-      viewNotes:   "عرض الملاحظات",
-      addNotes:    "إضافة ملاحظات",
     },
   },
   subscriptions: {
@@ -78,7 +83,6 @@ export const PERMISSION_LABELS: Record<
       freeze:         "تجميد",
       resume:         "استئناف",
       withdraw:       "انسحاب",
-      manageRenewals: "إدارة التجديدات",
     },
   },
   payments: {
@@ -116,4 +120,30 @@ export const PERMISSION_LABELS: Record<
       manage: "إدارة",
     },
   },
+};
+
+/**
+ * One sentence per action, phrased as what the holder may do. The permissions
+ * editor is a grid of 20 checkboxes; these are what turn it into an answer to
+ * "what will this person be able to do?".
+ */
+export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
+  "subscribers.view":       "عرض المشتركين",
+  "subscribers.create":     "إضافة مشتركين جدد",
+  "subscribers.edit":       "تعديل بيانات المشتركين وإسنادهم",
+  "subscribers.delete":     "حذف مشترك",
+  "subscriptions.renew":    "تجديد الاشتراكات",
+  "subscriptions.freeze":   "تجميد الاشتراكات",
+  "subscriptions.resume":   "استئناف الاشتراكات المجمّدة",
+  "subscriptions.withdraw": "تسجيل انسحاب مشترك",
+  "payments.create":        "تسجيل دفعات",
+  "payments.edit":          "تعديل الدفعات ومراجعتها",
+  "payments.refund":        "تنفيذ عمليات استرداد",
+  "analytics.view":         "عرض الإيرادات والتحليلات",
+  "analytics.export":       "تصدير التقارير",
+  "logs.view":              "عرض سجل العمليات",
+  "users.manage":           "إدارة المستخدمين والموظفين",
+  "users.changeRoles":      "تغيير أدوار المستخدمين وصلاحياتهم",
+  "users.activateAccounts": "تفعيل الحسابات وتعطيلها",
+  "settings.manage":        "إدارة الإعدادات وطرق الدفع",
 };

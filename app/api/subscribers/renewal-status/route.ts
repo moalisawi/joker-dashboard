@@ -15,7 +15,10 @@ function jsonError(msg: string, status: number) {
 const bodySchema = z.object({
   subscriberId:           z.string().min(1),
   subscriberName:         z.string().default(""),
-  renewalWorkflowStatus:  z.enum(["pending","contacted","renewed","declined"]),
+  // "promised" — said yes, has not paid — is its own outcome. Folding it into
+  // "contacted" made the follow-up queue sort a firm commitment alongside a
+  // single answered phone call, which is different work on a different clock.
+  renewalWorkflowStatus:  z.enum(["pending","contacted","promised","renewed","declined"]),
   renewalNote:            z.string().max(500).optional(),
   renewalHandledBy:       z.string().optional(),
   renewalHandledByName:   z.string().optional(),

@@ -6,16 +6,39 @@ import type {
   CreateEmployeeInput,
   UpdateEmployeeInput,
   DeactivateEmployeeInput,
+  ReactivateEmployeeInput,
+  ArchiveEmployeeInput,
+  TransferDataInput,
   GranularPermissionsInput,
 } from "@/features/users/schemas";
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
 
 export const employeeKeys = {
-  all:    ["employees"]         as const,
-  active: ["employees", "active"] as const,
+  all:       ["employees"]           as const,
+  active:    ["employees", "active"] as const,
+  directory: ["users", "directory"]  as const,
   detail: (uid: string) => ["employees", uid] as const,
+  impact: (uid: string) => ["employees", uid, "impact"] as const,
 };
+
+/**
+ * Everything the lifecycle touches, invalidated together.
+ *
+ * A single mutation moves an account between the directory list, the employee
+ * lists and its own detail row, and forgetting one of them is how the console
+ * used to show a person as still active on the page you just disabled them
+ * from.
+ */
+function invalidateUserQueries(qc: ReturnType<typeof useQueryClient>, uid?: string) {
+  qc.invalidateQueries({ queryKey: employeeKeys.all });
+  qc.invalidateQueries({ queryKey: employeeKeys.active });
+  qc.invalidateQueries({ queryKey: employeeKeys.directory });
+  if (uid) {
+    qc.invalidateQueries({ queryKey: employeeKeys.detail(uid) });
+    qc.invalidateQueries({ queryKey: employeeKeys.impact(uid) });
+  }
+}
 
 // ─── Read hooks ───────────────────────────────────────────────────────────────
 
@@ -25,6 +48,32 @@ export function useEmployeeList() {
     queryKey: employeeKeys.all,
     queryFn:  () => usersFeatureService.getEmployees(),
     staleTime: 30_000,
+  });
+}
+
+/** The whole directory — every account, including non-employees and archives. */
+export function useUserDirectory(enabled = true) {
+  return useQuery({
+    queryKey: employeeKeys.directory,
+    queryFn:  () => usersFeatureService.getAllUsers(),
+    staleTime: 30_000,
+    enabled,
+  });
+}
+
+/**
+ * What is still attached to an account.
+ *
+ * Fetched on demand — the confirmation dialogs pass `enabled` only once they
+ * open, so browsing the list does not run four count queries per row.
+ */
+export function useUserImpact(uid: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: employeeKeys.impact(uid ?? ""),
+    queryFn:  () => usersFeatureService.getImpact(uid!),
+    enabled:  Boolean(uid) && enabled,
+    staleTime: 15_000,
+    retry: false,
   });
 }
 
@@ -94,22 +143,40 @@ export function useDeactivateEmployee() {
   return useMutation({
     mutationFn: (input: DeactivateEmployeeInput) =>
       usersFeatureService.deactivateEmployee(input),
-    onSuccess: (_data, { uid }) => {
-      qc.invalidateQueries({ queryKey: employeeKeys.all });
-      qc.invalidateQueries({ queryKey: employeeKeys.active });
-      qc.invalidateQueries({ queryKey: employeeKeys.detail(uid) });
-    },
+    onSuccess: (_data, { uid }) => invalidateUserQueries(qc, uid),
   });
 }
 
-/** Soft-delete an employee — owner-only. */
-export function useDeleteEmployee() {
+/** Restore access to a disabled, suspended, pending or archived account. */
+export function useReactivateEmployee() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (uid: string) => usersFeatureService.deleteEmployee(uid),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: employeeKeys.all });
-      qc.invalidateQueries({ queryKey: employeeKeys.active });
+    mutationFn: (input: ReactivateEmployeeInput) =>
+      usersFeatureService.reactivateEmployee(input),
+    onSuccess: (_data, { uid }) => invalidateUserQueries(qc, uid),
+  });
+}
+
+/** Archive an employee — owner-only, reversible, never a hard delete. */
+export function useArchiveEmployee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ArchiveEmployeeInput) =>
+      usersFeatureService.archiveEmployee(input),
+    onSuccess: (_data, { uid }) => invalidateUserQueries(qc, uid),
+  });
+}
+
+/** Hand assigned subscribers and leads from one employee to another. */
+export function useTransferData() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: TransferDataInput) => usersFeatureService.transferData(input),
+    onSuccess: (_data, { fromUid, toUid }) => {
+      invalidateUserQueries(qc, fromUid);
+      qc.invalidateQueries({ queryKey: employeeKeys.impact(toUid) });
+      qc.invalidateQueries({ queryKey: ["subscribers"] });
+      qc.invalidateQueries({ queryKey: ["whatsapp-leads"] });
     },
   });
 }
@@ -120,8 +187,6 @@ export function useUpdatePermissions() {
   return useMutation({
     mutationFn: ({ uid, permissions }: { uid: string; permissions: GranularPermissionsInput }) =>
       usersFeatureService.updatePermissions(uid, permissions),
-    onSuccess: (_data, { uid }) => {
-      qc.invalidateQueries({ queryKey: employeeKeys.detail(uid) });
-    },
+    onSuccess: (_data, { uid }) => invalidateUserQueries(qc, uid),
   });
 }

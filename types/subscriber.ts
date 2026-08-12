@@ -110,6 +110,18 @@ export interface Subscriber {
   // Withdrawal system (new — full structured snapshot)
   withdrawalData?: import("./withdrawal").WithdrawalData;
 
+  // ── Billing ledger pointers ─────────────────────────────────────────────────
+  //
+  // Written from `createSubscriber` and `renewSubscription` onwards. Absent on
+  // every subscriber that predates the ledger, which is why they are optional
+  // and why `legacyToCurrentCycleView()` exists — the summary fields above
+  // remain the source of truth for the balance, and nothing here is required
+  // for the application to work.
+  currentCycleId?: string | null;
+  currentCycleNumber?: number;
+  currentInvoiceId?: string | null;
+  paymentPlanType?: import("./billing").PaymentPlanType;
+
   // Meta
   createdAt?: Timestamp;
   createdBy?: string;

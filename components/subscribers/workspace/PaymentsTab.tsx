@@ -6,14 +6,22 @@ import { useAuthStore }  from "@/store/authStore";
 import { usePayments }   from "@/hooks/usePayments";
 import { useRefunds }    from "@/hooks/useRefunds";
 import {
-  canCreatePayments,
+  canCreatePayments, canReviewPayments, canRefundPayments,
 } from "@/lib/permissionGuards";
+import AdjustmentModal from "@/components/subscribers/AdjustmentModal";
+import { useAdjustments } from "@/features/billing/hooks";
+import { ADJUSTMENT_TYPE_LABELS, type AdjustmentType } from "@/constants/billing";
+import { callSubscriberOperation } from "@/lib/clientOperations";
+import { resolveReceiptStatus } from "@/lib/subscriberLifecycle";
+import { RECEIPT_STATUS_LABELS } from "@/types/billing";
+import type { ReceiptStatus } from "@/types/billing";
 import { formatNumber } from "@/lib/utils";
+import { toast } from "@/lib/toast";
 import type { Subscriber } from "@/types";
 import type { PaymentTransaction } from "@/types";
 import {
   DollarSign, TrendingDown, AlertCircle, CheckCircle2,
-  RotateCcw, Plus, CreditCard, Calendar, Receipt,
+  RotateCcw, Plus, CreditCard, Calendar, Receipt, ShieldCheck, ShieldX, Scale,
 } from "lucide-react";
 
 const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444", sky:"#3B82F6" };
@@ -41,6 +49,24 @@ function PaymentTypeBadge({ p }: { p: PaymentTransaction }) {
   return (
     <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
       style={{ background:`${ACC.amber}15`, color:ACC.amber }}>دفعة</span>
+  );
+}
+
+const RECEIPT_COLOR: Record<ReceiptStatus, string> = {
+  missing:        "#9ca3af",
+  pending_review: ACC.amber,
+  verified:       "#22C55E",
+  rejected:       ACC.rose,
+};
+
+function ReceiptBadge({ status }: { status: ReceiptStatus }) {
+  return (
+    <span
+      className="text-[10px] px-1.5 py-0.5 rounded font-semibold whitespace-nowrap"
+      style={{ background: `${RECEIPT_COLOR[status]}18`, color: RECEIPT_COLOR[status] }}
+    >
+      {RECEIPT_STATUS_LABELS[status]}
+    </span>
   );
 }
 
@@ -81,11 +107,40 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
   const { refunds,  loading: rLoad } = useRefunds ({ subscriberId: s.id });
 
   const canPay    = canCreatePayments(user)    || user?.role === "owner" || user?.role === "admin";
+  // Reviewing proof of payment is the payments desk's job — payments.edit,
+  // the same permission /api/subscriber-operations requires for verifyReceipt.
+  // Offering the buttons on a weaker permission would just produce 403s.
+  const canVerify = canReviewPayments(user);
   const canRev    = user?.role === "owner" || user?.role === "admin" ||
     (user?.granularPermissions?.analytics?.view ?? false);
 
   const [showRefunds, setShowRefunds] = useState(false);
   const [payFilter, setPayFilter]     = useState<"all"|"initial"|"renewal"|"installment">("all");
+  const [busyReceipt, setBusyReceipt] = useState<string | null>(null);
+  // Raising a correction is refund-weight authority, matching what
+  // /api/subscriber-operations requires for adjustPayment. Offering it on the
+  // "record a payment" permission would just produce 403s.
+  const canAdjust = canRefundPayments(user);
+  const [adjustFor, setAdjustFor] = useState<PaymentTransaction | null | undefined>(undefined);
+  const { data: adjustments = [] } = useAdjustments(s.id);
+  const adjustmentTotal = adjustments.reduce((n, a) => n + (Number(a.amountUSD) || 0), 0);
+
+  async function decideReceipt(paymentId: string, decision: "verify" | "reject") {
+    const reason = decision === "reject"
+      ? (window.prompt("سبب رفض الوصل؟") ?? "").trim()
+      : "";
+    if (decision === "reject" && !reason) return;
+
+    setBusyReceipt(paymentId);
+    try {
+      await callSubscriberOperation("verifyReceipt", { paymentId, decision, reason: reason || undefined });
+      toast.success(decision === "verify" ? "تم اعتماد الوصل" : "تم رفض الوصل");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل تحديث حالة الوصل");
+    } finally {
+      setBusyReceipt(null);
+    }
+  }
 
   const totalPaid     = payments.reduce((n, p) => n + (p.amountUSD ?? 0), 0);
   const totalRefunded = refunds.reduce((n, r) => n + (r.refundAmountUSD ?? 0), 0);
@@ -176,13 +231,22 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
               </span>
             )}
           </div>
-          {canPay && (
-            <button onClick={onAddPayment}
-              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl text-white"
-              style={{ background:`linear-gradient(135deg,${ACC.emerald},#5B5FEF)` }}>
-              <Plus size={12}/>دفعة جديدة
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {canAdjust && (
+              <button onClick={() => setAdjustFor(null)}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl"
+                style={{ background:`${ACC.amber}12`, color:ACC.amber, border:`1px solid ${ACC.amber}30` }}>
+                <Scale size={12}/>تسوية
+              </button>
+            )}
+            {canPay && (
+              <button onClick={onAddPayment}
+                className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl text-white"
+                style={{ background:`linear-gradient(135deg,${ACC.emerald},#5B5FEF)` }}>
+                <Plus size={12}/>دفعة جديدة
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Filter chips */}
@@ -217,7 +281,7 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
             <table className="w-full text-xs">
               <thead>
                 <tr style={{ borderBottom:`1px solid var(--divider)` }}>
-                  {["التاريخ","المبلغ","العملة","طريقة الدفع","النوع","وصل"].map((h) => (
+                  {["التاريخ","المبلغ","العملة","طريقة الدفع","النوع","المرجع","الوصل"].map((h) => (
                     <th key={h} className="px-5 py-2.5 text-right font-semibold"
                       style={{ color:"var(--text-muted)" }}>{h}</th>
                   ))}
@@ -245,12 +309,51 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
                     <td className="px-5 py-3 whitespace-nowrap">
                       <PaymentTypeBadge p={p}/>
                     </td>
+                    <td className="px-5 py-3 whitespace-nowrap" dir="ltr"
+                      style={{ color:"var(--text-secondary)" }}>
+                      {p.externalReference || "—"}
+                    </td>
                     <td className="px-5 py-3">
-                      {p.receiptUrl
-                        ? <a href={p.receiptUrl} target="_blank" rel="noreferrer"
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <ReceiptBadge status={resolveReceiptStatus(p)} />
+                        {p.receiptUrl && (
+                          <a href={p.receiptUrl} target="_blank" rel="noreferrer"
                             className="text-xs font-medium hover:underline"
                             style={{ color:ACC.sky }}>عرض</a>
-                        : <span style={{ color:"var(--text-muted)" }}>—</span>}
+                        )}
+                        {canVerify && p.receiptUrl && resolveReceiptStatus(p) !== "verified" && (
+                          <button
+                            onClick={() => decideReceipt(p.id!, "verify")}
+                            disabled={busyReceipt === p.id}
+                            title="اعتماد الوصل"
+                            className="p-1 rounded-lg transition-colors disabled:opacity-40"
+                            style={{ color:"#22C55E" }}>
+                            <ShieldCheck size={13}/>
+                          </button>
+                        )}
+                        {canVerify && p.receiptUrl && resolveReceiptStatus(p) !== "rejected" && (
+                          <button
+                            onClick={() => decideReceipt(p.id!, "reject")}
+                            disabled={busyReceipt === p.id}
+                            title="رفض الوصل"
+                            className="p-1 rounded-lg transition-colors disabled:opacity-40"
+                            style={{ color:ACC.rose }}>
+                            <ShieldX size={13}/>
+                          </button>
+                        )}
+                        {canAdjust && (
+                          <button
+                            onClick={() => setAdjustFor(p)}
+                            title="تسوية على هذه الدفعة"
+                            className="p-1 rounded-lg transition-colors"
+                            style={{ color:ACC.amber }}>
+                            <Scale size={13}/>
+                          </button>
+                        )}
+                      </div>
+                      {p.rejectionReason && (
+                        <p className="text-[10px] mt-1" style={{ color:ACC.rose }}>{p.rejectionReason}</p>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -259,6 +362,65 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
           )}
         </div>
       </motion.div>
+
+      {/* ── Adjustments ──
+          Shown whenever any exist, and never behind a toggle: an adjustment is
+          the only thing that can make the balance disagree with the sum of the
+          payment rows above, so hiding it leaves the reader looking at
+          arithmetic that does not add up. */}
+      {adjustments.length > 0 && (
+        <motion.div variants={fadeUp}
+          className="rounded-2xl overflow-hidden"
+          style={{ background:"var(--surface)", border:"1px solid var(--border)", boxShadow:"var(--shadow-card)" }}>
+
+          <div className="flex items-center justify-between px-5 py-4 border-b"
+            style={{ borderColor:"var(--border)" }}>
+            <div className="flex items-center gap-2.5">
+              <Scale size={14} style={{ color:ACC.amber }}/>
+              <span className="font-bold text-sm" style={{ color:"var(--text-primary)" }}>التسويات</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background:`${ACC.amber}18`, color:ACC.amber }}>
+                {adjustments.length}
+              </span>
+            </div>
+            {canRev && adjustmentTotal !== 0 && (
+              <span className="text-xs font-bold tabular-nums"
+                style={{ color: adjustmentTotal < 0 ? ACC.rose : "#22C55E" }}>
+                {adjustmentTotal < 0 ? "-" : "+"}${formatNumber(Math.abs(adjustmentTotal), 2)}
+              </span>
+            )}
+          </div>
+
+          <div className="px-5 py-3">
+            {adjustments.map((a) => (
+              <div key={a.id}
+                className="flex items-start justify-between gap-3 py-2.5 border-b last:border-0"
+                style={{ borderColor:"var(--divider)" }}>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold flex items-center gap-2" style={{ color:"var(--text-primary)" }}>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
+                      style={{ background:`${ACC.amber}15`, color:ACC.amber }}>
+                      {ADJUSTMENT_TYPE_LABELS[a.adjustmentType as AdjustmentType] ?? a.adjustmentType}
+                    </span>
+                    {toDateStr(a.date)}
+                  </p>
+                  <p className="text-[11px] mt-0.5" style={{ color:"var(--text-secondary)" }}>{a.reason}</p>
+                  <p className="text-[10px] mt-0.5" style={{ color:"var(--text-muted)" }}>
+                    {a.createdByName ?? "—"}
+                    {a.approvedByName ? ` · اعتمدها ${a.approvedByName}` : ""}
+                  </p>
+                </div>
+                {canRev && (
+                  <span className="text-xs font-bold tabular-nums shrink-0"
+                    style={{ color: (a.amountUSD ?? 0) < 0 ? ACC.rose : "#22C55E" }}>
+                    {(a.amountUSD ?? 0) < 0 ? "-" : "+"}${formatNumber(Math.abs(a.amountUSD ?? 0), 2)}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* ── Refunds ── */}
       <motion.div variants={fadeUp}
@@ -337,6 +499,14 @@ export default function PaymentsTab({ subscriber: s, onAddPayment }: Props) {
             </p>
           </div>
         </motion.div>
+      )}
+
+      {adjustFor !== undefined && (
+        <AdjustmentModal
+          subscriber={s}
+          payment={adjustFor}
+          onClose={() => setAdjustFor(undefined)}
+        />
       )}
 
     </motion.div>

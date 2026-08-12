@@ -10,7 +10,10 @@ import { formatNumber, todayString } from "@/lib/utils";
 import { PAYMENT_METHODS } from "@/lib/permissions";
 import { useActiveMethodsForResidenceQuery } from "@/features/paymentMethods/hooks/useActiveMethodsForResidenceQuery";
 import { getAllowedCurrencies, CURRENCY_LABELS } from "@/features/paymentMethods/utils/countryMapping";
-import { X } from "lucide-react";
+import { useBillingOverview } from "@/features/billing/hooks";
+import { allocatePaymentToInstallments } from "@/lib/subscriberLifecycle";
+import { formatDate } from "@/lib/utils";
+import { X, ArrowLeft, AlertTriangle } from "lucide-react";
 
 interface Props {
   subscriber: Subscriber;
@@ -29,8 +32,19 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
   const [methodId,      setMethodId]      = useState("");
   const [date,          setDate]          = useState(todayString());
   const [notes,         setNotes]         = useState("");
+  const [reference,     setReference]     = useState("");
+  const [installmentId, setInstallmentId] = useState("");
   const [loading,       setLoading]       = useState(false);
   const [error,         setError]         = useState("");
+
+  // Open instalments, so a payment can be pointed at a specific one. Empty for
+  // a subscriber with no schedule, which collapses the control away entirely.
+  const { currentInvoice, installments } = useBillingOverview(
+    subscriber as unknown as { id: string; currentCycleId?: string | null; currentInvoiceId?: string | null }
+  );
+  const openInstallments = installments.filter(
+    (i) => i.status !== "paid" && i.status !== "waived" && i.status !== "cancelled"
+  );
 
   const { methods: firestoreMethods, isLoading: methodsLoading } =
     useActiveMethodsForResidenceQuery(subscriber.residence);
@@ -50,6 +64,47 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
 
   const rate      = exchangeRates[currency] || 1;
   const amountUSD = parseFloat(amount || "0") / rate;
+
+  /**
+   * What this payment will do, before it is saved.
+   *
+   * The modal used to show only the current balance, so the operator pressed
+   * save and found out afterwards. Every financial action in this workspace now
+   * states its own effect first — and the overpayment guard on the server is
+   * mirrored here so the rejection is visible before the round trip, not as a
+   * red error after it.
+   */
+  const impact = (() => {
+    const paidBefore = subscriber.paidAmountUSD;
+    const total      = subscriber.totalPriceUSD;
+    const paidAfter  = paidBefore + (Number.isFinite(amountUSD) ? amountUSD : 0);
+    const remainingAfter = Math.max(0, total - paidAfter);
+    return {
+      paidBefore,
+      paidAfter,
+      remainingBefore: subscriber.remainingAmountUSD,
+      remainingAfter,
+      settlesInvoice: total > 0 && remainingAfter <= 0.01,
+      // Matches OVERPAY_TOLERANCE_USD in lib/subscriberFinance.
+      overpays: total > 0 && paidAfter > total + 0.01,
+    };
+  })();
+
+  const allocationPreview = (() => {
+    if (!(amountUSD > 0) || openInstallments.length === 0) return [];
+    return allocatePaymentToInstallments(
+      amountUSD,
+      openInstallments.map((i) => ({
+        id: i.id ?? "",
+        installmentNumber: i.installmentNumber,
+        dueDate: i.dueDate,
+        amountUSD: i.amountUSD,
+        paidUSD: i.paidUSD,
+        status: i.status,
+      })),
+      installmentId || null
+    ).allocations;
+  })();
 
   function handleMethodChange(value: string) {
     if (!value) {
@@ -99,6 +154,9 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
         paymentMethod:   method,
         paymentMethodId: methodId || undefined,
         receiptUrl,
+        receiptFileName: file?.name ?? null,
+        externalReference: reference.trim() || null,
+        installmentId:   installmentId || undefined,
         date,
         notes,
       });
@@ -200,14 +258,103 @@ export default function PaymentModal({ subscriber, exchangeRates, onClose, onSav
             <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} className="form-input w-full" />
           </div>
 
+          {/* Target instalment — only shown when there is a schedule to target. */}
+          {openInstallments.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                تخصيص الدفعة
+                <span className="mr-1 font-normal opacity-60">(افتراضياً على أقدم قسط مستحق)</span>
+              </label>
+              <select value={installmentId} onChange={(e) => setInstallmentId(e.target.value)} className="form-input w-full">
+                <option value="">توزيع تلقائي — الأقدم أولاً</option>
+                {openInstallments.map((i) => (
+                  <option key={i.id} value={i.id ?? ""}>
+                    قسط #{i.installmentNumber} — {formatDate(i.dueDate)} — متبقٍ $
+                    {formatNumber(Math.max(0, i.amountUSD - i.paidUSD), 2)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              رقم التحويل / المرجع الخارجي
+              <span className="mr-1 font-normal opacity-60">(اختياري)</span>
+            </label>
+            <input type="text" dir="ltr" value={reference} onChange={(e) => setReference(e.target.value)}
+              placeholder="TRX-..." className="form-input w-full" />
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">وصل الدفع</label>
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,application/pdf"
               className="text-sm text-slate-600" />
+            <p className="text-[11px] text-slate-400 mt-1">
+              الدفعة تُحتسب مالياً فور الحفظ؛ الوصل يُسجَّل «بانتظار المراجعة» حتى يعتمده مسؤول.
+            </p>
           </div>
 
+          {/* ── Impact preview ── */}
+          {amountUSD > 0 && (
+            <div className="rounded-xl p-3 space-y-2"
+              style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+              <p className="text-[11px] font-bold" style={{ color: "var(--text-secondary)" }}>
+                أثر هذه الدفعة
+              </p>
+              <div className="flex items-center justify-between text-xs" style={{ color: "var(--text-secondary)" }}>
+                <span>المدفوع</span>
+                <span className="flex items-center gap-1.5 tabular-nums">
+                  <span style={{ color: "var(--text-muted)" }}>${formatNumber(impact.paidBefore, 2)}</span>
+                  <ArrowLeft size={11} />
+                  <b style={{ color: "#22C55E" }}>${formatNumber(impact.paidAfter, 2)}</b>
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs" style={{ color: "var(--text-secondary)" }}>
+                <span>المتبقي</span>
+                <span className="flex items-center gap-1.5 tabular-nums">
+                  <span style={{ color: "var(--text-muted)" }}>${formatNumber(impact.remainingBefore, 2)}</span>
+                  <ArrowLeft size={11} />
+                  <b style={{ color: impact.remainingAfter > 0.01 ? "#F59E0B" : "#22C55E" }}>
+                    ${formatNumber(impact.remainingAfter, 2)}
+                  </b>
+                </span>
+              </div>
+
+              {allocationPreview.length > 0 && (
+                <div className="pt-2 border-t space-y-1" style={{ borderColor: "var(--border)" }}>
+                  {allocationPreview.map((a) => (
+                    <div key={a.installmentId} className="flex items-center justify-between text-[11px]"
+                      style={{ color: "var(--text-secondary)" }}>
+                      <span>قسط #{a.installmentNumber}</span>
+                      <span className="tabular-nums">
+                        ${formatNumber(a.appliedUSD, 2)}
+                        <span className="mr-1.5" style={{ color: a.status === "paid" ? "#22C55E" : "#F59E0B" }}>
+                          {a.status === "paid" ? "مكتمل" : "جزئي"}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {currentInvoice && impact.settlesInvoice && (
+                <p className="text-[11px] font-semibold" style={{ color: "#22C55E" }}>
+                  ستصبح الفاتورة {currentInvoice.invoiceNumber} مدفوعة بالكامل.
+                </p>
+              )}
+
+              {impact.overpays && (
+                <p className="flex items-start gap-1.5 text-[11px] font-semibold" style={{ color: "#EF4444" }}>
+                  <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                  المبلغ يتجاوز إجمالي الاشتراك — سيرفضه الخادم.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
-            <button type="submit" disabled={loading}
+            <button type="submit" disabled={loading || impact.overpays}
               className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all">
               {loading ? "جاري الحفظ..." : "حفظ الدفعة"}
             </button>

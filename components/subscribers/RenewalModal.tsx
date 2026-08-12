@@ -4,6 +4,9 @@ import { useState } from "react";
 import type { Subscriber, Currency } from "@/types";
 import { useAuthStore } from "@/store/authStore";
 import { callSubscriberOperation } from "@/lib/clientOperations";
+import PaymentPlanPicker, {
+  defaultPaymentPlan, toPaymentPlanPayload, type PaymentPlanValue,
+} from "@/components/subscribers/PaymentPlanPicker";
 import { calculateExpiry, todayString, formatDate, formatNumber } from "@/lib/utils";
 import { PAYMENT_METHODS } from "@/lib/permissions";
 import { useEmployeeNames } from "@/hooks/useEmployeeNames";
@@ -33,6 +36,7 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
   const [renewedBy, setRenewedBy] = useState("");
   const [renewalDate, setRenewalDate] = useState(todayString());
   const [notes, setNotes]         = useState("");
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlanValue>(() => defaultPaymentPlan(todayString()));
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState("");
 
@@ -92,6 +96,9 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
         exchangeRate:    lockedRate,
         notes,
         renewedByName:   by,
+        // A renewal can be instalment-financed exactly like a first signup —
+        // the server builds the new cycle's invoice and schedule from this.
+        paymentPlan:     toPaymentPlanPayload(paymentPlan, remaining),
       });
 
       onSaved();
@@ -280,6 +287,18 @@ export default function RenewalModal({ subscriber: s, exchangeRates, onClose, on
                 </p>
               )}
             </div>
+
+            {totalPriceN > 0 && (
+              <PaymentPlanPicker
+                totalOriginal={totalPriceN}
+                downPaymentOriginal={initPayment.trim() === "" ? totalPriceN : parseFloat(initPayment) || 0}
+                exchangeRate={lockedRate}
+                currency={currency}
+                startDate={renewalDate}
+                value={paymentPlan}
+                onChange={setPaymentPlan}
+              />
+            )}
 
             {/* Payment method */}
             <div>

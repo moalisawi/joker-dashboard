@@ -53,27 +53,27 @@ const ACTION_MAP: Record<string, NotifConfig> = {
   role_changed: {
     category: "security", severity: "warning", minRole: "owner",
     title: (n) => `تغيير دور${n ? ` لـ ${n}` : ""}`,
-    actionUrl: "/users", ttlDays: 30,
+    actionUrl: "/admin/employees", ttlDays: 30,
   },
   permissions_changed: {
     category: "security", severity: "warning", minRole: "owner",
     title: (n) => `تعديل صلاحيات${n ? ` لـ ${n}` : ""}`,
-    actionUrl: "/users", ttlDays: 30,
+    actionUrl: "/admin/employees", ttlDays: 30,
   },
   account_activated: {
     category: "user", severity: "success", minRole: "admin",
     title: (n) => `تفعيل حساب${n ? `: ${n}` : ""}`,
-    actionUrl: "/users", ttlDays: 30,
+    actionUrl: "/admin/employees", ttlDays: 30,
   },
   account_suspended: {
     category: "security", severity: "critical", minRole: "owner",
     title: (n) => `تعليق حساب${n ? `: ${n}` : ""}`,
-    actionUrl: "/users", ttlDays: 30,
+    actionUrl: "/admin/employees", ttlDays: 30,
   },
   account_disabled: {
     category: "security", severity: "critical", minRole: "owner",
     title: (n) => `تعطيل حساب${n ? `: ${n}` : ""}`,
-    actionUrl: "/users", ttlDays: 30,
+    actionUrl: "/admin/employees", ttlDays: 30,
   },
 };
 

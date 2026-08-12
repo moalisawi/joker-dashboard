@@ -10,6 +10,7 @@ import {
   type SubscriberLinkFields,
 } from "@/lib/serverSubscriberAccess";
 import {
+  addDays,
   asNumber,
   asString,
   computePaymentUpdate,
@@ -22,6 +23,28 @@ import {
   remainingDays,
   resolveRenewalWindow,
 } from "@/lib/subscriberFinance";
+import {
+  generateInstallmentSchedule,
+  type ScheduledInstallment,
+} from "@/lib/subscriberLifecycle";
+import {
+  asFrequency,
+  readOpenLedger,
+  reserveInvoiceNumber,
+  stageCloseCycle,
+  stageCycle,
+  stageCycleStatus,
+  stageInvoice,
+  stageLedgerPayment,
+  stageLedgerRefund,
+  stageLedgerAdjustment,
+  ADJUSTMENTS,
+} from "@/lib/serverBillingLedger";
+import {
+  ADJUSTMENT_APPROVAL_THRESHOLD_USD,
+  ADJUSTMENT_TYPES,
+  MAX_INSTALLMENTS,
+} from "@/constants/billing";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -76,6 +99,28 @@ const subscriberCoreSchema = z.object({
   assignmentType:           z.string().max(50).optional().nullable(),
 });
 
+/**
+ * How the subscription will be paid for.
+ *
+ * Absent means "full" — every caller that predates instalments keeps working
+ * unchanged, and the invoice is simply issued with no schedule behind it.
+ */
+const paymentPlanSchema = z.object({
+  type:             z.enum(["full", "installments"]).optional(),
+  installmentCount: z.number().int().min(1).max(MAX_INSTALLMENTS).optional(),
+  firstDueDate:     dateSchema,
+  frequency:        z.enum(["weekly", "biweekly", "monthly", "custom"]).optional(),
+  customDates:      z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(MAX_INSTALLMENTS).optional(),
+  /** When the whole amount is due, for a non-instalment plan. */
+  dueDate:          dateSchema,
+}).optional().nullable();
+
+const receiptFieldsSchema = {
+  receiptUrl:        z.string().url().optional().nullable(),
+  receiptFileName:   z.string().max(300).optional().nullable(),
+  externalReference: z.string().max(200).optional().nullable(),
+};
+
 const createSubscriberSchema = z.object({
   subscriber: subscriberCoreSchema,
   initialPayment: z.object({
@@ -86,8 +131,9 @@ const createSubscriberSchema = z.object({
     paymentMethodId:  z.string().max(100).optional(),
     date:             dateSchema,
     notes:            z.string().max(2000).optional().nullable(),
-    receiptUrl:       z.string().url().optional().nullable(),
+    ...receiptFieldsSchema,
   }).optional().nullable(),
+  paymentPlan: paymentPlanSchema,
 });
 
 // Explicit allowed fields for updates — prevents mass-assignment of arbitrary fields.
@@ -110,7 +156,42 @@ const addPaymentSchema = z.object({
   paymentMethodId:  z.string().max(100).optional(),
   date:             dateSchema,
   notes:            z.string().max(2000).optional().nullable(),
-  receiptUrl:       z.string().url().optional().nullable(),
+  /** Settle this instalment first; the remainder still flows oldest-first. */
+  installmentId:    z.string().max(128).optional().nullable(),
+  ...receiptFieldsSchema,
+});
+
+/**
+ * Correct money already recorded, without editing the record.
+ *
+ * `amountUSD` is signed and required: negative takes money off the balance
+ * (a mis-keyed payment, a late discount, a write-off), positive puts it back.
+ * A reason is mandatory — an adjustment with no stated reason is an unexplained
+ * edit wearing a different name.
+ */
+const adjustPaymentSchema = z.object({
+  subscriberId:   subscriberIdSchema,
+  paymentId:      z.string().max(128).optional().nullable(),
+  adjustmentType: z.enum(ADJUSTMENT_TYPES),
+  amountUSD:      z.number().refine((n) => n !== 0 && Number.isFinite(n), "المبلغ مطلوب ولا يمكن أن يكون صفراً"),
+  currencyOriginal: currencySchema.optional(),
+  exchangeRate:   z.number().positive().optional(),
+  reason:         z.string().min(3, "سبب التسوية مطلوب").max(500),
+  notes:          z.string().max(2000).optional().nullable(),
+  date:           dateSchema,
+  approvedByName: z.string().max(200).optional().nullable(),
+});
+
+/**
+ * Verify or reject the proof attached to a payment.
+ *
+ * Separate from the money on purpose: this never changes `amountUSD` or any
+ * balance. It records whether a human has looked at the transfer slip.
+ */
+const verifyReceiptSchema = z.object({
+  paymentId: z.string().min(1),
+  decision:  z.enum(["verify", "reject"]),
+  reason:    z.string().max(500).optional().nullable(),
 });
 
 const renewSubscriptionSchema = z.object({
@@ -125,6 +206,8 @@ const renewSubscriptionSchema = z.object({
   paymentMethodId: z.string().max(100).optional(),
   package:       z.string().max(200).optional(),
   notes:         z.string().max(2000).optional().nullable(),
+  paymentPlan:   paymentPlanSchema,
+  ...receiptFieldsSchema,
 });
 
 const withdrawSchema = z.object({
@@ -163,6 +246,8 @@ const OPERATION_SCHEMAS = {
   resumePausedSubscription: resumeSchema,
   freezeSubscription:      freezeSchema,
   resumeSubscription:      resumeSchema,
+  verifyReceipt:           verifyReceiptSchema,
+  adjustPayment:           adjustPaymentSchema,
 } as const;
 
 const VALID_OPERATIONS = new Set(Object.keys(OPERATION_SCHEMAS));
@@ -215,6 +300,41 @@ function pickWritableFields(raw: Record<string, unknown>): Record<string, unknow
 
 function actorName(user: NonNullable<ServerUser>) {
   return user.email || user.uid;
+}
+
+/**
+ * Turn a payment-plan payload into a dated schedule.
+ *
+ * Returns an empty array for a full payment — the invoice is still issued, it
+ * just has no instalments behind it — and throws only on a plan that asks for
+ * instalments it cannot produce, so a bad plan is a 500 with a readable Arabic
+ * message rather than a silently empty schedule.
+ */
+function buildSchedule(
+  plan: Record<string, unknown>,
+  money: { totalOriginal: number; downPaymentOriginal: number; exchangeRate: number },
+  fallbackFirstDue: string
+): ScheduledInstallment[] {
+  if (asString(plan.type) !== "installments") return [];
+
+  const count = asNumber(plan.installmentCount);
+  if (count < 1) throw new Error("خطة الأقساط تحتاج عدد أقساط صحيح");
+
+  const financed = money.totalOriginal - money.downPaymentOriginal;
+  // Paying the whole thing up front while asking for instalments is not an
+  // error worth rejecting a signup over — there is simply nothing left to
+  // schedule, so the invoice behaves as a full payment.
+  if (financed <= 0) return [];
+
+  return generateInstallmentSchedule({
+    totalOriginal:       money.totalOriginal,
+    downPaymentOriginal: money.downPaymentOriginal,
+    exchangeRate:        money.exchangeRate,
+    count,
+    firstDueDate:        asString(plan.firstDueDate, fallbackFirstDue),
+    frequency:           asFrequency(plan.frequency),
+    customDates:         Array.isArray(plan.customDates) ? (plan.customDates as string[]) : undefined,
+  });
 }
 
 async function writeAudit(
@@ -294,6 +414,14 @@ function requirePermission(user: NonNullable<ServerUser>, operation: Operation) 
     resumePausedSubscription: ["subscriptions", "resume"],
     freezeSubscription: ["subscriptions", "freeze"],
     resumeSubscription: ["subscriptions", "resume"],
+    // Reviewing proof of payment is a payments-desk job, not a sales one:
+    // payments.edit is the permission an admin holds and a salesperson does not,
+    // so the person who recorded a payment cannot also sign it off.
+    verifyReceipt: ["payments", "edit"],
+    // An adjustment moves money that was already counted. That is the refund
+    // permission's weight class, not the "record a payment" one — a salesperson
+    // who can take money must not also be able to write it off.
+    adjustPayment: ["payments", "refund"],
   };
   const required = requirements[operation];
   return required ? hasServerPermission(user, required[0], required[1]) : false;
@@ -320,6 +448,7 @@ const OPERATION_ACTIONS: Partial<Record<Operation, SubscriberAction>> = {
   resumePausedSubscription: "resume",
   freezeSubscription:       "freeze",
   resumeSubscription:       "resume",
+  adjustPayment:            "payment",
 };
 
 /**
@@ -423,6 +552,10 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json(await freezeSubscription(user, payload));
       case "resumeSubscription":
         return NextResponse.json(await resumeSubscription(user, payload));
+      case "verifyReceipt":
+        return NextResponse.json(await verifyReceipt(user, payload));
+      case "adjustPayment":
+        return NextResponse.json(await adjustPayment(user, payload));
       default:
         return jsonError("Unknown operation", 400);
     }
@@ -505,11 +638,92 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
         };
   const amountUSD = opening.amountUSD;
 
+  // ── Billing ledger ──────────────────────────────────────────────────────────
+  // Cycle #1 and its invoice are written in the same transaction as the
+  // subscriber. The legacy summary fields below are unchanged and still carry
+  // the balance — the ledger is additional, never a replacement, so a failure to
+  // build a schedule can never leave a subscriber without a balance.
+  const today = todayString();
+  const startDate = asString(safeSubscriber.startDate) || asString(safeSubscriber.date) || today;
+  const plan = asRecord(payload.paymentPlan);
+  const totalPriceOriginal = asNumber(safeSubscriber.totalPrice);
+  const currencyOriginal = asString(subscriber.currencyOriginal, "USD");
+  const schedule = buildSchedule(
+    plan,
+    { totalOriginal: totalPriceOriginal, downPaymentOriginal: amountOriginal, exchangeRate },
+    addDays(startDate, 30)
+  );
+  const planType = schedule.length > 0 ? "installments" : "full";
+  // With a schedule the invoice is due when the last instalment is; without one
+  // it is due on the date the caller named, or immediately.
+  const invoiceDueDate =
+    schedule.length > 0
+      ? schedule[schedule.length - 1].dueDate
+      : asString(plan.dueDate, startDate);
+
+  let invoiceId: string | null = null;
+  let cycleId: string | null = null;
+  let invoiceNumber = "";
+
   await db.runTransaction(async (tx) => {
+    // Every read must precede every write in a Firestore transaction, and
+    // reserving the invoice number is a read.
+    const counter = totalPriceUSD > 0
+      ? await reserveInvoiceNumber(tx, db, Number(today.slice(0, 4)))
+      : null;
+
+    const cycle = stageCycle(tx, db, {
+      subscriberId:   subRef.id,
+      subscriberName: asString(subscriber.name),
+      convincedByUid,
+      cycleNumber:    1,
+      package:        asString(safeSubscriber.package),
+      duration:       asNumber(safeSubscriber.duration),
+      startDate,
+      expiryDate:     asString(safeSubscriber.expiryDate),
+      currencyOriginal,
+      listPriceOriginal:  totalPriceOriginal,
+      discountOriginal:   0,
+      totalPriceOriginal,
+      exchangeRate,
+      totalPriceUSD,
+      paidAmountUSD: opening.paidAmountUSD,
+      actorUid: user.uid,
+    });
+    cycleId = cycle.cycleId;
+
+    if (counter) {
+      counter.commit();
+      invoiceNumber = counter.invoiceNumber;
+      const staged = stageInvoice(tx, db, {
+        invoiceNumber,
+        subscriberId:   subRef.id,
+        subscriberName: asString(subscriber.name),
+        convincedByUid,
+        cycleId:     cycle.cycleId,
+        cycleNumber: 1,
+        issueDate:   startDate,
+        dueDate:     invoiceDueDate,
+        currencyOriginal,
+        subtotalOriginal: totalPriceOriginal,
+        discountOriginal: 0,
+        totalOriginal:    totalPriceOriginal,
+        exchangeRate,
+        totalUSD: totalPriceUSD,
+        paidUSD:  opening.paidAmountUSD,
+        planType,
+        schedule,
+        notes: asString(safeSubscriber.notes) || null,
+        actorUid: user.uid,
+        today,
+      });
+      invoiceId = staged.invoiceId;
+    }
+
     tx.set(subRef, {
       ...safeSubscriber,
       // حفظ startDate صراحةً لضمان اتساق البيانات مع renewals
-      startDate: asString(safeSubscriber.startDate) || asString(safeSubscriber.date) || todayString(),
+      startDate,
       subscriptionState: "active",
       paidAmount: opening.paidAmount,
       paidAmountUSD: opening.paidAmountUSD,
@@ -521,6 +735,12 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
       refundAmount: 0,
       refundAmountUSD: 0,
       renewalCount: 0,
+      // Pointers into the ledger. Absent on every pre-existing subscriber, which
+      // is what legacyToCurrentCycleView() exists to handle.
+      currentCycleId: cycle.cycleId,
+      currentCycleNumber: 1,
+      currentInvoiceId: invoiceId,
+      paymentPlanType: planType,
       createdBy: user.uid,
       createdAt: FieldValue.serverTimestamp(),
       updatedBy: user.uid,
@@ -534,16 +754,24 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
         subscriberName: asString(subscriber.name),
         ...(convincedByUid ? { convincedByUid } : {}),
         amountOriginal,
-        currencyOriginal: asString(initialPayment.currencyOriginal, asString(subscriber.currencyOriginal, "USD")),
+        currencyOriginal: asString(initialPayment.currencyOriginal, currencyOriginal),
         exchangeRate,
         amountUSD,
         paymentMethod: asString(initialPayment.paymentMethod, asString(subscriber.payment)),
         ...(initPmId ? { paymentMethodId: initPmId } : {}),
         receiptUrl: initialPayment.receiptUrl ?? null,
-        date: asString(initialPayment.date, asString(subscriber.date, todayString())),
+        receiptFileName: initialPayment.receiptFileName ?? null,
+        externalReference: asString(initialPayment.externalReference).trim() || null,
+        receiptStatus: initialPayment.receiptUrl ? "pending_review" : "missing",
+        settlementStatus: "unreconciled",
+        date: asString(initialPayment.date, asString(subscriber.date, today)),
         notes: initialPayment.notes ?? null,
+        paymentType: "initial",
         isInitialPayment: true,
         isRenewalPayment: false,
+        cycleId: cycle.cycleId,
+        cycleNumber: 1,
+        invoiceId,
         createdAt: FieldValue.serverTimestamp(),
         createdBy: user.uid,
       });
@@ -556,10 +784,22 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
     entityId: subRef.id,
     entityName: asString(subscriber.name),
     description: `Created subscriber: ${asString(subscriber.name)}`,
-    metadata: { hasInitialPayment: amountOriginal > 0 },
+    metadata: {
+      hasInitialPayment: amountOriginal > 0,
+      cycleId, invoiceId, invoiceNumber: invoiceNumber || null,
+      paymentPlanType: planType,
+      installmentCount: schedule.length,
+    },
   });
 
-  return { success: true, subscriberId: subRef.id };
+  return {
+    success: true,
+    subscriberId: subRef.id,
+    cycleId,
+    invoiceId,
+    invoiceNumber: invoiceNumber || null,
+    installmentCount: schedule.length,
+  };
 }
 
 async function updateSubscriber(user: NonNullable<ServerUser>, payload: Record<string, unknown>) {
@@ -653,6 +893,9 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
   let newPaidUSD = 0;
   let newRemainingUSD = 0;
 
+  const today = todayString();
+  let ledger: ReturnType<typeof stageLedgerPayment> | null = null;
+
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(subRef);
     if (!snap.exists) throw new Error("Subscriber not found");
@@ -660,6 +903,11 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
     subscriberName = asString(current.name, subscriberId);
     prevPaidUSD = asNumber(current.paidAmountUSD);
     prevRemainingUSD = asNumber(current.remainingAmountUSD);
+
+    // Reads first — Firestore transactions forbid a read after a write. Returns
+    // nulls for a subscriber with no ledger, which is every record created
+    // before instalments existed; the legacy balance below still applies.
+    const open = await readOpenLedger(tx, db, subscriberId, asString(current.currentCycleId) || null);
 
     // Balance maths lives in lib/subscriberFinance so it can be unit tested
     // without Firestore. Throws on an overpayment beyond the rounding tolerance.
@@ -672,6 +920,16 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
         refundAmountUSD: asNumber(current.refundAmountUSD),
         lockedRate: asNumber(current.lockedRate, 1),
       },
+    });
+
+    ledger = stageLedgerPayment(tx, db, {
+      paymentId: paymentRef.id,
+      amountUSD,
+      invoice: open.invoice,
+      installments: open.installments,
+      targetInstallmentId: asString(payload.installmentId) || null,
+      actorUid: user.uid,
+      today,
     });
 
     const pmId = asString(payload.paymentMethodId);
@@ -687,10 +945,25 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
       paymentMethod: asString(payload.paymentMethod),
       ...(pmId ? { paymentMethodId: pmId } : {}),
       receiptUrl: payload.receiptUrl ?? null,
-      date: asString(payload.date, todayString()),
+      receiptFileName: payload.receiptFileName ?? null,
+      externalReference: asString(payload.externalReference).trim() || null,
+      receiptStatus: payload.receiptUrl ? "pending_review" : "missing",
+      settlementStatus: "unreconciled",
+      date: asString(payload.date, today),
       notes: asString(payload.notes).trim() || null,
+      // A payment against a subscription that is already running is an
+      // instalment, whatever the plan is called. Renewals set their own type.
+      paymentType: "installment",
       isInitialPayment: false,
       isRenewalPayment: false,
+      cycleId:     ledger.cycleId,
+      cycleNumber: ledger.cycleNumber,
+      invoiceId:   ledger.invoiceId,
+      installmentAllocations: ledger.allocations.map((a) => ({
+        installmentId: a.installmentId,
+        installmentNumber: a.installmentNumber,
+        appliedUSD: a.appliedUSD,
+      })),
       createdAt: FieldValue.serverTimestamp(),
       createdBy: user.uid,
     });
@@ -724,10 +997,19 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
     previousData: { paidAmountUSD: prevPaidUSD, remainingAmountUSD: prevRemainingUSD },
     newData:      { paidAmountUSD: newPaidUSD,  remainingAmountUSD: newRemainingUSD },
     changedFields: ["paidAmountUSD", "remainingAmountUSD", "netAmountUSD"],
-    metadata: { subscriberId },
+    metadata: {
+      subscriberId,
+      invoiceId:   (ledger as { invoiceId?: string | null } | null)?.invoiceId ?? null,
+      allocations: (ledger as { allocations?: unknown[] } | null)?.allocations ?? [],
+    },
   });
 
-  return { success: true, paymentId: paymentRef.id };
+  return {
+    success: true,
+    paymentId: paymentRef.id,
+    allocations:   (ledger as { allocations?: unknown[] } | null)?.allocations ?? [],
+    invoiceStatus: (ledger as { invoiceStatus?: string | null } | null)?.invoiceStatus ?? null,
+  };
 }
 
 async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<string, unknown>) {
@@ -756,11 +1038,22 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
   const historyRef = db.collection("subscribers").doc(subscriberId)
                        .collection("renewalHistory").doc();
 
+  const today = todayString();
+  const plan = asRecord(payload.paymentPlan);
+  let newCycleId: string | null = null;
+  let newInvoiceId: string | null = null;
+  let scheduleLength = 0;
+
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(subRef);
     if (!snap.exists) throw new Error("Subscriber not found");
     const current = snap.data() ?? {};
     subscriberName = asString(current.name, subscriberId);
+
+    // Read before write — reserving the invoice number is a read.
+    const counter = totalPriceUSD > 0
+      ? await reserveInvoiceNumber(tx, db, Number(today.slice(0, 4)))
+      : null;
 
     // Capture before-state for audit
     prevState = {
@@ -805,11 +1098,92 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
       createdAt:          FieldValue.serverTimestamp(),
     };
 
+    // ── Billing ledger: a renewal is a new cycle, not an edit of the old one ──
+    //
+    // The subscriber document is still overwritten in place exactly as before —
+    // that is what every existing screen reads — and `renewalHistory` still gets
+    // its snapshot. What changes is that the outgoing term now survives as its
+    // own addressable document with its own invoice, instead of only as a
+    // flattened snapshot, so "what did cycle 2 actually cost and collect" has an
+    // answer.
+    const previousCycleId = asString(current.currentCycleId) || null;
+    if (previousCycleId) {
+      stageCloseCycle(
+        tx, db, previousCycleId,
+        isWithdrawn ? "withdrawn" : "completed",
+        user.uid,
+        `renewed into cycle ${renewalNumber + 1}`
+      );
+    }
+
+    const schedule = buildSchedule(
+      plan,
+      { totalOriginal: totalPrice, downPaymentOriginal: paidAmount, exchangeRate },
+      addDays(startDate, 30)
+    );
+    scheduleLength = schedule.length;
+    const planType = schedule.length > 0 ? "installments" : "full";
+    const renewConvinced = asString(current.convincedByUid) || null;
+
+    const cycle = stageCycle(tx, db, {
+      subscriberId,
+      subscriberName,
+      convincedByUid: renewConvinced,
+      // renewalNumber counts renewals; the cycle it produces is the next one.
+      cycleNumber: renewalNumber + 1,
+      package:     asString(payload.package, asString(current.package)),
+      duration,
+      startDate,
+      expiryDate: endDate,
+      currencyOriginal: currency,
+      listPriceOriginal:  totalPrice,
+      discountOriginal:   0,
+      totalPriceOriginal: totalPrice,
+      exchangeRate,
+      totalPriceUSD,
+      paidAmountUSD: paidUSD,
+      actorUid: user.uid,
+    });
+    newCycleId = cycle.cycleId;
+
+    if (counter) {
+      counter.commit();
+      const staged = stageInvoice(tx, db, {
+        invoiceNumber:  counter.invoiceNumber,
+        subscriberId,
+        subscriberName,
+        convincedByUid: renewConvinced,
+        cycleId:     cycle.cycleId,
+        cycleNumber: renewalNumber + 1,
+        issueDate:   renewalDate,
+        dueDate:     schedule.length > 0
+          ? schedule[schedule.length - 1].dueDate
+          : asString(plan.dueDate, startDate),
+        currencyOriginal: currency,
+        subtotalOriginal: totalPrice,
+        discountOriginal: 0,
+        totalOriginal:    totalPrice,
+        exchangeRate,
+        totalUSD: totalPriceUSD,
+        paidUSD,
+        planType,
+        schedule,
+        notes: asString(payload.notes).trim() || null,
+        actorUid: user.uid,
+        today,
+      });
+      newInvoiceId = staged.invoiceId;
+    }
+
     tx.update(subRef, {
       date: startDate,
       startDate,
       expiryDate: endDate,
       duration,
+      currentCycleId:     cycle.cycleId,
+      currentCycleNumber: renewalNumber + 1,
+      currentInvoiceId:   newInvoiceId,
+      paymentPlanType:    planType,
       package: asString(payload.package, asString(current.package)),
       currencyOriginal: currency,
       currency,
@@ -857,9 +1231,17 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
         paymentType: "renewal",
         date: renewalDate,
         notes: asString(payload.notes).trim() || null,
+        receiptUrl: payload.receiptUrl ?? null,
+        receiptFileName: payload.receiptFileName ?? null,
+        externalReference: asString(payload.externalReference).trim() || null,
+        receiptStatus: payload.receiptUrl ? "pending_review" : "missing",
+        settlementStatus: "unreconciled",
         isInitialPayment: false,
         isRenewalPayment: true,
         renewalNumber,
+        cycleId:     newCycleId,
+        cycleNumber: renewalNumber + 1,
+        invoiceId:   newInvoiceId,
         createdAt: FieldValue.serverTimestamp(),
         createdBy: user.uid,
       });
@@ -887,10 +1269,21 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
       renewalCount: renewalNumber,
     },
     changedFields: ["subscriptionState", "expiryDate", "paidAmountUSD", "totalPriceUSD", "remainingAmountUSD", "renewalCount"],
-    metadata: { renewalNumber },
+    metadata: {
+      renewalNumber,
+      cycleId: newCycleId,
+      invoiceId: newInvoiceId,
+      installmentCount: scheduleLength,
+    },
   });
 
-  return { success: true, paymentId: paidAmount > 0 ? paymentRef.id : null };
+  return {
+    success: true,
+    paymentId: paidAmount > 0 ? paymentRef.id : null,
+    cycleId: newCycleId,
+    invoiceId: newInvoiceId,
+    installmentCount: scheduleLength,
+  };
 }
 
 async function withdrawSubscriber(user: NonNullable<ServerUser>, payload: Record<string, unknown>) {
@@ -918,6 +1311,9 @@ async function withdrawSubscriber(user: NonNullable<ServerUser>, payload: Record
     if (asString(current.subscriptionState) === "withdrawn") throw new Error("Subscription is already withdrawn");
     const today = todayString();
     const previousRefundUSD = asNumber(current.refundAmountUSD);
+    const cycleId = asString(current.currentCycleId) || null;
+    // Read before write.
+    const open = await readOpenLedger(tx, db, subscriberId, cycleId);
 
     // Capture before-state for audit
     prevState = {
@@ -964,6 +1360,20 @@ async function withdrawSubscriber(user: NonNullable<ServerUser>, payload: Record
         createdByName: actorName(user),
       });
     }
+
+    // The refund lands on the invoice and the cycle as well as the subscriber,
+    // so a cycle that was paid and then refunded reads as "refunded" rather than
+    // as a paid cycle with an unexplained negative somewhere else.
+    if (hasRefund) {
+      stageLedgerRefund(tx, db, {
+        invoice: open.invoice, cycleId, refundUSD: refundAmountUSD,
+        actorUid: user.uid, today,
+      });
+    }
+    stageCycleStatus(tx, db, cycleId, "withdrawn", user.uid, {
+      closedAt: FieldValue.serverTimestamp(),
+      closedReason: `withdrawn: ${reason}`,
+    });
 
     tx.update(subRef, {
       subscriptionState: "withdrawn",
@@ -1028,6 +1438,10 @@ async function pauseSubscription(user: NonNullable<ServerUser>, payload: Record<
     subscriberName = asString(current.name, subscriberId);
     const today = todayString();
     const remaining = Math.max(0, asNumber(current.daysRemaining, remainingDays(asString(current.expiryDate, today), today)));
+    // The cycle carries the same operational state, so billing screens do not
+    // have to re-derive it from three subscriber fields.
+    stageCycleStatus(tx, db, asString(current.currentCycleId) || null, "paused", user.uid);
+
     tx.update(subRef, {
       subscriptionStatus: "paused",
       status: "موقوف",
@@ -1076,6 +1490,7 @@ async function freezeSubscription(user: NonNullable<ServerUser>, payload: Record
       throw new Error("يجب استئناف الاشتراك الموقوف قبل التجميد");
     const today = todayString();
     preservedDays = remainingDays(asString(current.expiryDate, today), today);
+    stageCycleStatus(tx, db, asString(current.currentCycleId) || null, "frozen", user.uid);
     tx.update(subRef, {
       freezeData: {
         isFrozen: true,
@@ -1131,6 +1546,10 @@ async function resumePausedSubscription(user: NonNullable<ServerUser>, payload: 
     pausedDays = elapsedDaysSince(pausedAt ? pausedAt.getTime() : null, Date.now());
     totalPausedDays = asNumber(current.totalPausedDays) + pausedDays;
 
+    stageCycleStatus(tx, db, asString(current.currentCycleId) || null, "active", user.uid, {
+      expiryDate: newExpiryDate,
+    });
+
     tx.update(subRef, {
       subscriptionStatus: "active",
       status: "نشط",
@@ -1179,6 +1598,10 @@ async function resumeSubscription(user: NonNullable<ServerUser>, payload: Record
     const frozenAt = freezeData.frozenAt instanceof Timestamp ? freezeData.frozenAt.toDate() : null;
     frozenDays = elapsedDaysSince(frozenAt ? frozenAt.getTime() : null, Date.now());
 
+    stageCycleStatus(tx, db, asString(current.currentCycleId) || null, "active", user.uid, {
+      expiryDate: newExpiryDate,
+    });
+
     tx.update(subRef, {
       freezeData: {
         ...freezeData,
@@ -1204,4 +1627,222 @@ async function resumeSubscription(user: NonNullable<ServerUser>, payload: Record
   });
 
   return { success: true, newExpiryDate };
+}
+
+/**
+ * Record a human decision about a payment's proof of payment.
+ *
+ * What this deliberately does NOT do is move money. `amountUSD`,
+ * `paidAmountUSD`, the invoice and the instalments are all untouched — a
+ * payment counts from the moment it is recorded, and always has. Making the
+ * balance depend on receipt review would mean a cash payment with no slip reads
+ * as unpaid and the customer gets chased for money they already handed over,
+ * and it would silently restate every historical balance in the system the day
+ * it shipped.
+ *
+ * Two guards beyond the payments.edit permission the router checks:
+ *
+ *  • Row-level ownership, checked here rather than in denyIfNotOwned because
+ *    this is the one operation keyed by paymentId rather than subscriberId.
+ *    ROLE_CEILING grants payments.edit to employees, so without this any
+ *    employee could sign off any colleague's payment.
+ *  • A payment with no receipt attached cannot be verified. Approving proof
+ *    that does not exist is the failure this whole workflow is meant to catch.
+ */
+async function verifyReceipt(user: NonNullable<ServerUser>, payload: Record<string, unknown>) {
+  const db = getFirestore();
+  const paymentId = asString(payload.paymentId);
+  if (!paymentId) throw new Error("Missing paymentId");
+
+  const decision = asString(payload.decision);
+  const reason = asString(payload.reason).trim();
+  if (decision === "reject" && !reason) throw new Error("سبب الرفض مطلوب");
+
+  const paymentRef = db.collection("payments").doc(paymentId);
+  const paySnap = await paymentRef.get();
+  if (!paySnap.exists) throw new Error("Payment not found");
+  const payment = paySnap.data() ?? {};
+
+  const subscriberId = asString(payment.subscriberId);
+  if (!subscriberId) throw new Error("Payment is not linked to a subscriber");
+
+  if (user.role !== "owner" && user.role !== "admin") {
+    const subSnap = await db.collection("subscribers").doc(subscriberId).get();
+    if (!subSnap.exists) throw new Error("Subscriber not found");
+    const decisionOwn = canMutateSubscriber(user, subSnap.data() as SubscriberLinkFields, "payment");
+    if (!decisionOwn.allowed) {
+      const error = new Error(decisionOwn.reason ?? "Forbidden") as Error & { status?: number };
+      error.status = 403;
+      throw error;
+    }
+  }
+
+  if (decision === "verify" && !payment.receiptUrl) {
+    throw new Error("لا يمكن التحقق من دفعة بلا وصل مرفوع");
+  }
+
+  const previousStatus = asString(payment.receiptStatus) || (payment.receiptUrl ? "pending_review" : "missing");
+
+  await paymentRef.update({
+    receiptStatus:   decision === "verify" ? "verified" : "rejected",
+    verifiedBy:      user.uid,
+    verifiedByName:  actorName(user),
+    verifiedAt:      FieldValue.serverTimestamp(),
+    rejectionReason: decision === "reject" ? reason : null,
+  });
+
+  await writeAudit(user, decision === "verify" ? "receipt_verified" : "receipt_rejected", {
+    category:   "financial",
+    severity:   decision === "verify" ? "info" : "warning",
+    entityType: "payment",
+    entityId:   paymentId,
+    entityName: asString(payment.subscriberName, subscriberId),
+    description: decision === "verify"
+      ? `تم التحقق من وصل الدفعة (${asString(payment.subscriberName, subscriberId)})`
+      : `تم رفض وصل الدفعة (${asString(payment.subscriberName, subscriberId)}) — ${reason}`,
+    previousData: { receiptStatus: previousStatus },
+    newData:      { receiptStatus: decision === "verify" ? "verified" : "rejected" },
+    changedFields: ["receiptStatus", "verifiedBy", "verifiedAt"],
+    metadata: { subscriberId, paymentId, reason: reason || null },
+  });
+
+  return { success: true, receiptStatus: decision === "verify" ? "verified" : "rejected" };
+}
+
+/**
+ * Record a correction to money already counted.
+ *
+ * The original payment is never touched. Correcting a $500 payment that should
+ * have been $50 writes a −$450 adjustment beside it; both documents survive, and
+ * the audit trail shows the error and the fix rather than a balance that
+ * silently changed. That is the difference between a ledger and a spreadsheet.
+ *
+ * The maths deliberately reuses the same guards as a payment:
+ *
+ *  • A positive adjustment cannot push the total paid past the subscription
+ *    price, for the same reason a payment cannot.
+ *  • A negative one cannot drive the balance below zero — a refund is the
+ *    instrument for money that physically went back to the customer, and
+ *    conflating the two would double-count it against revenue.
+ *
+ * Instalments are untouched on purpose; see stageLedgerAdjustment.
+ */
+async function adjustPayment(user: NonNullable<ServerUser>, payload: Record<string, unknown>) {
+  const db = getFirestore();
+  const subscriberId = asString(payload.subscriberId);
+  if (!subscriberId) throw new Error("Missing subscriberId");
+
+  const amountUSD = asNumber(payload.amountUSD);
+  if (!Number.isFinite(amountUSD) || amountUSD === 0) throw new Error("مبلغ التسوية مطلوب");
+
+  const reason = asString(payload.reason).trim();
+  if (!reason) throw new Error("سبب التسوية مطلوب");
+
+  const adjustmentType = asString(payload.adjustmentType, "correction");
+  const today = todayString();
+  const date = asString(payload.date, today);
+  const exchangeRate = normalizeExchangeRate(payload.exchangeRate);
+
+  const subRef = db.collection("subscribers").doc(subscriberId);
+  const adjRef = db.collection(ADJUSTMENTS).doc();
+
+  let subscriberName = "";
+  let prevPaidUSD = 0;
+  let newPaidUSD = 0;
+  let invoiceStatus: string | null = null;
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(subRef);
+    if (!snap.exists) throw new Error("Subscriber not found");
+    const current = snap.data() ?? {};
+    subscriberName = asString(current.name, subscriberId);
+
+    const cycleId = asString(current.currentCycleId) || null;
+    const open = await readOpenLedger(tx, db, subscriberId, cycleId);
+
+    prevPaidUSD = asNumber(current.paidAmountUSD);
+    const totalPriceUSD = asNumber(current.totalPriceUSD);
+    const refundUSD = asNumber(current.refundAmountUSD);
+    const lockedRate = asNumber(current.lockedRate, 1);
+
+    newPaidUSD = prevPaidUSD + amountUSD;
+
+    if (newPaidUSD < 0) {
+      throw new Error(
+        `التسوية تجعل المدفوع بالسالب — المدفوع حالياً $${prevPaidUSD.toFixed(2)}. ` +
+        `استخدم الاسترداد إذا عادت النقود للعميل فعلاً.`
+      );
+    }
+    if (totalPriceUSD > 0 && newPaidUSD > totalPriceUSD + 0.01) {
+      throw new Error(
+        `التسوية تتجاوز إجمالي الاشتراك — المدفوع بعدها $${newPaidUSD.toFixed(2)}, الإجمالي $${totalPriceUSD.toFixed(2)}`
+      );
+    }
+
+    const result = stageLedgerAdjustment(tx, db, {
+      invoice: open.invoice, cycleId, amountUSD, actorUid: user.uid, today,
+    });
+    invoiceStatus = result.invoiceStatus;
+
+    const convincedByUid = asString(current.convincedByUid);
+    tx.set(adjRef, {
+      subscriberId,
+      subscriberName,
+      // Denormalised so firestore.rules scopes the adjustment to the same
+      // employee who can already see the payment it corrects.
+      ...(convincedByUid ? { convincedByUid } : {}),
+      paymentId: asString(payload.paymentId) || null,
+      invoiceId: open.invoice?.id ?? null,
+      cycleId,
+      adjustmentType,
+      amountUSD,
+      amountOriginal: amountUSD * exchangeRate,
+      currencyOriginal: asString(payload.currencyOriginal, asString(current.currencyOriginal, "USD")),
+      exchangeRate,
+      reason,
+      notes: asString(payload.notes).trim() || null,
+      // Recorded rather than enforced: the threshold makes a large write-off a
+      // deliberate act with a name attached, it does not block one.
+      approvedByName: Math.abs(amountUSD) >= ADJUSTMENT_APPROVAL_THRESHOLD_USD
+        ? (asString(payload.approvedByName).trim() || actorName(user))
+        : null,
+      approvedBy: Math.abs(amountUSD) >= ADJUSTMENT_APPROVAL_THRESHOLD_USD ? user.uid : null,
+      date,
+      createdAt: FieldValue.serverTimestamp(),
+      createdBy: user.uid,
+      createdByName: actorName(user),
+    });
+
+    const remainingAmountUSD = Math.max(0, totalPriceUSD - newPaidUSD);
+    tx.update(subRef, {
+      paidAmountUSD:      newPaidUSD,
+      paidAmount:         newPaidUSD * lockedRate,
+      remainingAmountUSD,
+      remainingAmount:    remainingAmountUSD * lockedRate,
+      netAmountUSD:       Math.max(0, newPaidUSD - refundUSD),
+      updatedBy: user.uid,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  await writeAudit(user, "payment_adjusted", {
+    category: "financial",
+    severity: "warning",
+    entityType: "payment",
+    entityId: adjRef.id,
+    entityName: subscriberName,
+    description: `تسوية ${adjustmentType} بمقدار $${amountUSD.toFixed(2)} — ${subscriberName}: ${reason}`,
+    financialData: {
+      amount: Math.abs(amountUSD),
+      currency: "USD",
+      amountUSD: Math.abs(amountUSD),
+      impactType: amountUSD < 0 ? "negative" : "positive",
+    },
+    previousData: { paidAmountUSD: prevPaidUSD },
+    newData:      { paidAmountUSD: newPaidUSD },
+    changedFields: ["paidAmountUSD", "remainingAmountUSD", "netAmountUSD"],
+    metadata: { subscriberId, adjustmentType, reason, paymentId: asString(payload.paymentId) || null },
+  });
+
+  return { success: true, adjustmentId: adjRef.id, paidAmountUSD: newPaidUSD, invoiceStatus };
 }

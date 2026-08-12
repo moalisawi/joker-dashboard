@@ -1,6 +1,7 @@
 import type { Role, Permissions } from "@/types";
 import type { GranularPermissions, AccountStatus } from "@/types";
 import type { EmployeeRole } from "@/types";
+import { PERMISSION_DESCRIPTIONS } from "@/types/permissions";
 
 // ─── Flat permissions (backward-compat) ────────────────────────────────────────
 
@@ -222,13 +223,68 @@ export const ACCOUNT_STATUS_LABELS: Record<AccountStatus, string> = {
   active:    "نشط",
   suspended: "معلق",
   disabled:  "معطل",
-  pending:   "معلق التفعيل",
+  pending:   "بانتظار التفعيل",
+  deleted:   "مؤرشف",
 };
 
 /** Returns true if the status allows dashboard access */
 export function isAccountAccessible(status: AccountStatus | undefined, active: boolean): boolean {
   if (status) return status === "active";
   return active === true;
+}
+
+/**
+ * The one place that answers "what state is this account in?".
+ *
+ * Three fields have accumulated for the same question — `status`, the legacy
+ * boolean `active`, and `deleted` — and they can disagree: the delete route
+ * writes all three, the old toggle wrote only two, and accounts created before
+ * `status` existed carry none. Reading them ad hoc is how the same person showed
+ * as نشط in one list and معطل in another. `deleted` wins, then `status`, then
+ * the boolean.
+ */
+export function resolveAccountStatus(user: {
+  status?: AccountStatus | string;
+  active?: boolean;
+  deleted?: boolean;
+}): AccountStatus {
+  if (user.deleted) return "deleted";
+  const s = user.status;
+  if (s === "active" || s === "suspended" || s === "disabled" || s === "pending" || s === "deleted") {
+    return s;
+  }
+  return user.active ? "active" : "disabled";
+}
+
+/** Statuses that keep a person in the working directory rather than the archive. */
+export function isArchivedStatus(status: AccountStatus): boolean {
+  return status === "deleted";
+}
+
+// ─── Readable permission summary ───────────────────────────────────────────────
+
+/**
+ * The effective permissions as a list of Arabic sentences.
+ *
+ * A 20-checkbox grid states what is stored; it does not state what the person
+ * can do — least of all before you press Save on a new account. Both the create
+ * modal and the profile page ask this function instead.
+ */
+export function describePermissions(user: {
+  role: Role;
+  employeeRole?: EmployeeRole | null;
+  granularPermissions?: GranularPermissions | null;
+}): string[] {
+  const gp = effectivePermissions(user) as unknown as Record<string, Record<string, boolean>>;
+  const out: string[] = [];
+  for (const [category, actions] of Object.entries(gp)) {
+    for (const [action, allowed] of Object.entries(actions)) {
+      if (!allowed) continue;
+      const text = PERMISSION_DESCRIPTIONS[`${category}.${action}`];
+      if (text) out.push(text);
+    }
+  }
+  return out;
 }
 
 // ─── Role metadata ─────────────────────────────────────────────────────────────

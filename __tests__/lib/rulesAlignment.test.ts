@@ -17,6 +17,7 @@ import {
   canViewSessions,
   canReadUserDirectory,
   canManageUsers,
+  canActivateAccounts,
 } from '@/lib/permissionGuards'
 import { DEFAULT_GRANULAR_PERMISSIONS, ROLE_CEILING } from '@/lib/permissions'
 import type { UserProfile, GranularPermissions, Role } from '@/types'
@@ -49,10 +50,6 @@ describe('guards mirror firestore.rules', () => {
       const delegatedAdmin = withUsersManage('admin')
       const delegatedEmployee = withUsersManage('employee')
 
-      // The old gate would have let both through...
-      expect(canManageUsers(delegatedAdmin)).toBe(true)
-      expect(canManageUsers(delegatedEmployee)).toBe(true)
-      // ...the rule-aligned gate does not.
       expect(canManageTeams(delegatedAdmin)).toBe(false)
       expect(canManageTeams(delegatedEmployee)).toBe(false)
     })
@@ -92,9 +89,7 @@ describe('guards mirror firestore.rules', () => {
     // An employee granted users.manage would previously have passed the page
     // guard and then had every directory query denied.
     it('is not unlocked by users.manage', () => {
-      const delegated = withUsersManage('employee')
-      expect(canManageUsers(delegated)).toBe(true)
-      expect(canReadUserDirectory(delegated)).toBe(false)
+      expect(canReadUserDirectory(withUsersManage('employee'))).toBe(false)
     })
   })
 
@@ -107,8 +102,28 @@ describe('guards mirror firestore.rules', () => {
       expect(canManageUsers(user('admin'))).toBe(false)
     })
 
-    it('holds it once an owner grants it', () => {
-      expect(canManageUsers(withUsersManage('admin'))).toBe(true)
+    /**
+     * These three used to assert the opposite — that an owner could grant
+     * users.manage to an admin or an employee and the guard would honour it.
+     * The server has never honoured it: hasServerPermission() runs the grant
+     * through effectivePermissions(), and ROLE_CEILING withholds users.manage
+     * below owner, so the intersection is false. The client guard read the
+     * stored grant directly, so it said yes while every /api/employees call
+     * answered 403 — the exact drift this file exists to catch, sitting inside
+     * the file itself.
+     *
+     * users.manage is now owner-only in both places. Day-to-day supervision is
+     * users.activateAccounts, which the ceiling *does* grant an admin.
+     */
+    it('cannot be granted users.manage past the ceiling', () => {
+      expect(canManageUsers(withUsersManage('admin'))).toBe(false)
+      expect(canManageUsers(withUsersManage('employee'))).toBe(false)
+    })
+
+    it('keeps activateAccounts delegable to an admin', () => {
+      expect(ROLE_CEILING.admin.users.activateAccounts).toBe(true)
+      expect(canActivateAccounts(user('admin'))).toBe(true)
+      expect(canActivateAccounts(user('employee'))).toBe(false)
     })
   })
 })
@@ -251,6 +266,77 @@ describe('subscriberNotes rule matches the service', () => {
     const referenced = rules.match(/scripts\/[\w.-]+\.mjs/g) ?? []
     for (const path of referenced) {
       expect(existsSync(resolve(ROOT, path))).toBe(true)
+    }
+  })
+})
+
+/**
+ * The billing ledger is written only by the server, and read only by the people
+ * who can already see the subscriber it belongs to.
+ *
+ * An invoice states what a named person owes and an instalment states when they
+ * are late — no less sensitive than the payment row, and previously not
+ * expressible at all. Two ways this could go wrong silently:
+ *
+ *  • A client-writable instalment is not an instalment. Anything that can be
+ *    marked paid from a browser is a suggestion, not a ledger.
+ *  • A read rule that forgets `convincedByUid` either exposes the whole book of
+ *    business to every employee, or (if it omits the employee branch entirely)
+ *    hides an employee's own subscribers from them.
+ *
+ * Read as text against firestore.rules so a widened rule fails here rather than
+ * in production.
+ */
+describe('billing ledger rules', () => {
+  const ROOT = resolve(__dirname, '..', '..')
+  const rules = readFileSync(resolve(ROOT, 'firestore.rules'), 'utf8')
+
+  /** One `match /x/{id} { ... }` block, from its match line to the next one. */
+  function block(collection: string): string {
+    const start = rules.indexOf(`match /${collection}/`)
+    expect(start).toBeGreaterThan(-1)
+    const next = rules.indexOf('match /', start + 10)
+    return rules.slice(start, next === -1 ? undefined : next)
+  }
+
+  const LEDGER = ['subscriptionCycles', 'invoices', 'installments', 'paymentAdjustments']
+
+  it.each(LEDGER)('%s is server-write-only', (collection) => {
+    expect(block(collection)).toMatch(/allow create, update, delete:\s*if false/)
+  })
+
+  it.each(LEDGER)('%s scopes employee reads by convincedByUid', (collection) => {
+    const b = block(collection)
+    expect(b).toMatch(/allow read:\s*if isStaff\(\) \|\| ownsBillingRow\(\)/)
+  })
+
+  it('ownsBillingRow matches the uid against the requester, and requires it to exist', () => {
+    // `resource.data.get('convincedByUid', '') == request.auth.uid` alone would
+    // match a document with no uid against a caller with no uid — never true in
+    // practice, but the explicit null check is what makes that unambiguous.
+    const start = rules.indexOf('function ownsBillingRow()')
+    const fn = rules.slice(start, rules.indexOf('}', start) + 1)
+    expect(fn).toMatch(/convincedByUid[^\n]*!= null/)
+    expect(fn).toMatch(/== request\.auth\.uid/)
+    expect(fn).toMatch(/isEmployee\(\)/)
+  })
+
+  it('keeps the invoice counter entirely server-side', () => {
+    // The sequence is read and incremented inside the issuing transaction.
+    // A client that could read it learns nothing useful; one that could write it
+    // could hand two invoices the same number.
+    expect(block('counters')).toMatch(/allow read, write:\s*if false/)
+  })
+
+  it('keeps settlement batches staff-only', () => {
+    const b = block('settlementBatches')
+    expect(b).toMatch(/allow read:\s*if isStaff\(\)/)
+    expect(b).toMatch(/allow create, update, delete:\s*if false/)
+  })
+
+  it('never grants a client write to any financial collection', () => {
+    for (const collection of [...LEDGER, 'payments', 'refunds', 'settlementBatches']) {
+      expect(block(collection)).not.toMatch(/allow (create|update|write):\s*if (?!false)/)
     }
   })
 })

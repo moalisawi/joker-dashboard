@@ -128,7 +128,17 @@ export function getDashboardWidgets(user: UserProfile | null): DashboardWidgets 
     showRevenue:            isAdmin || (gp?.analytics?.view ?? false),
     showAnalytics:          isAdmin || (gp?.analytics?.view ?? false),
     showAllSubscribers:     isAdmin,
-    showRenewals:           isOwner || isSales || (gp?.subscriptions?.manageRenewals ?? false),
+    // The third clause used to be `|| gp.subscriptions.manageRenewals`, a
+    // permission nothing could ever store — absent from ROLE_CEILING and
+    // stripped by the save schema — so it was dead code that always evaluated
+    // false. Removing it is exactly a no-op.
+    //
+    // Deliberately NOT replaced with `gp.subscriptions.renew`: that reads like
+    // the natural substitute, but the employee preset grants renew, so it would
+    // silently add the renewals section to every follow-up agent's dashboard.
+    // Widening who sees what on the dashboard is a product decision and has
+    // nothing to do with user management.
+    showRenewals:           isOwner || isSales,
     showInstallments:       isOwner || isSales,
     showTeamPerformance:    isAdmin,
     showEmployeeManagement: isAdmin || (gp?.users?.manage ?? false),

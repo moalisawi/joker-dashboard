@@ -25,7 +25,7 @@ function fmtDate(raw: unknown): string {
 import type { Subscriber } from "@/types";
 import {
   RefreshCw, Clock, Check,  PhoneCall,
-  XCircle, CheckCircle2, ChevronDown, ChevronUp, User} from "lucide-react";
+  XCircle, CheckCircle2, ChevronDown, ChevronUp, User, Handshake} from "lucide-react";
 
 const ACC = { indigo:"#5B5FEF", emerald:"#5B5FEF", amber:"#F59E0B", rose:"#EF4444", sky:"#3B82F6" };
 const fadeUp = { hidden:{opacity:0,y:10}, show:{opacity:1,y:0} };
@@ -187,6 +187,7 @@ export default function RenewalsTab({ subscriber: s, onRenew, canRev }: Props) {
   const statusActions: { key: RenewalWorkflowStatus; label: string; icon: React.ReactNode; accent: string }[] = [
     { key: RENEWAL_STATUS.PENDING,   label:"قيد الانتظار",  icon:<Clock size={13}/>,        accent:ACC.amber },
     { key: RENEWAL_STATUS.CONTACTED, label:"تم التواصل",    icon:<PhoneCall size={13}/>,    accent:ACC.indigo },
+    { key: RENEWAL_STATUS.PROMISED,  label:"وعد بالدفع",    icon:<Handshake size={13}/>,    accent:ACC.sky },
     { key: RENEWAL_STATUS.RENEWED,   label:"تم التجديد",    icon:<CheckCircle2 size={13}/>, accent:ACC.emerald },
     { key: RENEWAL_STATUS.DECLINED,  label:"رفض التجديد",   icon:<XCircle size={13}/>,      accent:ACC.rose },
   ];
