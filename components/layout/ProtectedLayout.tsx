@@ -9,6 +9,7 @@ import { useNotificationsListener } from "@/hooks/useNotificationsListener";
 import { usePresence }  from "@/hooks/usePresence";
 import { useHeartbeat } from "@/hooks/useHeartbeat";
 import Sidebar           from "./Sidebar";
+import ServerHealthBanner from "./ServerHealthBanner";
 import TopNav            from "./TopNav";
 import GlobalSearch        from "@/components/search/GlobalSearch";
 import EmployeeQuickCard   from "@/components/employees/EmployeeQuickCard";
@@ -51,6 +52,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen" style={{ background: "var(--page-bg)" }}>
       <Sidebar />
       <main className="flex-1 overflow-auto min-w-0 flex flex-col">
+        {/* Above the nav, not inside it: a deployment that cannot save is the
+            first thing staff need to know, before anything they might try. */}
+        <ServerHealthBanner />
         <div className="sticky top-0 z-30 px-3 md:px-5 pt-2 md:pt-3" style={{
           background: "rgba(245,247,251,0.85)",
           backdropFilter: "blur(14px)",

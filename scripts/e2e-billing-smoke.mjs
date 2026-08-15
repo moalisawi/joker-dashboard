@@ -120,6 +120,32 @@ async function main() {
   TOKEN = await idTokenFor(uid);
   check("auth: minted ID token and server accepted it", true);
 
+  /*
+   * Fail fast on a deployment that cannot write.
+   *
+   * Without this the run charges ahead, createSubscriber returns 503, and every
+   * later step dies on an undefined subscriberId — burying the one line that
+   * actually explains the failure under a stack trace about "documentPath is
+   * not a valid resource path". The first run against production did exactly
+   * that, and the real cause (missing Admin SDK env vars on Vercel) was three
+   * screens up.
+   */
+  {
+    const probe = await op("createSubscriber", { subscriber: { name: "" } });
+    if (probe.status === 503) {
+      console.error(`
+  ✗ FATAL — ${probe.body.error}`);
+      console.error(`
+  This deployment can read but cannot write. Every save will fail.`);
+      console.error(`  Check that FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY_B64 are set`);
+      console.error(`  for this environment, then redeploy.
+`);
+      console.error(`    npx vercel env ls production
+`);
+      process.exit(1);
+    }
+  }
+
   let subscriberId, cycleId, invoiceId, paymentId;
 
   // ── 1. Create with a 3-month instalment plan and a partial down payment ────
