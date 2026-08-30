@@ -562,3 +562,28 @@ export function summarizePlan(
     lastDueDate:      schedule[schedule.length - 1]?.dueDate ?? null,
   };
 }
+
+/**
+ * The ids of subscribers that have been soft-deleted.
+ *
+ * Soft delete is the project's only delete: the document stays, flagged. That
+ * is deliberate — historical links must not break — but it means every reader
+ * has to opt out of them explicitly, and a reader that forgets shows numbers
+ * for people the rest of the app says do not exist.
+ */
+export function deletedSubscriberIds(subscribers: { id: string; deleted?: boolean }[]): Set<string> {
+  return new Set(subscribers.filter((s) => s.deleted === true).map((s) => s.id));
+}
+
+/**
+ * Drops ledger rows belonging to soft-deleted subscribers.
+ *
+ * Rows carrying no `subscriberId` are kept: they cannot be attributed either
+ * way, and dropping them would understate the totals rather than correct them.
+ */
+export function omitDeletedSubscriberRows<R extends { subscriberId?: string }>(
+  rows: R[],
+  deletedIds: Set<string>,
+): R[] {
+  return rows.filter((r) => !r.subscriberId || !deletedIds.has(r.subscriberId));
+}

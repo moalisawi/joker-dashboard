@@ -5,8 +5,12 @@ import { collection, getDocs, query, limit } from "firebase/firestore";
 import { db } from "@/lib/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import {
-  agingBucketFor, deriveRenewalStatus, resolveReceiptStatus,
+  agingBucketFor,
+  deriveRenewalStatus,
+  resolveReceiptStatus,
   type AgingBucket,
+  deletedSubscriberIds,
+  omitDeletedSubscriberRows,
 } from "@/lib/subscriberLifecycle";
 import { todayString } from "@/lib/utils";
 import type { Installment, Invoice } from "@/types/billing";
@@ -85,21 +89,20 @@ export interface FinancialReports {
   invoicesByStatus: Record<string, number>;
 }
 
-function useCollection<T>(name: string, enabled: boolean, extra?: "subscribers") {
+function useCollection<T>(name: string, enabled: boolean) {
   return useQuery({
     queryKey: ["finance", name],
     enabled,
     staleTime: 60_000,
     retry: false,
     queryFn: async (): Promise<T[]> => {
-      // Soft-deleted subscribers are excluded here rather than in a Firestore
-      // filter: `where("deleted","!=",true)` also excludes documents with no
-      // `deleted` field at all, which is most of them.
+      // Read unfiltered. Soft-deleted subscribers are dropped in the body
+      // rather than in a Firestore filter, because `where("deleted","!=",true)`
+      // also excludes documents with no `deleted` field at all, which is most
+      // of them. Reading them here is also what lets the ledger collections be
+      // filtered against that same set — see `deletedIds` below.
       const snap = await getDocs(query(collection(db, name), limit(MAX_ROWS)));
-      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() } as T));
-      return extra === "subscribers"
-        ? rows.filter((r) => (r as unknown as { deleted?: boolean }).deleted !== true)
-        : rows;
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() } as T));
     },
   });
 }
@@ -107,7 +110,7 @@ function useCollection<T>(name: string, enabled: boolean, extra?: "subscribers")
 export function useFinancialReports(enabled = true): FinancialReports {
   const today = todayString();
 
-  const subs      = useCollection<Subscriber>(COLLECTIONS.SUBSCRIBERS, enabled, "subscribers");
+  const subs      = useCollection<Subscriber>(COLLECTIONS.SUBSCRIBERS, enabled);
   const payments  = useCollection<PaymentTransaction>(COLLECTIONS.PAYMENTS, enabled);
   const refunds   = useCollection<RefundTransaction>(COLLECTIONS.REFUNDS, enabled);
   const invoices  = useCollection<Invoice>("invoices", enabled);
@@ -124,11 +127,36 @@ export function useFinancialReports(enabled = true): FinancialReports {
    * worse than letting it do the work.
    */
   {
-    const subscribers  = subs.data ?? [];
-    const paymentRows  = payments.data ?? [];
-    const refundRows   = refunds.data ?? [];
-    const invoiceRows  = invoices.data ?? [];
-    const installRows  = installs.data ?? [];
+    const allSubscribers = subs.data ?? [];
+
+    /*
+     * Every collection below is filtered against the same soft-delete set.
+     *
+     * Filtering only `subscribers` was a real defect: a soft-deleted subscriber
+     * vanished from the subscribers screen while their payments, invoices and
+     * instalments went on counting toward collected, outstanding and aging, with
+     * nothing on any screen to explain the gap. Found on 31 Aug 2026 against
+     * production, where all six invoices and all nine instalments belonged to
+     * deleted subscribers — the finance page was reporting $600 outstanding that
+     * nobody was ever going to collect.
+     *
+     * Outstanding is the clear half: an uncollectable balance is not a
+     * receivable, the same reasoning that already excludes withdrawn
+     * subscriptions below. Collected is the arguable half, since that money did
+     * arrive — but a collection rate whose numerator and denominator disagree
+     * about which subscribers exist is worse than either answer, so the two are
+     * kept consistent. Nothing is deleted: these rows remain in Firestore and
+     * remain reachable from the subscriber's own record.
+     */
+    const deletedIds = deletedSubscriberIds(allSubscribers);
+    const owned = <R extends { subscriberId?: string }>(rows: R[]) =>
+      omitDeletedSubscriberRows(rows, deletedIds);
+
+    const subscribers  = allSubscribers.filter((s) => !deletedIds.has(s.id));
+    const paymentRows  = owned(payments.data ?? []);
+    const refundRows   = owned(refunds.data ?? []);
+    const invoiceRows  = owned(invoices.data ?? []);
+    const installRows  = owned(installs.data ?? []);
 
     // ── Outstanding ──
     let outstandingFromSubscribersUSD = 0;

@@ -30,6 +30,8 @@ import {
   operationalToCycleStatus,
   summarizePlan,
   RENEWAL_WINDOW_DAYS,
+  deletedSubscriberIds,
+  omitDeletedSubscriberRows,
   type AllocatableInstallment,
 } from '@/lib/subscriberLifecycle'
 import type { SubscriptionCycle } from '@/types/billing'
@@ -411,3 +413,52 @@ describe('helpers', () => {
     expect(summarizePlan(100, 100, []).planType).toBe('full')
   })
 })
+
+/*
+ * Soft-deleted subscribers must not leak into financial totals.
+ *
+ * This is a regression block, not a hypothetical. On 31 Aug 2026 the finance
+ * page on production was reading `subscribers` with soft-deleted rows removed
+ * but `payments`, `invoices` and `installments` unfiltered. Every invoice and
+ * every instalment on that deployment belonged to a deleted subscriber, so the
+ * page reported $600 outstanding and $950 collected against people the
+ * subscribers screen said did not exist — and no screen showed the
+ * contradiction, because each number looked plausible on its own.
+ */
+describe("soft-deleted subscribers are excluded from ledger totals", () => {
+  const subscribers = [
+    { id: "live-1" },
+    { id: "live-2", deleted: false },
+    { id: "gone-1", deleted: true },
+  ];
+
+  it("collects only the ids actually flagged deleted", () => {
+    const ids = deletedSubscriberIds(subscribers);
+    expect([...ids]).toEqual(["gone-1"]);
+  });
+
+  it("drops rows belonging to a deleted subscriber", () => {
+    const rows = [
+      { subscriberId: "live-1", amountUSD: 100 },
+      { subscriberId: "gone-1", amountUSD: 250 },
+      { subscriberId: "live-2", amountUSD: 50 },
+    ];
+    const kept = omitDeletedSubscriberRows(rows, deletedSubscriberIds(subscribers));
+    expect(kept.map((r) => r.subscriberId)).toEqual(["live-1", "live-2"]);
+    expect(kept.reduce((n, r) => n + r.amountUSD, 0)).toBe(150);
+  });
+
+  it("keeps an unattributable row rather than silently understating the total", () => {
+    // No subscriberId means it cannot be judged either way. Dropping it would
+    // trade one wrong number for a different wrong number.
+    const rows = [{ amountUSD: 40 }, { subscriberId: "gone-1", amountUSD: 250 }];
+    const kept = omitDeletedSubscriberRows(rows, deletedSubscriberIds(subscribers));
+    expect(kept).toHaveLength(1);
+    expect(kept[0].amountUSD).toBe(40);
+  });
+
+  it("changes nothing when no subscriber is deleted", () => {
+    const rows = [{ subscriberId: "live-1" }, { subscriberId: "live-2" }];
+    expect(omitDeletedSubscriberRows(rows, deletedSubscriberIds([{ id: "live-1" }]))).toEqual(rows);
+  });
+});
