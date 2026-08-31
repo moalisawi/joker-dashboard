@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
-import "@heroui/styles/css";
+// globals.css starts with `@import "@heroui/styles"`, so HeroUI arrives through
+// it. This file used to import "@heroui/styles/css" as well — the same
+// dist/index.css a second time — and Next emitted it as a second stylesheet:
+// 408 KB of duplicate CSS on every route, including the login page. Do not
+// re-add it; add HeroUI imports to globals.css instead.
 import "./globals.css";
 import ThemeProvider from "@/components/layout/ThemeProvider";
 import QueryProvider from "@/components/layout/QueryProvider";
