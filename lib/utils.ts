@@ -217,6 +217,28 @@ export function normalizeSubscriber(raw: Record<string, unknown> & { id: string 
     createdBy: raw.createdBy as string | undefined,
     updatedAt: raw.updatedAt as import("firebase/firestore").Timestamp | undefined,
     updatedBy: raw.updatedBy as string | undefined,
+
+    /*
+     * Soft delete. Carried through deliberately, and the reason is worth stating.
+     *
+     * This normaliser builds its result field by field rather than spreading
+     * `raw`, so anything not named here is silently dropped. `deleted` was not
+     * named — which turned every guard in the client into a no-op, because
+     * `undefined !== true` is true:
+     *
+     *   .filter((s) => s.deleted !== true)   // kept everything
+     *
+     * Soft delete is this project's only delete, so the effect was that deleting
+     * a subscriber did nothing visible at all: archived records kept counting in
+     * the dashboard totals and kept appearing in the activity feed as new
+     * sign-ups. Found 31 Aug 2026 on production, where the header read 55
+     * subscribers against 51 undeleted ones.
+     *
+     * Any new field added to the Subscriber type has to be added here too.
+     */
+    deleted:   Boolean(raw.deleted),
+    deletedAt: raw.deletedAt as import("firebase/firestore").Timestamp | undefined,
+    deletedBy: raw.deletedBy as string | undefined,
   };
   normalized.status = getComputedStatus({
     ...normalized,

@@ -287,11 +287,22 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         {/* Total subscribers — brand primary */}
         <HeroCard
           icon={<Users size={20} />}
-          badge={stats.activeRate > 0 ? `${stats.activeRate}% نشط` : "الكل"}
+          /*
+           * These cards describe the SELECTED PERIOD, not the whole database:
+           * app/page.tsx passes filterByPeriod(subscribers, statsPeriod), while
+           * DashboardHero directly above receives every subscriber. With the
+           * period empty the two sat one under the other reading 55 and 0, with
+           * nothing on screen saying they measured different things.
+           *
+           * The old badge made it worse — it fell back to "الكل" whenever the
+           * active rate was 0, claiming to show everything at exactly the moment
+           * it showed least. The period tag replaces it.
+           */
+          badge={periodTag}
           badgePositive
           value={formatNumber(stats.total)}
           rawValue={stats.total}
-          label="إجمالي المشتركين"
+          label="مشتركو الفترة"
           accent="#5B5FEF"
           sub={canRev && (
             <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 700 }}>
@@ -303,11 +314,11 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
         {/* Active — emerald */}
         <HeroCard
           icon={<TrendingUp size={20} />}
-          badge={`${stats.active} نشط`}
+          badge={periodTag}
           badgePositive
           value={formatNumber(stats.active)}
           rawValue={stats.active}
-          label="اشتراك نشط"
+          label="نشط في الفترة"
           accent="#059669"
           sub={
             <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>

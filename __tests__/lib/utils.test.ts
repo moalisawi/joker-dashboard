@@ -1,3 +1,4 @@
+import { normalizeSubscriber } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
 
 describe('Utils', () => {
@@ -109,5 +110,43 @@ describe('Utils', () => {
       const result = calculateDaysRemaining(yesterday)
       expect(result).toBeLessThan(0)
     })
+  })
+})
+
+/*
+ * normalizeSubscriber must carry the soft-delete flag.
+ *
+ * This is a regression block for a bug that was invisible by construction. The
+ * normaliser builds its result field by field, so a field it forgets is simply
+ * absent — and every client guard reads `s.deleted !== true`, which is true for
+ * `undefined`. The guards were all present and all correct-looking, and none of
+ * them did anything. On production the dashboard counted 55 subscribers against
+ * 51 undeleted ones and listed archived records as new sign-ups.
+ *
+ * The assertion that matters is the last one: it tests the filter as written in
+ * the app, not just the presence of the property.
+ */
+describe('normalizeSubscriber carries soft-delete state', () => {
+  const base = { id: 's1', name: 'x', date: '2026-01-01', duration: 1 }
+
+  it('keeps deleted=true', () => {
+    expect(normalizeSubscriber({ ...base, deleted: true }).deleted).toBe(true)
+  })
+
+  it('reports a subscriber with no deleted field as not deleted', () => {
+    expect(normalizeSubscriber({ ...base }).deleted).toBe(false)
+  })
+
+  it('keeps deletedBy so an archive can be attributed', () => {
+    expect(normalizeSubscriber({ ...base, deleted: true, deletedBy: 'uid-9' }).deletedBy).toBe('uid-9')
+  })
+
+  it('is actually excluded by the filter the app uses', () => {
+    const rows = [
+      normalizeSubscriber({ ...base, id: 'live' }),
+      normalizeSubscriber({ ...base, id: 'gone', deleted: true }),
+    ]
+    // The exact expression used in useSubscribers and elsewhere.
+    expect(rows.filter((s) => s.deleted !== true).map((s) => s.id)).toEqual(['live'])
   })
 })
