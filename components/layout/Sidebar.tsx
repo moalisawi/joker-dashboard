@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Users, ScrollText, LogOut, Menu, X,
   BarChart3, Bell, Briefcase, Users2, FileText, BookOpen, Shield, CreditCard,
-  MessageSquare, MessageCircle, Scale,
+  MessageSquare, MessageCircle, Scale, ListChecks,
 } from "lucide-react";
 
 interface NavItem {
@@ -42,6 +42,7 @@ export default function Sidebar() {
 
   const NAV: NavItem[] = [
     { href: "/",                 label: "لوحة التحكم",    icon: <Home           size={18} /> },
+    { href: "/today",            label: "مهام اليوم",     icon: <ListChecks     size={18} /> },
     { href: "/subscribers",      label: "المشتركون",      icon: <Users          size={18} /> },
     { href: "/whatsapp-leads",               label: "واتساب ليدز",  icon: <MessageSquare  size={18} /> },
     { href: "/whatsapp-leads/conversations", label: "المحادثات",    icon: <MessageCircle  size={18} /> },

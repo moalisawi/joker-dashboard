@@ -1,0 +1,120 @@
+import { isActiveNow, isInCustomerBase } from "@/lib/subscriberLifecycle";
+
+/**
+ * Turns the subscriber book into a day's work.
+ *
+ * The dashboard already showed plenty of numbers and no next action. An
+ * employee opening it in the morning could see that 31 subscriptions had
+ * expired and that $207 was outstanding, but not who to call first — the
+ * numbers were true and useless in the same breath. Everything below is derived
+ * from data the app already had; nothing new is stored.
+ *
+ * Three questions, in the order a working day actually asks them:
+ *
+ *   1. Who is about to leave?   — renewals, the cheapest revenue there is
+ *   2. Who just left?           — recently expired, still winnable
+ *   3. Who owes money?          — collection
+ *
+ * Deliberately NOT a fourth bucket for long-expired subscribers. 31 of this
+ * book expired, most of them months ago; a list that long is not a task list,
+ * it is a graveyard, and putting it on the morning screen would train people to
+ * ignore the screen. Those belong in a campaign, not in today.
+ */
+
+export interface TaskSubscriber {
+  id: string;
+  name: string;
+  phone?: string;
+  dialCode?: string;
+  daysRemaining?: number;
+  remainingAmountUSD?: number;
+  package?: string;
+  subscriptionState?: string;
+  subscriptionStatus?: string;
+  freezeData?: { isFrozen?: boolean };
+  assignedSalesName?: string | null;
+  convincedBy?: string;
+}
+
+export interface TaskItem {
+  subscriber: TaskSubscriber;
+  /** Sorting weight — smaller is more urgent. */
+  urgency: number;
+  /** Short reason shown on the row, e.g. "ينتهي غداً". */
+  reason: string;
+}
+
+export interface TodayTasks {
+  renewals: TaskItem[];
+  winBack: TaskItem[];
+  collections: TaskItem[];
+  /** Everything that needs doing, for the header count. */
+  total: number;
+}
+
+/** How far ahead a renewal is worth chasing. */
+export const RENEWAL_HORIZON_DAYS = 7;
+/** How far back an expiry is still worth a win-back call. */
+export const WIN_BACK_WINDOW_DAYS = 30;
+
+function renewalReason(days: number): string {
+  if (days <= 0) return "ينتهي اليوم";
+  if (days === 1) return "ينتهي غداً";
+  return `ينتهي خلال ${days} أيام`;
+}
+
+function winBackReason(daysPast: number): string {
+  if (daysPast <= 1) return "انتهى أمس";
+  if (daysPast <= 7) return `انتهى منذ ${daysPast} أيام`;
+  return `انتهى منذ ${daysPast} يوماً`;
+}
+
+export function buildTodayTasks(subscribers: TaskSubscriber[]): TodayTasks {
+  const renewals: TaskItem[] = [];
+  const winBack: TaskItem[] = [];
+  const collections: TaskItem[] = [];
+
+  for (const s of subscribers) {
+    // Withdrawn subscribers are nobody's task. Paused and frozen ones are
+    // excluded from renewals by isActiveNow, but they can still owe money, so
+    // collections uses the wider isInCustomerBase.
+    const days = s.daysRemaining ?? 0;
+
+    if (isActiveNow(s) && days <= RENEWAL_HORIZON_DAYS) {
+      renewals.push({ subscriber: s, urgency: days, reason: renewalReason(days) });
+    }
+
+    if (isInCustomerBase(s) && days < 0 && -days <= WIN_BACK_WINDOW_DAYS) {
+      winBack.push({ subscriber: s, urgency: -days, reason: winBackReason(-days) });
+    }
+
+    const owed = Number(s.remainingAmountUSD) || 0;
+    if (isInCustomerBase(s) && owed > 0) {
+      // Largest balance first: chasing $200 before $3 is simply worth more, and
+      // an employee working top-down should not have to sort by eye.
+      collections.push({
+        subscriber: s,
+        urgency: -owed,
+        reason: `متبقٍّ $${owed.toFixed(owed % 1 === 0 ? 0 : 2)}`,
+      });
+    }
+  }
+
+  const byUrgency = (a: TaskItem, b: TaskItem) => a.urgency - b.urgency;
+  renewals.sort(byUrgency);
+  winBack.sort(byUrgency);
+  collections.sort(byUrgency);
+
+  return {
+    renewals,
+    winBack,
+    collections,
+    total: renewals.length + winBack.length + collections.length,
+  };
+}
+
+/** International dialling form for a WhatsApp deep link, or null if unusable. */
+export function whatsappNumber(s: TaskSubscriber): string | null {
+  const raw = `${s.dialCode ?? ""}${s.phone ?? ""}`.replace(/[^\d]/g, "");
+  return raw.length >= 8 ? raw : null;
+}
