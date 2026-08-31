@@ -6,6 +6,7 @@ import type { Subscriber }        from "@/types";
 import type { Payment }           from "@/types";
 import type { RefundTransaction } from "@/types";
 import { formatNumber } from "@/lib/utils";
+import { isActiveNow } from "@/lib/subscriberLifecycle";
 import { useCountUp } from "@/lib/animations";
 import { useAuthStore } from "@/store/authStore";
 import {
@@ -249,13 +250,7 @@ export default function StatsCards({ subscribers, payments = [], refunds = [], p
     const total    = subscribers.length;
     const paused   = subscribers.filter((s) => s.subscriptionStatus === "paused").length;
     const frozen   = subscribers.filter((s) => s.freezeData?.isFrozen === true).length;
-    const active   = subscribers.filter(
-      (s) =>
-        s.subscriptionState !== "withdrawn" &&
-        s.subscriptionStatus !== "paused" &&
-        s.freezeData?.isFrozen !== true &&
-        s.status === "نشط"
-    ).length;
+    const active   = subscribers.filter(isActiveNow).length;
     const expiring = subscribers.filter(
       (s) =>
         s.subscriptionState !== "withdrawn" &&

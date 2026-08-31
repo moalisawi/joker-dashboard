@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { isActiveNow } from "@/lib/subscriberLifecycle";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -190,7 +191,9 @@ function SubscribersSection({ teamName, canRev }: { teamName: string; canRev: bo
   }, [teamSubs, search]);
 
   const revenue  = teamSubs.reduce((sum, s) => sum + (s.netAmountUSD || 0), 0);
-  const active   = teamSubs.filter((s) => s.status === "نشط").length;
+  // Shared definition: a subscription valid today, including one expiring
+  // this week. Testing status === "نشط" silently dropped those.
+  const active   = teamSubs.filter(isActiveNow).length;
   const expiring = teamSubs.filter((s) => s.status === "ينتهي قريباً").length;
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
+import { isActiveNow, isInCustomerBase } from "@/lib/subscriberLifecycle";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer} from "recharts";
@@ -465,13 +466,17 @@ export default function AnalyticsPage() {
     const net       = subscribers.reduce((s,x) => s+(x.netAmountUSD||0), 0);
     const paid      = subscribers.reduce((s,x) => s+(x.paidAmountUSD||0), 0);
     const rem       = subscribers.filter(s=>s.subscriptionState!=="withdrawn").reduce((s,x) => s+(x.remainingAmountUSD||0), 0);
-    const active    = subscribers.filter(s=>s.subscriptionState!=="withdrawn"&&s.subscriptionStatus!=="paused").length;
+    // Two questions, two names. This single "active" used to mean "not
+    // withdrawn and not paused", which counted every expired subscriber and
+    // reported 44 while the dashboard reported 8 from the same 51 people.
+    const active       = subscribers.filter(isActiveNow).length;
+    const customerBase = subscribers.filter(isInCustomerBase).length;
     const withdrawn = subscribers.filter(s=>s.subscriptionState==="withdrawn").length;
     const arpu      = total>0 ? net/total : 0;
     const retention = retentionRate(subscribers)*100;
     const churn     = calculateChurnRate(subscribers)*100;
     const conv      = total>0 ? (active/total)*100 : 0;
-    return { total, net, paid, rem, active, withdrawn, arpu, retention, churn, conv };
+    return { total, net, paid, rem, active, customerBase, withdrawn, arpu, retention, churn, conv };
   }, [subscribers]);
 
   /* ── Month-over-month ─────────────────────────────────────────── */
@@ -534,7 +539,7 @@ export default function AnalyticsPage() {
       if (!k) return;
       if (!m[k]) { const ft=allTeams.find(t=>t.name===k); m[k]={مشتركون:0,نشطون:0,إيراد:0,id:ft?.id??""}; }
       m[k].مشتركون++;
-      if (s.subscriptionState!=="withdrawn") m[k].نشطون++;
+      if (isActiveNow(s)) m[k].نشطون++;
       m[k].إيراد = +(m[k].إيراد+(s.netAmountUSD||0)).toFixed(0);
     });
     return Object.entries(m).map(([name,v])=>({name,...v})).sort((a,b)=>b.مشتركون-a.مشتركون);
@@ -604,7 +609,7 @@ export default function AnalyticsPage() {
               <span style={{ display:"flex", alignItems:"center", gap:8 }}>
                 <span className="status-dot-live" style={{ width:7, height:7 }} />
                 <span style={{ fontSize:13, color:"var(--jk-muted)" }}>
-                  مباشر · {formatNumber(kpi.total)} مشترك · {formatNumber(kpi.active)} نشط
+                  مباشر · {formatNumber(kpi.customerBase)} في قاعدة العملاء · {formatNumber(kpi.active)} نشط الآن
                 </span>
               </span>
             }

@@ -41,7 +41,7 @@ import type { Subscriber, Payment, RefundTransaction } from "@/types";
 import { Plus, DollarSign, BarChart2, Users, Bell } from "lucide-react";
 import { Button, Skeleton } from "@heroui/react";
 import { useRefunds } from "@/hooks/useRefunds";
-import { omitDeletedSubscriberRows } from "@/lib/subscriberLifecycle";
+import { omitDeletedSubscriberRows, isActiveNow } from "@/lib/subscriberLifecycle";
 import { toast } from "@/lib/toast";
 import { motion } from "framer-motion";
 
@@ -144,12 +144,7 @@ export default function HomePage() {
   }
 
   const activeCount = useMemo(
-    () => subscribers.filter(
-      (s) => s.subscriptionState !== "withdrawn" &&
-             s.subscriptionStatus !== "paused" &&
-             s.freezeData?.isFrozen !== true &&
-             s.status === "نشط"
-    ).length,
+    () => subscribers.filter(isActiveNow).length,
     [subscribers],
   );
 

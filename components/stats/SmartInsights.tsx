@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { isActiveNow } from "@/lib/subscriberLifecycle";
 import { motion } from "framer-motion";
 import type { Subscriber } from "@/types";
 import type { Payment } from "@/types";
@@ -112,12 +113,7 @@ export default function SmartInsights({ subscribers, payments = [] }: Props) {
     const ym     = today.slice(0, 7);
 
     const total    = subscribers.length;
-    const active   = subscribers.filter(
-      (s) => s.subscriptionState !== "withdrawn" &&
-             s.subscriptionStatus !== "paused" &&
-             s.freezeData?.isFrozen !== true &&
-             s.status === "نشط"
-    ).length;
+    const active   = subscribers.filter(isActiveNow).length;
     const expiring1  = subscribers.filter(
       (s) => s.daysRemaining === 1 && s.subscriptionState !== "withdrawn"
     ).length;

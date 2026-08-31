@@ -587,3 +587,72 @@ export function omitDeletedSubscriberRows<R extends { subscriberId?: string }>(
 ): R[] {
   return rows.filter((r) => !r.subscriberId || !deletedIds.has(r.subscriberId));
 }
+
+// ─── Who counts as a customer ────────────────────────────────────────────────
+//
+// Two questions, two answers, two names. Before this the app asked "how many
+// active?" in three places and got three numbers — 44 on the analytics page, 8
+// on the dashboard, a third on the teams page — because each screen rewrote the
+// rule inline. The owner could not tell whether the business had 44 customers
+// or 8.
+//
+// The deeper mistake was using a DISPLAY STATUS as a BUSINESS METRIC.
+// getComputedStatus() returns an exclusive partition for badges — منسحب /
+// متجمد / موقوف / منتهي / ينتهي قريباً / نشط — so a subscriber with five days
+// left is labelled "ينتهي قريباً" and was therefore excluded from the "active"
+// count. But they are paying, their subscription is valid, and they are exactly
+// the person the team should be calling. Expiring soon is an urgency flag on an
+// active subscription, not a state beside it.
+
+interface LifecycleFields {
+  subscriptionState?: string;
+  subscriptionStatus?: string;
+  daysRemaining?: number;
+  freezeData?: { isFrozen?: boolean };
+}
+
+/** Withdrawn: they left. Never counts anywhere. */
+function hasWithdrawn(s: LifecycleFields): boolean {
+  return s.subscriptionState === "withdrawn";
+}
+
+/**
+ * Frozen is written two ways in this codebase — `subscriptionStatus === "frozen"`
+ * and `freezeData.isFrozen` — and different screens checked different ones.
+ * Both are honoured here so the answer cannot depend on which one a record uses.
+ */
+function isOnHold(s: LifecycleFields): boolean {
+  return (
+    s.subscriptionStatus === "paused" ||
+    s.subscriptionStatus === "frozen" ||
+    s.freezeData?.isFrozen === true
+  );
+}
+
+/**
+ * "نشط الآن" — a subscription that is valid today: not withdrawn, not paused or
+ * frozen, and not past its expiry. Someone expiring in three days is included.
+ *
+ * This is the number that answers "how many people are we serving right now".
+ */
+export function isActiveNow(s: LifecycleFields): boolean {
+  return !hasWithdrawn(s) && !isOnHold(s) && (s.daysRemaining ?? -1) >= 0;
+}
+
+/**
+ * "قاعدة العملاء" — everyone who has not withdrawn, expired subscriptions
+ * included.
+ *
+ * This is the renewable population, and it is a legitimately different question
+ * from isActiveNow: an expired subscriber is not being served today but is very
+ * much still a customer to win back. Both numbers are useful; naming them the
+ * same thing was the bug.
+ */
+export function isInCustomerBase(s: LifecycleFields): boolean {
+  return !hasWithdrawn(s);
+}
+
+/** Active today AND within `days` of expiry — the renewal call list. */
+export function isExpiringWithin(s: LifecycleFields, days: number): boolean {
+  return isActiveNow(s) && (s.daysRemaining ?? -1) <= days;
+}

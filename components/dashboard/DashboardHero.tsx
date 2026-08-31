@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/authStore";
 import type { Subscriber, PaymentTransaction } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { useCountUp } from "@/lib/animations";
+import { isActiveNow } from "@/lib/subscriberLifecycle";
 
 interface Props {
   subscribers: Subscriber[];
@@ -50,13 +51,10 @@ export default function DashboardHero({ subscribers, payments = [] }: Props) {
 
   const stats = useMemo(() => {
     const total = subscribers.length;
-    const active = subscribers.filter(
-      (s) =>
-        s.subscriptionState !== "withdrawn" &&
-        s.subscriptionStatus !== "paused" &&
-        s.freezeData?.isFrozen !== true &&
-        s.status === "نشط"
-    ).length;
+    // One shared definition — see isActiveNow. This used to test
+    // `status === "نشط"`, a display label that excludes "ينتهي قريباً", so
+    // subscribers with a few days left were dropped from the active count.
+    const active = subscribers.filter(isActiveNow).length;
     const ym = new Date().toISOString().slice(0, 7);
     const lastYm = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)
       .toISOString().slice(0, 7);

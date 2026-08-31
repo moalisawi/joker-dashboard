@@ -30,6 +30,9 @@ import {
   operationalToCycleStatus,
   summarizePlan,
   RENEWAL_WINDOW_DAYS,
+  isActiveNow,
+  isInCustomerBase,
+  isExpiringWithin,
   deletedSubscriberIds,
   omitDeletedSubscriberRows,
   type AllocatableInstallment,
@@ -462,3 +465,87 @@ describe("soft-deleted subscribers are excluded from ledger totals", () => {
     expect(omitDeletedSubscriberRows(rows, deletedSubscriberIds([{ id: "live-1" }]))).toEqual(rows);
   });
 });
+
+/*
+ * One definition of "active", tested at the edges.
+ *
+ * Three screens each rewrote this rule inline and produced 44, 8 and a third
+ * number from the same 51 subscribers. The case that matters most is the
+ * expiring-soon one: getComputedStatus() labels a subscriber with five days left
+ * "ينتهي قريباً" rather than "نشط", and the dashboard filtered on that label —
+ * so people who were paying, valid, and most in need of a renewal call were
+ * missing from the active count.
+ */
+describe('who counts as a customer', () => {
+  const live = { subscriptionState: 'active', daysRemaining: 30 }
+
+  describe('isActiveNow', () => {
+    it('counts a plainly active subscription', () => {
+      expect(isActiveNow(live)).toBe(true)
+    })
+
+    it('counts one expiring in three days — still valid, still paying', () => {
+      expect(isActiveNow({ ...live, daysRemaining: 3 })).toBe(true)
+    })
+
+    it('counts one expiring today', () => {
+      expect(isActiveNow({ ...live, daysRemaining: 0 })).toBe(true)
+    })
+
+    it('excludes one that expired yesterday', () => {
+      expect(isActiveNow({ ...live, daysRemaining: -1 })).toBe(false)
+    })
+
+    it('excludes withdrawn, paused and frozen', () => {
+      expect(isActiveNow({ ...live, subscriptionState: 'withdrawn' })).toBe(false)
+      expect(isActiveNow({ ...live, subscriptionStatus: 'paused' })).toBe(false)
+      expect(isActiveNow({ ...live, subscriptionStatus: 'frozen' })).toBe(false)
+    })
+
+    it('honours freezeData.isFrozen, the other way frozen is stored', () => {
+      expect(isActiveNow({ ...live, freezeData: { isFrozen: true } })).toBe(false)
+    })
+
+    it('excludes a record with no daysRemaining rather than guessing', () => {
+      expect(isActiveNow({ subscriptionState: 'active' })).toBe(false)
+    })
+  })
+
+  describe('isInCustomerBase', () => {
+    it('keeps an expired subscriber — still winnable', () => {
+      expect(isInCustomerBase({ ...live, daysRemaining: -90 })).toBe(true)
+    })
+
+    it('keeps paused and frozen subscribers', () => {
+      expect(isInCustomerBase({ ...live, subscriptionStatus: 'paused' })).toBe(true)
+    })
+
+    it('drops only the withdrawn', () => {
+      expect(isInCustomerBase({ ...live, subscriptionState: 'withdrawn' })).toBe(false)
+    })
+  })
+
+  describe('the two answers differ, which is the whole point', () => {
+    const book = [
+      { subscriptionState: 'active', daysRemaining: 30 },
+      { subscriptionState: 'active', daysRemaining: 3 },
+      { subscriptionState: 'active', daysRemaining: -40 },
+      { subscriptionState: 'active', subscriptionStatus: 'paused', daysRemaining: 10 },
+      { subscriptionState: 'withdrawn', daysRemaining: 10 },
+    ]
+    it('counts 2 active now and 4 in the customer base', () => {
+      expect(book.filter(isActiveNow)).toHaveLength(2)
+      expect(book.filter(isInCustomerBase)).toHaveLength(4)
+    })
+  })
+
+  describe('isExpiringWithin', () => {
+    it('is the renewal call list: active AND close to expiry', () => {
+      expect(isExpiringWithin({ ...live, daysRemaining: 5 }, 7)).toBe(true)
+      expect(isExpiringWithin({ ...live, daysRemaining: 30 }, 7)).toBe(false)
+    })
+    it('never includes an already-expired subscriber', () => {
+      expect(isExpiringWithin({ ...live, daysRemaining: -2 }, 7)).toBe(false)
+    })
+  })
+})
