@@ -41,6 +41,7 @@ import type { Subscriber, Payment, RefundTransaction } from "@/types";
 import { Plus, DollarSign, BarChart2, Users, Bell } from "lucide-react";
 import { Button, Skeleton } from "@heroui/react";
 import { useRefunds } from "@/hooks/useRefunds";
+import { omitDeletedSubscriberRows } from "@/lib/subscriberLifecycle";
 import { toast } from "@/lib/toast";
 import { motion } from "framer-motion";
 
@@ -108,9 +109,24 @@ type ModalState =
 
 export default function HomePage() {
   const { user, can, exchangeRates } = useAuthStore();
-  const { subscribers, loading, error } = useSubscribers();
-  const { payments } = usePayments();
-  const { refunds }  = useRefunds();
+  const { subscribers, deletedIds, loading, error } = useSubscribers();
+  const { payments: allPayments } = usePayments();
+  const { refunds: allRefunds }   = useRefunds();
+
+  /*
+   * Money belonging to archived subscribers is dropped here, once, so every
+   * consumer below agrees.
+   *
+   * Archiving a subscriber removed them from the lists but left their payments
+   * counting: the header revenue, the currency counters and the activity feed
+   * all kept reporting them, so the feed listed payments from people the
+   * subscriber screen said did not exist. Same reasoning as the finance page —
+   * a total whose parts disagree about who exists is worse than either answer.
+   *
+   * Rows with no subscriberId are kept; see omitDeletedSubscriberRows.
+   */
+  const payments = omitDeletedSubscriberRows(allPayments, deletedIds);
+  const refunds  = omitDeletedSubscriberRows(allRefunds, deletedIds);
   const [modal, setModal]             = useState<ModalState>({ type: "none" });
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>({ mode: "current_month" });

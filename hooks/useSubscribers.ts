@@ -6,6 +6,7 @@ import { collection, query, orderBy, where, onSnapshot, getDocs } from "firebase
 import { db } from "@/lib/firestore";
 import { useAuthStore } from "@/store/authStore";
 import { normalizeSubscriber } from "@/lib/utils";
+import { deletedSubscriberIds } from "@/lib/subscriberLifecycle";
 import type { Subscriber } from "@/types";
 
 function buildQuery(
@@ -30,13 +31,18 @@ export function useSubscribers() {
   const canViewAll   = can("canViewAll");
   const queryKey     = ["subscribers", user?.uid, canViewAll] as const;
 
-  const { data: subscribers = [], isLoading, error } = useQuery<Subscriber[]>({
+  /*
+   * The cache holds EVERY subscriber, archived ones included, and the split
+   * happens below. Filtering inside the query would throw the archived ids away
+   * before anything could use them — and the payments, invoices and instalments
+   * of an archived subscriber have to be filtered against exactly that set.
+   */
+  const { data: allSubscribers = [], isLoading, error } = useQuery<Subscriber[]>({
     queryKey,
     queryFn: async () => {
       const snap = await getDocs(buildQuery(user, canViewAll));
       return snap.docs
         .map((d) => normalizeSubscriber({ id: d.id, ...d.data() } as Record<string, unknown> & { id: string }))
-        .filter((s) => s.deleted !== true)
         .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
     },
     staleTime: Infinity,
@@ -50,7 +56,6 @@ export function useSubscribers() {
     const unsub = onSnapshot(q, (snap) => {
       const data = snap.docs
         .map((d) => normalizeSubscriber({ id: d.id, ...d.data() } as Record<string, unknown> & { id: string }))
-        .filter((s) => s.deleted !== true)
         .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
       qc.setQueryData<Subscriber[]>(queryKey, data);
     });
@@ -58,8 +63,22 @@ export function useSubscribers() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, canViewAll]);
 
+  /*
+   * The archived ids, exposed alongside the visible list.
+   *
+   * Callers need them to filter the OTHER collections. `subscribers` here is
+   * already stripped of deleted rows, so a caller holding only this list cannot
+   * tell whether a payment belongs to an archived subscriber or to one outside
+   * their own permission scope — and treating those the same would silently
+   * drop real money from the totals. Returning the ids keeps that distinction
+   * available.
+   */
+  const deletedIds  = deletedSubscriberIds(allSubscribers as { id: string; deleted?: boolean }[]);
+  const subscribers = allSubscribers.filter((s) => s.deleted !== true);
+
   return {
     subscribers,
+    deletedIds,
     loading: isLoading,
     error:   error instanceof Error ? error.message : null,
   };
