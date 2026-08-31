@@ -30,7 +30,7 @@ import type { Subscriber } from "@/types";
 
 // ── Status types & config ──────────────────────────────────────────────────────
 type StatusKey = "الكل" | "نشط" | "ينتهي قريباً" | "منتهي" | "موقوف" | "متجمد" | "منسحب";
-type ModalType = "profile" | "edit" | "renew" | "payment" | "withdraw" | "pause" | "freeze" | "resume" | null;
+type ModalType = "profile" | "create" | "edit" | "renew" | "payment" | "withdraw" | "pause" | "freeze" | "resume" | null;
 type SortField = "name" | "daysRemaining" | "netAmountUSD" | "expiryDate" | "date" | null;
 type SortDir = "asc" | "desc";
 
@@ -439,7 +439,17 @@ export default function SubscribersPage() {
             <motion.button
               whileHover={{ y: -1, boxShadow: "0 6px 20px rgba(91,95,239,0.35)" }}
               whileTap={{ y: 0 }}
-              onClick={() => openModal("edit", {} as Subscriber)}
+              /*
+               * Opens the CREATE modal. This used to be openModal("edit", {} as Subscriber),
+               * which broke creating a subscriber from this page entirely: SubscriberModal
+               * keys everything off `isEdit = mode === "edit" && !!subscriber`, and an empty
+               * object is truthy. So the form opened titled "تعديل بيانات المشترك", hid the
+               * first-payment field, the receipt upload and the save-then-collect button,
+               * and on submit called updateSubscriber with subscriberId: undefined instead
+               * of createSubscriber. The dashboard has always had a correct create path;
+               * only this page — the one people actually work from — did not.
+               */
+              onClick={() => { setSelected(null); setModal("create"); }}
               style={{
                 display: "flex", alignItems: "center", gap: 7,
                 padding: "0 18px", height: 40, borderRadius: 14, border: "none",
@@ -983,6 +993,10 @@ export default function SubscribersPage() {
           onEdit={() => openModal("edit", selected)}
           onRenew={() => openModal("renew", selected)}
           onAddPayment={() => openModal("payment", selected)} />
+      )}
+      {modal === "create" && (
+        <SubscriberModal mode="add" exchangeRates={exchangeRates}
+          onClose={closeModal} onSaved={closeModal} />
       )}
       {selected && modal === "edit" && (
         <SubscriberModal mode="edit" subscriber={selected} exchangeRates={exchangeRates}
