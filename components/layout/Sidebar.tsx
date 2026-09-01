@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
@@ -9,20 +9,10 @@ import { logSessionLogout } from "@/lib/sessionLogger";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Home, Users, ScrollText, LogOut, Menu, X,
-  BarChart3, Bell, Briefcase, Users2, FileText, BookOpen, Shield, CreditCard,
-  MessageSquare, MessageCircle, Scale, ListChecks,
-} from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
+import { NAV_ITEMS, type NavItem as SharedNavItem } from "./navItems";
 
-interface NavItem {
-  href:        string;
-  label:       string;
-  icon:        React.ReactNode;
-  permission?: "canManageUsers" | "canViewLogs" | "canManagePaymentMethods" | "canViewRevenue";
-  badge?:      () => number;
-  roles?:      string[];
-}
+type NavItem = SharedNavItem & { badge?: () => number };
 
 interface TooltipState {
   label: string;
@@ -40,25 +30,11 @@ export default function Sidebar() {
 
   const uid = user?.uid ?? "";
 
-  const NAV: NavItem[] = [
-    { href: "/",                 label: "لوحة التحكم",    icon: <Home           size={18} /> },
-    { href: "/today",            label: "مهام اليوم",     icon: <ListChecks     size={18} /> },
-    { href: "/subscribers",      label: "المشتركون",      icon: <Users          size={18} /> },
-    { href: "/whatsapp-leads",               label: "واتساب ليدز",  icon: <MessageSquare  size={18} /> },
-    { href: "/whatsapp-leads/conversations", label: "المحادثات",    icon: <MessageCircle  size={18} /> },
-    { href: "/payment-methods",  label: "طرق الدفع",      icon: <CreditCard     size={18} />, permission: "canManagePaymentMethods" },
-    { href: "/analytics",        label: "التحليلات",      icon: <BarChart3  size={18} /> },
-    { href: "/reports",          label: "التقارير",       icon: <FileText   size={18} />, roles: ["owner", "admin"] },
-    { href: "/finance",          label: "المالية",        icon: <Scale      size={18} />, permission: "canViewRevenue" },
-    { href: "/notifications",    label: "الإشعارات",      icon: <Bell       size={18} />, badge: () => unreadCount(uid) },
-    // One entry, not two. "الموظفون" and "المستخدمون" pointed at two consoles
-    // for the same job; /users is now a redirect here.
-    { href: "/admin/employees",  label: "المستخدمون",     icon: <Briefcase  size={18} />, permission: "canManageUsers" },
-    { href: "/admin/teams",      label: "الفرق",          icon: <Users2     size={18} />, permission: "canManageUsers" },
-    { href: "/logs",             label: "سجل العمليات",   icon: <ScrollText size={18} />, permission: "canViewLogs" },
-    { href: "/sessions",         label: "سجل الجلسات",   icon: <Shield     size={18} />, roles: ["owner", "admin"] },
-    { href: "/guide",            label: "دليل الاستخدام", icon: <BookOpen   size={18} /> },
-  ];
+  // The list itself lives in navItems.tsx so TopNav reads the same one. Only the
+  // unread badge is added here, since it needs this component's store.
+  const NAV: NavItem[] = NAV_ITEMS.map((item) =>
+    item.href === "/notifications" ? { ...item, badge: () => unreadCount(uid) } : item,
+  );
 
   async function handleLogout() {
     await logSessionLogout();
@@ -129,13 +105,21 @@ export default function Sidebar() {
         overflowX: "visible",
         scrollbarWidth: "none",
       }}>
-        {visibleItems.map((item) => {
+        {visibleItems.map((item, i) => {
           const active     = isActive(item.href);
           const badgeCount = item.badge?.() ?? 0;
+          // A rail of icons cannot carry group headings, so the bands are shown
+          // as separators instead — structure without labels.
+          const startsBand = i > 0 && visibleItems[i - 1].group !== item.group;
 
           return (
+            <Fragment key={item.href}>
+            {startsBand && (
+              <div aria-hidden="true" style={{
+                height: 1, margin: "7px 12px", background: "var(--jk-divider)", flexShrink: 0,
+              }} />
+            )}
             <Link
-              key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
               onMouseEnter={(e) => showTooltip(e, item.label, item.icon)}
@@ -198,6 +182,7 @@ export default function Sidebar() {
                 </span>
               )}
             </Link>
+            </Fragment>
           );
         })}
       </div>

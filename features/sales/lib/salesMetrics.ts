@@ -21,12 +21,27 @@ export interface SalesEmployeeMetrics extends EmployeeMetrics {
   trend:          MonthlyAcquisition[];
 }
 
-/** Filter subscribers assigned to a specific sales employee */
+/**
+ * Subscribers credited to one sales employee.
+ *
+ * Two fields carry that credit and only one of them is populated. `assignedSalesId`
+ * belongs to the newer workflow extension and is set on NO subscriber in this
+ * installation; `convincedByUid` is set on all of them. Matching only the former
+ * meant every employee scored zero subscribers and $0 revenue, which is why the
+ * sales page shows nothing and — presumably — why it was quietly dropped from the
+ * navigation instead of being fixed.
+ *
+ * Both are honoured, newer first, mirroring the two-tier check useSubscribers
+ * already makes. An explicit assignment wins when it exists; otherwise credit
+ * goes to whoever signed the customer up.
+ */
 export function filterEmployeeSubscribers(
   subscribers: Subscriber[],
   employeeUid: string
 ): Subscriber[] {
-  return subscribers.filter((s) => s.assignedSalesId === employeeUid);
+  return subscribers.filter((s) =>
+    s.assignedSalesId ? s.assignedSalesId === employeeUid : s.convincedByUid === employeeUid,
+  );
 }
 
 /**

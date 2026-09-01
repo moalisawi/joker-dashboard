@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { navLabelFor } from "./navItems";
 import { motion } from "framer-motion";
 import { Bell, Search} from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
@@ -10,25 +10,10 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { useSearchStore } from "@/store/searchStore";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 
-interface NavLink {
-  href:   string;
-  label:  string;
-  gate?:  "canManageUsers" | "canViewLogs" | "canViewRevenue" | "canManagePaymentMethods";
-  roles?: string[];
-}
-
-const NAV_LINKS: NavLink[] = [
-  { href: "/",               label: "لوحة التحكم" },
-  { href: "/subscribers",    label: "المشتركون" },
-  { href: "/analytics",      label: "التحليلات",  gate: "canViewRevenue" },
-  { href: "/whatsapp-leads", label: "واتساب ليدز" },
-  { href: "/payment-methods",label: "طرق الدفع",  gate: "canManagePaymentMethods" },
-  { href: "/reports",        label: "التقارير",   roles: ["owner", "admin"] },
-];
 
 export default function TopNav() {
   const pathname        = usePathname();
-  const { user, can }   = useAuthStore();
+  const { user }        = useAuthStore();
   const { unreadCount } = useNotificationStore();
   const { openSearch }  = useSearchStore();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -36,16 +21,9 @@ export default function TopNav() {
   const uid        = user?.uid ?? "";
   const badgeCount = unreadCount(uid);
 
-  const visibleLinks = NAV_LINKS.filter((l) => {
-    if (l.gate  && !can(l.gate))                            return false;
-    if (l.roles && (!user || !l.roles.includes(user.role))) return false;
-    return true;
-  });
-
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
-
-  const currentPage = visibleLinks.find((l) => isActive(l.href))?.label ?? "لوحة التحكم";
+  // Named from the one shared list, so every page can be named — including the
+  // ones TopNav's own six never knew about.
+  const currentPage = navLabelFor(pathname) ?? "لوحة التحكم";
 
   const iconBtn: React.CSSProperties = {
     width: 36, height: 36, borderRadius: "50%",
@@ -143,58 +121,20 @@ export default function TopNav() {
           </div>
         </div>
 
-        {/* Pill nav */}
-        <nav style={{
-          flex: 1, display: "flex", alignItems: "center", gap: 2,
-          overflowX: "auto", scrollbarWidth: "none",
-        }}>
-          {visibleLinks.map((l) => {
-            const active = isActive(l.href);
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                style={{
-                  padding: "8px 16px", borderRadius: 999,
-                  background: "transparent",
-                  color: active ? "#fff" : "#6B7280",
-                  fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
-                  transition: "color .15s, background .15s",
-                  textDecoration: "none",
-                  display: "inline-flex", alignItems: "center",
-                  position: "relative",
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.color = "var(--jk-text)";
-                    el.style.background = "rgba(16,20,26,.05)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.color = "#6B7280";
-                    el.style.background = "transparent";
-                  }
-                }}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="topnav-active"
-                    style={{
-                      position: "absolute", inset: 0, borderRadius: 999,
-                      background: "linear-gradient(135deg, #5B5FEF, #4338CA)",
-                      boxShadow: "0 4px 12px rgba(91,95,239,0.30)",
-                    }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span style={{ position: "relative", zIndex: 1 }}>{l.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        {/*
+          * The second navigation used to live here: a row of six pill links,
+          * a different six from the fifteen in the sidebar. Two menus showing
+          * different subsets of the same app is most of why it felt scattered —
+          * neither was "the menu", so neither could be trusted to be complete.
+          *
+          * Navigation is the sidebar's job now. This bar keeps what it is
+          * genuinely for: where you are, and the tools that apply everywhere.
+          */}
+        <div style={{ flex: 1, minWidth: 0, paddingInlineStart: 16 }}>
+          <span style={{ fontSize: 14, fontWeight: 800, color: "var(--jk-text)", whiteSpace: "nowrap" }}>
+            {currentPage}
+          </span>
+        </div>
 
         {/* Right cluster */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
