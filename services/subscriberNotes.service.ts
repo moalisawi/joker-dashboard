@@ -46,7 +46,6 @@ export const subscriberNotesService = {
     const q = query(
       collection(db, COL),
       where("subscriberId", "==", subscriberId),
-      where("deleted", "!=", true),
       orderBy("createdAt", "desc")
     );
     const snap = await getDocs(q);
@@ -61,7 +60,6 @@ export const subscriberNotesService = {
     const q = query(
       collection(db, COL),
       where("subscriberId", "==", subscriberId),
-      where("deleted", "!=", true),
       orderBy("createdAt", "desc")
     );
     return onSnapshot(q, (snap) => {

@@ -10,6 +10,7 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db }          from "@/lib/firestore";
+import { rejectDeleted } from "@/lib/softDelete";
 import { COLLECTIONS } from "@/constants/collections";
 import type { Team, UserProfile } from "@/types";
 
@@ -36,10 +37,8 @@ export const teamsFeatureService = {
    * membersCount is read from the stored field — no runtime aggregation.
    */
   async getAllTeams(): Promise<Team[]> {
-    const snap = await getDocs(
-      query(collection(db, COLLECTIONS.TEAMS), where("deleted", "!=", true))
-    );
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Team));
+    const snap = await getDocs(collection(db, COLLECTIONS.TEAMS));
+    return rejectDeleted(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Team)));
   },
 
   /**

@@ -41,7 +41,8 @@ export function useSubscribersQuery() {
   const queryKey = subscriberKeys.list(user?.uid);
 
   // Seed cache from one-shot fetch (prevents empty flash on first mount).
-  // getAll() already applies where("deleted","!=",true) server-side.
+  // getAll() reads everything and drops deleted rows in the client — the
+  // server-side inequality filter it used to apply silently returned nothing.
   const result = useQuery({
     queryKey,
     queryFn: () => subscriberService.getAll(),

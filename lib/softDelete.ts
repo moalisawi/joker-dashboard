@@ -1,13 +1,4 @@
-import {
-  doc,
-  updateDoc,
-  serverTimestamp,
-  query,
-  where,
-  Query,
-  CollectionReference,
-  DocumentData,
-} from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firestore";
 
 export interface SoftDeletePayload extends Record<string, unknown> {
@@ -42,15 +33,28 @@ export async function softDelete(
 }
 
 /**
- * Wraps a Firestore query to exclude soft-deleted documents.
+ * Removes soft-deleted documents — in the CLIENT, deliberately.
  *
- * Usage:
- *   const q = excludeDeleted(query(collection(db, COLLECTIONS.SUBSCRIBERS)))
+ * The previous version added `where("deleted","!=",true)` to the query, which
+ * looks right and is catastrophic: a Firestore inequality filter also excludes
+ * every document that does not carry the field at all. Soft delete only writes
+ * `deleted` when something is deleted, so on this data the filter returned
+ * almost nothing — measured 31 Aug 2026 against production:
+ *
+ *     subscribers   55 documents,  4 carry the field  →  query returned 0
+ *     payments      25 documents,  0 carry the field  →  query returned 0
+ *     users          8 documents,  2 carry the field  →  query returned 1
+ *     teams          4 documents,  4 carry the field  →  query returned 4  ✓
+ *
+ * Teams survived by accident: they happen to be written by newer code that sets
+ * the field. Everything older simply vanished, silently, with no error — which
+ * is how the sales page came to score every employee zero and get dropped from
+ * the navigation instead of fixed.
+ *
+ * Filtering after the read costs one predicate and cannot lie.
  */
-export function excludeDeleted<T extends DocumentData>(
-  q: Query<T> | CollectionReference<T>
-): Query<T> {
-  return query(q as Query<T>, where("deleted", "!=", true));
+export function rejectDeleted<T extends { deleted?: boolean }>(rows: T[]): T[] {
+  return rows.filter((r) => r.deleted !== true);
 }
 
 /** Returns true if a document is soft-deleted. */

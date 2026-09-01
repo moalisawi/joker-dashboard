@@ -11,7 +11,7 @@ import {
 import { db } from "@/lib/firestore";
 import { auth } from "@/lib/auth";
 import { COLLECTIONS } from "@/constants/collections";
-import { excludeDeleted } from "@/lib/softDelete";
+import { rejectDeleted } from "@/lib/softDelete";
 import {
   
   LeadStatus,
@@ -101,7 +101,6 @@ export const whatsappLeadsService = {
       const end   = dayEnd(filters.date);
       let q = query(
         col,
-        where("deleted", "==", false),
         where("lastMessageAt", ">=", start),
         where("lastMessageAt", "<=", end),
         orderBy("lastMessageAt", "desc"),
@@ -110,17 +109,18 @@ export const whatsappLeadsService = {
       if (filters.country)    q = query(q, where("country", "==", filters.country));
       if (filters.assignedTo) q = query(q, where("assignedTo", "==", filters.assignedTo));
       const snap = await getDocs(q);
-      return snap.docs.map((d) => normalizeLead(d.id, d.data()));
+      return rejectDeleted(snap.docs.map((d) => normalizeLead(d.id, d.data())));
     }
 
-    // No date filter — use excludeDeleted() with orderBy on lastMessageAt
-    let q = excludeDeleted(col);
+    // Deleted leads are removed after the read, not in the query: an inequality
+    // filter would also hide every lead written before the field existed.
+    let q = query(col);
     if (filters?.status)     q = query(q, where("status", "==", filters.status));
     if (filters?.country)    q = query(q, where("country", "==", filters.country));
     if (filters?.assignedTo) q = query(q, where("assignedTo", "==", filters.assignedTo));
     q = query(q, orderBy("lastMessageAt", "desc"));
     const snap = await getDocs(q);
-    return snap.docs.map((d) => normalizeLead(d.id, d.data()));
+    return rejectDeleted(snap.docs.map((d) => normalizeLead(d.id, d.data())));
   },
 
   async getByDate(date: Date): Promise<WhatsappLead[]> {

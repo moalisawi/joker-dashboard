@@ -27,9 +27,10 @@ function excludeDeleted(docs: Subscriber[]): Subscriber[] {
 
 export const subscriberService = {
   async getAll(): Promise<Subscriber[]> {
-    const q = query(collection(db, SUBS), where("deleted", "!=", true));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Subscriber));
+    // Read everything and filter here — see rejectDeleted in lib/softDelete.
+    // The server-side inequality filter used to drop all 51 live subscribers.
+    const snapshot = await getDocs(collection(db, SUBS));
+    return excludeDeleted(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Subscriber)));
   },
 
   async getById(id: string): Promise<Subscriber | null> {

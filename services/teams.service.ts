@@ -11,6 +11,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db }                  from "@/lib/firestore";
+import { rejectDeleted } from "@/lib/softDelete";
 import { COLLECTIONS }         from "@/constants/collections";
 import { activityLogService }  from "./activityLog.service";
 import type { Team, TeamType } from "@/types";
@@ -31,18 +32,17 @@ export type TeamUpdateInput = Partial<Pick<Team, "name" | "type" | "active" | "d
 // ─── read ─────────────────────────────────────────────────────────────────────
 
 async function getAll(): Promise<Team[]> {
-  const snap = await getDocs(
-    query(collection(db, COLLECTIONS.TEAMS), where("deleted", "!=", true))
-  );
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Team);
+  // Filtered client-side: the inequality filter also hides documents with no
+  // `deleted` field, which is most of them in older collections.
+  const snap = await getDocs(collection(db, COLLECTIONS.TEAMS));
+  return rejectDeleted(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Team));
 }
 
 async function getActive(): Promise<Team[]> {
   const snap = await getDocs(
     query(
       collection(db, COLLECTIONS.TEAMS),
-      where("active",   "==", true),
-      where("deleted",  "!=", true)
+      where("active",   "==", true)
     )
   );
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Team);
