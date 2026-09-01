@@ -21,6 +21,8 @@ import { AGING_BUCKET_LABELS, agingBucketFor, type AgingBucket } from "@/lib/sub
 import { INVOICE_STATUS_LABELS } from "@/types/billing";
 import type { InvoiceStatus } from "@/types/billing";
 import { formatNumber, formatDate, todayString } from "@/lib/utils";
+import { useSubscribers } from "@/hooks/useSubscribers";
+import { summarizeRevenue } from "@/lib/revenueRecognition";
 
 const ACC = { indigo: "#5B5FEF", emerald: "#22C55E", amber: "#F59E0B", rose: "#EF4444", sky: "#3B82F6", muted: "#9CA3AF" };
 
@@ -93,6 +95,18 @@ export default function FinancePage() {
 
   const today = todayString();
   const r = useFinancialReports(mayView);
+
+  /*
+   * Accrual figures, computed from the subscriber book rather than the ledger.
+   *
+   * useSubscribers is already permission-scoped and already excludes archived
+   * records, so this row answers with the same population as everything else
+   * on the page. The month runs from the 1st to today: revenue earned so far
+   * this month, not a projection of the whole month.
+   */
+  const { subscribers } = useSubscribers();
+  const monthStart = today.slice(0, 8) + "01";
+  const revenue = summarizeRevenue(subscribers, monthStart, today, today);
   const [reconcileFor, setReconcileFor] = useState<{ methodId: string; method: string } | null>(null);
 
   const agingRows = useMemo(
@@ -143,7 +157,7 @@ export default function FinancePage() {
           {/* ── Headline ── */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Kpi
-              label="المُحصَّل" accent={ACC.emerald} icon={<TrendingUp size={17} />}
+              label="نقد محصَّل" accent={ACC.emerald} icon={<TrendingUp size={17} />}
               value={`$${formatNumber(r.collectedUSD, 0)}`}
               sub={`الصافي $${formatNumber(r.netUSD, 0)}`}
             />
@@ -161,9 +175,44 @@ export default function FinancePage() {
               accent={r.collectionRate >= 0.9 ? ACC.emerald : r.collectionRate >= 0.7 ? ACC.amber : ACC.rose}
               icon={<Scale size={17} />}
               value={`${Math.round(r.collectionRate * 100)}%`}
-              sub="المُحصَّل ÷ (المُحصَّل + المستحق)"
+              sub="نقد محصَّل ÷ (نقد محصَّل + مستحق)"
             />
           </div>
+
+          {/*
+            * Cash is not revenue, and this row is the difference.
+            *
+            * A $300 plan paid up front for 90 days is $300 of cash today and
+            * about $3.33 of revenue a day. Reporting the whole $300 as this
+            * month's earnings flatters a good month, hides a bad one, and makes
+            * two months incomparable whenever plan lengths differ.
+            *
+            * Deferred revenue is the other half of the same truth: money taken
+            * for service not yet delivered is a liability, not profit.
+            */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Kpi
+              label="إيراد مستحق هذا الشهر" accent={ACC.indigo} icon={<Scale size={17} />}
+              value={`${formatNumber(revenue.recognizedUSD, 0)}`}
+              sub="ما كُسب فعلاً بالتوزيع اليومي"
+            />
+            <Kpi
+              label="إيراد مؤجَّل" accent={ACC.sky} icon={<Wallet size={17} />}
+              value={`${formatNumber(revenue.deferredUSD, 0)}`}
+              sub="محصَّل مقابل خدمة لم تُقدَّم بعد"
+            />
+            <Kpi
+              label="الفرق عن النقد" accent={ACC.muted} icon={<TrendingUp size={17} />}
+              value={`${formatNumber(r.collectedUSD - revenue.recognizedUSD, 0)}`}
+              sub="نقد هذا الشهر − ما كُسب منه"
+            />
+          </div>
+
+          {revenue.unrecognizable > 0 && (
+            <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
+              {revenue.unrecognizable} مشترك بلا تاريخ بداية أو مدة، فلا يمكن توزيع إيرادهم — مستثنون من الرقمين أعلاه، وليسوا صفراً.
+            </p>
+          )}
 
           <Tabs defaultValue="aging">
             <TabList className="flex-wrap">

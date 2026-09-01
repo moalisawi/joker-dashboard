@@ -34,6 +34,8 @@ export interface TaskSubscriber {
   freezeData?: { isFrozen?: boolean };
   assignedSalesName?: string | null;
   convincedBy?: string;
+  /** Outcome of the last follow-up, written by /api/subscribers/renewal-status. */
+  renewalWorkflowStatus?: string;
 }
 
 export interface TaskItem {
@@ -42,7 +44,25 @@ export interface TaskItem {
   urgency: number;
   /** Short reason shown on the row, e.g. "ينتهي غداً". */
   reason: string;
+  /** Someone has already spoken to them and the outcome is still open. */
+  inProgress: boolean;
 }
+
+/**
+ * Outcomes that end the work. A renewed or declined subscriber leaves the list;
+ * anything else is still owed a call.
+ *
+ * "contacted" and "promised" deliberately do NOT remove the row. A promise is
+ * not a payment, and a list that hides everyone who answered the phone is a
+ * list that loses them. They sink to the bottom instead, dimmed — visible
+ * progress rather than vanished work.
+ *
+ * There is no "handled today" here on purpose: the record carries no
+ * renewalHandledAt, and updatedAt is overwritten by any edit at all, so a
+ * same-day filter would be a guess dressed as a fact.
+ */
+const SETTLED = new Set(["renewed", "declined"]);
+const IN_PROGRESS = new Set(["contacted", "promised"]);
 
 export interface TodayTasks {
   renewals: TaskItem[];
@@ -80,22 +100,32 @@ export function buildTodayTasks(subscribers: TaskSubscriber[]): TodayTasks {
     // collections uses the wider isInCustomerBase.
     const days = s.daysRemaining ?? 0;
 
-    if (isActiveNow(s) && days <= RENEWAL_HORIZON_DAYS) {
-      renewals.push({ subscriber: s, urgency: days, reason: renewalReason(days) });
+    const status = s.renewalWorkflowStatus ?? "";
+    const settled = SETTLED.has(status);
+    const inProgress = IN_PROGRESS.has(status);
+    // Rows already spoken to keep their place among themselves but sit below
+    // everyone still untouched, so the top of the list is always fresh work.
+    const rank = (base: number) => (inProgress ? base + 100000 : base);
+
+    if (!settled && isActiveNow(s) && days <= RENEWAL_HORIZON_DAYS) {
+      renewals.push({ subscriber: s, urgency: rank(days), reason: renewalReason(days), inProgress });
     }
 
-    if (isInCustomerBase(s) && days < 0 && -days <= WIN_BACK_WINDOW_DAYS) {
-      winBack.push({ subscriber: s, urgency: -days, reason: winBackReason(-days) });
+    if (!settled && isInCustomerBase(s) && days < 0 && -days <= WIN_BACK_WINDOW_DAYS) {
+      winBack.push({ subscriber: s, urgency: rank(-days), reason: winBackReason(-days), inProgress });
     }
 
     const owed = Number(s.remainingAmountUSD) || 0;
     if (isInCustomerBase(s) && owed > 0) {
       // Largest balance first: chasing $200 before $3 is simply worth more, and
       // an employee working top-down should not have to sort by eye.
+      // Not filtered by SETTLED: a renewal outcome says nothing about whether
+      // the old balance was paid.
       collections.push({
         subscriber: s,
         urgency: -owed,
         reason: `متبقٍّ $${owed.toFixed(owed % 1 === 0 ? 0 : 2)}`,
+        inProgress: false,
       });
     }
   }
