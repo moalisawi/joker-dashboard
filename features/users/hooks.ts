@@ -104,9 +104,8 @@ export function useCreateEmployee() {
   return useMutation({
     mutationFn: (input: CreateEmployeeInput) =>
       usersFeatureService.createEmployee(input),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: employeeKeys.all });
-      qc.invalidateQueries({ queryKey: employeeKeys.active });
+    onSuccess: (data) => {
+      invalidateUserQueries(qc, data.uid);
     },
   });
 }
@@ -118,8 +117,7 @@ export function useUpdateEmployee() {
     mutationFn: (input: UpdateEmployeeInput) =>
       usersFeatureService.updateEmployee(input),
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: employeeKeys.all });
-      qc.invalidateQueries({ queryKey: employeeKeys.detail(variables.uid) });
+      invalidateUserQueries(qc, variables.uid);
     },
   });
 }
@@ -131,8 +129,7 @@ export function useAssignTeam() {
     mutationFn: ({ uid, teamId }: { uid: string; teamId: string | null }) =>
       usersFeatureService.assignTeam(uid, teamId),
     onSuccess: (_data, { uid }) => {
-      qc.invalidateQueries({ queryKey: employeeKeys.all });
-      qc.invalidateQueries({ queryKey: employeeKeys.detail(uid) });
+      invalidateUserQueries(qc, uid);
     },
   });
 }
