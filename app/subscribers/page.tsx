@@ -12,6 +12,7 @@ import { useSubscribers } from "@/hooks/useSubscribers";
 import { useAuthStore } from "@/store/authStore";
 import { useActiveEmployees } from "@/features/users/hooks";
 import { formatDate, formatNumber, getWhatsAppLink } from "@/lib/utils";
+import { summarizeCohorts, cohortOf, byNewestFirst, type CohortId } from "@/lib/subscriberCohorts";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { toast } from "@/lib/toast";
 import SubscriberModal from "@/components/subscribers/SubscriberModal";
@@ -133,6 +134,54 @@ function DaysCell({ s, isFrozen, isPaused, isWithdrawn }: { s: Subscriber; isFro
 }
 
 // ── Action dropdown ─────────────────────────────────────────────────────────────
+/**
+ * One cohort, as a thing you can decide on.
+ *
+ * Count, money and a reason on the same card. A count alone says how many rows
+ * a filter has; the money says whether the group is worth a morning.
+ */
+function CohortCard({ label, hint, tone, count, valueUSD, active, onClick }: {
+  label: string; hint: string; tone: "good" | "warn" | "urgent" | "muted";
+  count: number; valueUSD: number | null; active: boolean; onClick: () => void;
+}) {
+  // Semantic colour: urgency, not decoration.
+  const color = tone === "urgent" ? "#EF4444"
+              : tone === "warn"   ? "#F59E0B"
+              : tone === "good"   ? "#22C55E"
+              : "#94A3B8";
+  const empty = count === 0;
+
+  return (
+    <button
+      onClick={onClick}
+      title={hint}
+      style={{
+        textAlign: "start", padding: "10px 12px", borderRadius: 14, cursor: "pointer",
+        border: `1.5px solid ${active ? color : "var(--jk-divider)"}`,
+        background: active ? `${color}12` : "transparent",
+        // An empty group is still worth seeing — "0 lapsed this week" is news —
+        // but it should not compete with a group that needs work today.
+        opacity: empty && !active ? 0.55 : 1,
+        transition: "all 0.15s", display: "flex", flexDirection: "column", gap: 2,
+      }}
+    >
+      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--jk-subtle)", lineHeight: 1.3 }}>
+        {label}
+      </span>
+      <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <bdi dir="ltr" style={{ fontSize: 20, fontWeight: 800, color: empty ? "var(--jk-subtle)" : color, fontVariantNumeric: "tabular-nums" }}>
+          {count}
+        </bdi>
+        {valueUSD != null && count > 0 && (
+          <bdi dir="ltr" style={{ fontSize: 11, fontWeight: 700, color: "var(--jk-subtle)" }}>
+            {"$" + formatNumber(valueUSD, 0)}
+          </bdi>
+        )}
+      </span>
+    </button>
+  );
+}
+
 function QuickAction({ label, icon, color, onClick }: {
   label: string; icon: React.ReactNode; color: string; onClick: () => void;
 }) {
@@ -289,7 +338,6 @@ function SortHeader({ label, field, sortField, sortDir, onSort }: {
   );
 }
 
-const TABS: StatusKey[] = ["الكل","نشط","ينتهي قريباً","منتهي","موقوف","متجمد","منسحب"];
 const PAGE_SIZES = [15, 30, 50, 100];
 
 // ── Main page ──────────────────────────────────────────────────────────────────
@@ -309,7 +357,7 @@ export default function SubscribersPage() {
   }, [activeEmployees]);
 
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab]   = useState<StatusKey>("الكل");
+  const [cohort, setCohort]         = useState<CohortId | "all">("all");
   const [search, setSearch]         = useState("");
   const [filterEmp, setFilterEmp]   = useState("");
   const [showFilter, setShowFilter] = useState(false);
@@ -344,21 +392,23 @@ export default function SubscribersPage() {
     return [...n].sort((a, b) => a.localeCompare(b, "ar"));
   }, [subscribers]);
 
-  const counts = useMemo(() => {
-    const c = { "الكل": 0, "نشط": 0, "ينتهي قريباً": 0, "منتهي": 0, "موقوف": 0, "متجمد": 0, "منسحب": 0 } as Record<StatusKey, number>;
-    for (const s of subscribers) {
-      c["الكل"]++;
-      c[getDisplayStatus(s)] = (c[getDisplayStatus(s)] ?? 0) + 1;
-    }
-    return c;
-  }, [subscribers]);
+  /*
+   * Cohorts, not status chips.
+   *
+   * A chip filters rows. A cohort filters rows AND says how many, how much
+   * money, and what to do — which is the difference between a list and a
+   * decision. They partition the book, so the counts sum to the total and can
+   * be reconciled; see lib/subscriberCohorts.
+   */
+  const cohorts = useMemo(() => summarizeCohorts(subscribers), [subscribers]);
+  const totalCount = subscribers.length;
+  const selectedCohort = cohorts.find((c) => c.id === cohort) ?? null;
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     let rows = subscribers.filter((s) => {
-      const st = getDisplayStatus(s);
       return (
-        (activeTab === "الكل" || st === activeTab) &&
+        (cohort === "all" || cohortOf(s) === cohort) &&
         (!q || s.name?.toLowerCase().includes(q) || s.phone?.includes(q)) &&
         (!filterEmp || s.convincedBy === filterEmp)
       );
@@ -376,8 +426,10 @@ export default function SubscribersPage() {
         return sortDir === "asc" ? cmp : -cmp;
       });
     }
-    return rows;
-  }, [subscribers, activeTab, search, filterEmp, sortField, sortDir]);
+    // Newest sign-up first unless the user has chosen a column to sort by. The
+    // newest records are the ones being worked on.
+    return sortField ? rows : byNewestFirst(rows);
+  }, [subscribers, cohort, search, filterEmp, sortField, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paged      = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -390,7 +442,7 @@ export default function SubscribersPage() {
     setPage(1);
   }, []);
 
-  const handleTabChange = useCallback((t: StatusKey) => { setActiveTab(t); setPage(1); }, []);
+  const handleCohort = useCallback((c: CohortId | "all") => { setCohort(c); setPage(1); }, []);
   const handleSearch    = useCallback((v: string) => { setSearch(v); setPage(1); }, []);
 
   const hasFilters = search || filterEmp;
@@ -463,7 +515,7 @@ export default function SubscribersPage() {
               إدارة المشتركين
             </h1>
             <p style={{ fontSize: 13, color: "var(--jk-subtle)", margin: "4px 0 0" }}>
-              {counts["الكل"]} مشترك إجمالاً
+              {totalCount} مشترك إجمالاً
             </p>
           </div>
           {can("canCreate") && (
@@ -615,7 +667,7 @@ export default function SubscribersPage() {
             {/* Count */}
             {!loading && (
               <span style={{ fontSize: 12, color: "var(--jk-subtle)", fontWeight: 600, marginInlineStart: "auto" }}>
-                {filtered.length} {filtered.length !== counts["الكل"] ? `/ ${counts["الكل"]}` : ""}
+                {filtered.length} {filtered.length !== totalCount ? `/ ${totalCount}` : ""}
               </span>
             )}
           </div>
@@ -665,54 +717,52 @@ export default function SubscribersPage() {
             )}
           </AnimatePresence>
 
-          {/* ── Status tabs ────────────────────────────────────────────────── */}
+          {/* ── Cohorts ────────────────────────────────────────────────────── */}
           <div style={{
-            display: "flex", gap: 6, padding: "12px 18px",
+            display: "grid", gap: 8, padding: "14px 18px",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
             borderBottom: "1px solid var(--jk-divider)",
-            overflowX: "auto", scrollbarWidth: "none", flexWrap: "nowrap",
           }}>
-            {TABS.map((tab) => {
-              const active = tab === activeTab;
-              const meta   = tab === "الكل" ? null : STATUS_META[tab as Exclude<StatusKey,"الكل">];
-              const count  = counts[tab] ?? 0;
-
-              return (
-                <motion.button
-                  key={tab}
-                  onClick={() => handleTabChange(tab)}
-                  whileHover={{ y: -1 }}
-                  whileTap={{ y: 0 }}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 7,
-                    padding: "6px 14px", borderRadius: 12, flexShrink: 0,
-                    border: `1.5px solid ${active ? (meta?.color ?? "#5B5FEF") : "var(--jk-divider)"}`,
-                    background: active ? (meta ? meta.bg : "rgba(91,95,239,0.08)") : "transparent",
-                    color: active ? (meta?.color ?? "#5B5FEF") : "var(--jk-subtle)",
-                    fontSize: 12.5, fontWeight: 700, cursor: "pointer",
-                    transition: "all 0.15s",
-                    boxShadow: active ? `0 2px 10px ${meta?.glow ?? "rgba(91,95,239,0.15)"}` : "none",
-                  }}
-                >
-                  {meta && active && (
-                    <span style={{
-                      width: 6, height: 6, borderRadius: "50%",
-                      background: meta.color, flexShrink: 0,
-                    }} />
-                  )}
-                  {tab}
-                  <span style={{
-                    minWidth: 20, height: 18, padding: "0 5px", borderRadius: 8,
-                    fontSize: 10.5, fontWeight: 800,
-                    background: active ? (meta?.color ?? "#5B5FEF") : "rgba(156,163,175,0.15)",
-                    color: active ? "#fff" : "var(--jk-subtle)",
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {count}
-                  </span>
-                </motion.button>
-              );
-            })}
+            <CohortCard
+              label="كل المشتركين" hint="الدفتر كامل" tone="muted"
+              count={totalCount} valueUSD={null}
+              active={cohort === "all"} onClick={() => handleCohort("all")}
+            />
+            {cohorts.map((c) => (
+              <CohortCard
+                key={c.id}
+                label={c.label} hint={c.hint} tone={c.tone}
+                count={c.count} valueUSD={canRev ? c.valueUSD : null}
+                active={cohort === c.id} onClick={() => handleCohort(c.id)}
+              />
+            ))}
           </div>
+
+          {/* The reason this group exists, and what is at stake in it. */}
+          {selectedCohort && (
+            <div style={{
+              display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px 16px",
+              padding: "10px 18px", borderBottom: "1px solid var(--jk-divider)",
+              background: "var(--jk-panel)",
+            }}>
+              <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--jk-text)" }}>
+                {selectedCohort.label}
+              </span>
+              <span style={{ fontSize: 12, color: "var(--jk-subtle)" }}>{selectedCohort.hint}</span>
+              {canRev && selectedCohort.count > 0 && (
+                <span style={{ fontSize: 12, color: "var(--jk-subtle)", marginInlineStart: "auto" }}>
+                  القيمة <bdi dir="ltr" style={{ fontWeight: 800, color: "var(--jk-text)" }}>
+                    {"$" + formatNumber(selectedCohort.valueUSD, 0)}
+                  </bdi>
+                  {selectedCohort.outstandingUSD > 0 && (
+                    <> · مستحق <bdi dir="ltr" style={{ fontWeight: 800, color: "#F59E0B" }}>
+                      {"$" + formatNumber(selectedCohort.outstandingUSD, 0)}
+                    </bdi></>
+                  )}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* ── Table ──────────────────────────────────────────────────────── */}
           {loading ? (
