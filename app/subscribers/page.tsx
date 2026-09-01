@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Download, SlidersHorizontal, Eye, Pencil, RotateCcw,
   CreditCard, Snowflake, PauseCircle, Play, UserMinus,  Trash2,
-  MoreHorizontal, MessageCircle, ChevronLeft, ChevronRight,
+  MoreHorizontal, MessageCircle, ChevronLeft, ChevronRight, Copy,
   ArrowUp, ArrowDown, ArrowUpDown, X, Plus, Users} from "lucide-react";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import { useSubscribers } from "@/hooks/useSubscribers";
@@ -13,6 +13,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useActiveEmployees } from "@/features/users/hooks";
 import { formatDate, formatNumber, getWhatsAppLink } from "@/lib/utils";
 import { summarizeCohorts, cohortOf, byNewestFirst, type CohortId } from "@/lib/subscriberCohorts";
+import { buildContactList, describeContactList, CONTACT_FORMATS, type ContactFormat, type ContactRow } from "@/lib/contactList";
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { toast } from "@/lib/toast";
 import SubscriberModal from "@/components/subscribers/SubscriberModal";
@@ -179,6 +180,112 @@ function CohortCard({ label, hint, tone, count, valueUSD, active, onClick }: {
         )}
       </span>
     </button>
+  );
+}
+
+/**
+ * Copies the numbers of exactly what is on screen.
+ *
+ * "On screen" is the whole point: the cohort, the search and the employee filter
+ * have already narrowed the book, and this takes that selection out of the app
+ * without anyone retyping it. Formats differ because the destinations do — bulk
+ * senders want bare digits, spreadsheets want the +, and wa.me links are for
+ * working through by hand.
+ */
+function CopyNumbersMenu({ rows, disabled }: { rows: ContactRow[]; disabled: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const copy = useCallback(async (format: ContactFormat) => {
+    setOpen(false);
+    const list = buildContactList(rows, format);
+    if (list.included === 0) {
+      toast.error("لا يوجد رقم صالح في هذه القائمة");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(list.text);
+      // Says what was removed as well as what was copied: a list that quietly
+      // loses people looks exactly like one that did not.
+      toast.success(describeContactList(list));
+    } catch {
+      toast.error("المتصفّح منع النسخ — جرّب زر التصدير بدلاً منه");
+    }
+  }, [rows]);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={disabled}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6, height: 38,
+          padding: "0 14px", borderRadius: 12,
+          border: `1.5px solid ${open ? "#5B5FEF" : "var(--jk-border)"}`,
+          background: open ? "rgba(91,95,239,0.08)" : "transparent",
+          color: open ? "#5B5FEF" : "var(--jk-subtle)",
+          fontSize: 12.5, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.5 : 1, whiteSpace: "nowrap", fontFamily: "inherit",
+        }}
+      >
+        <Copy size={13} />
+        نسخ الأرقام
+        <span style={{
+          minWidth: 20, height: 18, padding: "0 5px", borderRadius: 8, fontSize: 10.5,
+          fontWeight: 800, background: "rgba(156,163,175,0.15)", color: "var(--jk-subtle)",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {rows.length}
+        </span>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -6 }}
+              transition={{ duration: 0.14 }}
+              style={{
+                position: "absolute", insetInlineStart: 0, top: "calc(100% + 6px)",
+                zIndex: 100, minWidth: 250, padding: 6, borderRadius: 14,
+                background: "var(--surface)", border: "1px solid var(--jk-border)",
+                boxShadow: "0 12px 34px rgba(15,23,42,0.16)",
+              }}
+            >
+              {CONTACT_FORMATS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => copy(f.id)}
+                  style={{
+                    display: "flex", flexDirection: "column", gap: 1, width: "100%",
+                    textAlign: "start", padding: "8px 10px", borderRadius: 10,
+                    border: "none", background: "transparent", cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--jk-hover)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                >
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--jk-text)" }}>{f.label}</span>
+                  <bdi style={{ fontSize: 11, color: "var(--jk-subtle)" }}>{f.hint}</bdi>
+                </button>
+              ))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -627,6 +734,9 @@ export default function SubscribersPage() {
                 }}>1</span>
               )}
             </button>
+
+            {/* Copy the numbers of exactly the rows currently shown. */}
+            <CopyNumbersMenu rows={filtered} disabled={loading || filtered.length === 0} />
 
             {/* Export */}
             <button
