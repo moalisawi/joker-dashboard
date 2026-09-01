@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatNumber, formatDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
@@ -123,7 +124,7 @@ export default function ReportsPage() {
                 boxShadow: "var(--shadow-card)",
               }}>
                 <p style={{ fontSize: 24, fontWeight: 900, color: s.color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-                  {s.value.toLocaleString("ar-EG")}
+                  {formatNumber(s.value)}
                 </p>
                 <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, fontWeight: 500 }}>{s.label}</p>
               </div>
@@ -160,8 +161,24 @@ export default function ReportsPage() {
               )}
             </div>
 
+            {/*
+              * The empty native date field shows its placeholder in the
+              * BROWSER'S locale, so an English-language browser renders
+              * "mm/dd/yyyy" in the middle of an Arabic page. That placeholder is
+              * not settable from HTML or CSS in any browser — the only way to
+              * remove it is to replace the control with a custom picker, which
+              * costs the free calendar, the keyboard support and the mobile
+              * date wheel. Not worth it.
+              *
+              * What IS fixable is the ambiguity: each field now says which end
+              * of the range it is, and the chosen range is echoed underneath in
+              * Arabic, so nobody has to interpret the placeholder to know what
+              * they picked.
+              */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 260 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0 }} htmlFor="rep-from">من</label>
               <input
+                id="rep-from"
                 type="date" value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
                 dir="ltr"
@@ -175,7 +192,9 @@ export default function ReportsPage() {
                 }}
               />
               <ChevronLeft size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", flexShrink: 0 }} htmlFor="rep-to">إلى</label>
               <input
+                id="rep-to"
                 type="date" value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
                 dir="ltr"
@@ -189,6 +208,17 @@ export default function ReportsPage() {
                 }}
               />
             </div>
+
+            {/* The range restated in Arabic — the answer to "what did I just pick". */}
+            {(dateFrom || dateTo) && (
+              <span style={{ fontSize: 12, color: "var(--text-secondary)", flexShrink: 0 }}>
+                {dateFrom && dateTo
+                  ? formatDate(dateFrom) + " — " + formatDate(dateTo)
+                  : dateFrom
+                    ? "من " + formatDate(dateFrom)
+                    : "حتى " + formatDate(dateTo)}
+              </span>
+            )}
 
             {dateActive && (
               <button
@@ -315,7 +345,7 @@ function ReportCard({ report: r, canExport, dateFrom, dateTo }: {
         {/* Stat pill */}
         <div style={{ textAlign: "left" }}>
           <p style={{ fontSize: 22, fontWeight: 900, color: r.color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-            {Number(r.stat).toLocaleString("ar-EG")}
+            {formatNumber(Number(r.stat))}
           </p>
           <p style={{ fontSize: 11, color: r.color, opacity: 0.7, fontWeight: 600, marginTop: 2 }}>{r.statLabel}</p>
         </div>

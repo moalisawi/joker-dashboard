@@ -32,13 +32,42 @@ export const scalePopVariants: Variants = {
 
 // ─── Count-Up Hook ───────────────────────────────────────────────────────────
 
+/**
+ * Counts a figure up to its value, and — importantly — never leaves it short.
+ *
+ * requestAnimationFrame is throttled to a crawl in a background tab, so the
+ * animation used to freeze part-way and leave a WRONG NUMBER on screen for as
+ * long as the tab stayed hidden. On 31 Aug 2026 this cost real time: the
+ * dashboard showed 3, then 4, then 19 subscribers on successive reads while the
+ * true figure was 51, and it read exactly like a data regression. A decorative
+ * animation must never be able to misreport a number.
+ *
+ * So the animation is now the exception, not the rule. It runs only when the
+ * page is actually visible and the viewer has not asked for reduced motion;
+ * otherwise the value appears immediately. If the tab is hidden mid-count the
+ * value snaps to the target rather than freezing at whatever frame it reached.
+ */
 export function useCountUp(target: number, duration = 900): number {
-  const [value, setValue] = useState(0);
+  const [value, setValue] = useState(target);
 
   useEffect(() => {
     if (target === 0) { setValue(0); return; }
+
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+    // Nothing to watch, or nobody watching: show the truth at once.
+    if (typeof document === "undefined" || document.hidden || prefersReducedMotion) {
+      setValue(target);
+      return;
+    }
+
     let raf: number;
     let startTime: number | null = null;
+
+    const finish = () => { cancelAnimationFrame(raf); setValue(target); };
+    const onVisibilityChange = () => { if (document.hidden) finish(); };
 
     const tick = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -51,7 +80,11 @@ export function useCountUp(target: number, duration = 900): number {
     };
 
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [target, duration]);
 
   return value;

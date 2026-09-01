@@ -14,7 +14,7 @@ export function formatNumber(num: number | undefined | null, decimals = 0): stri
 
 export function formatDate(dateStr: string | undefined | null): string {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("ar-EG", {
+  return new Date(dateStr).toLocaleDateString("ar-EG-u-nu-latn", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -41,7 +41,7 @@ export function formatDateTime(value: unknown): string {
     date = new Date(value as string);
   }
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleString("ar-EG", {
+  return date.toLocaleString("ar-EG-u-nu-latn", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",

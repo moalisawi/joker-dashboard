@@ -133,6 +133,37 @@ function DaysCell({ s, isFrozen, isPaused, isWithdrawn }: { s: Subscriber; isFro
 }
 
 // ── Action dropdown ─────────────────────────────────────────────────────────────
+function QuickAction({ label, icon, color, onClick }: {
+  label: string; icon: React.ReactNode; color: string; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      title={label}
+      aria-label={label}
+      style={{
+        display: "flex", alignItems: "center", gap: 5, height: 30, padding: "0 9px",
+        borderRadius: 8, border: "1px solid var(--jk-divider)", background: "transparent",
+        color: "var(--jk-subtle)", fontSize: 11.5, fontWeight: 700, cursor: "pointer",
+        whiteSpace: "nowrap", transition: "all 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = `${color}14`;
+        e.currentTarget.style.borderColor = `${color}55`;
+        e.currentTarget.style.color = color;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.borderColor = "var(--jk-divider)";
+        e.currentTarget.style.color = "var(--jk-subtle)";
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
 function ActionMenu({
   s, canEdit, canWithdraw, canDelete,
   onProfile, onEdit, onRenew, onPayment, onFreeze, onResume, onPause, onWithdraw, onDelete, onResumePause,
@@ -856,6 +887,31 @@ export default function SubscribersPage() {
 
                       {/* Actions */}
                       <div style={{ display: "flex", justifyContent: "center" }} onClick={(e) => e.stopPropagation()}>
+                        {/*
+                          * Renew and record-payment sit in the row itself.
+                          *
+                          * Both were reachable only through the "…" menu, which
+                          * made the two most repeated jobs in the business cost
+                          * two clicks on every line. Everything rarer stays in
+                          * the menu — the point is a short list of obvious
+                          * actions, not a row of icons nobody can tell apart.
+                          */}
+                        {can("canEdit") && (
+                          <QuickAction
+                            label="تجديد"
+                            icon={<RotateCcw size={13} />}
+                            color="#F59E0B"
+                            onClick={() => openModal("renew", s)}
+                          />
+                        )}
+                        {can("canEdit") && (
+                          <QuickAction
+                            label="دفعة"
+                            icon={<CreditCard size={13} />}
+                            color="#5B5FEF"
+                            onClick={() => openModal("payment", s)}
+                          />
+                        )}
                         <ActionMenu
                           s={s}
                           canEdit={can("canEdit")}
