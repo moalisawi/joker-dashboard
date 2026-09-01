@@ -108,7 +108,7 @@ function SkeletonRow() {
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 100px",
+      gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 1fr 185px",
       gap: 0, padding: "14px 20px", borderBottom: "1px solid var(--jk-divider)",
       alignItems: "center",
     }}>
@@ -745,7 +745,7 @@ export default function SubscribersPage() {
               {/* Table Header */}
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "2.2fr 1fr 1.1fr 1fr 1fr 1fr 90px",
+                gridTemplateColumns: "2.2fr 1fr 1.1fr 1fr 1fr 1fr 185px",
                 gap: 0,
                 padding: "10px 20px",
                 background: "#F8FAFC",
@@ -796,7 +796,7 @@ export default function SubscribersPage() {
                       onClick={() => openDrawer(s)}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "2.2fr 1fr 1.1fr 1fr 1fr 1fr 90px",
+                        gridTemplateColumns: "2.2fr 1fr 1.1fr 1fr 1fr 1fr 185px",
                         alignItems: "center",
                         gap: 0, padding: "12px 20px",
                         borderBottom: "1px solid var(--jk-divider)",
@@ -886,7 +886,7 @@ export default function SubscribersPage() {
                       </div>
 
                       {/* Actions */}
-                      <div style={{ display: "flex", justifyContent: "center" }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 5 }} onClick={(e) => e.stopPropagation()}>
                         {/*
                           * Renew and record-payment sit in the row itself.
                           *
