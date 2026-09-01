@@ -46,6 +46,15 @@ export interface TaskItem {
   reason: string;
   /** Someone has already spoken to them and the outcome is still open. */
   inProgress: boolean;
+  /**
+   * The outstanding balance, when this row is a collection.
+   *
+   * Kept as a number rather than baked into `reason` so the UI can isolate it
+   * for bidirectional text. "$165" inside an Arabic sentence renders as "165$"
+   * — the currency sign is a neutral character and drifts to the wrong side of
+   * the digits — which looks like a typo in a screen about money.
+   */
+  amountUSD?: number;
 }
 
 /**
@@ -123,6 +132,7 @@ export function buildTodayTasks(subscribers: TaskSubscriber[]): TodayTasks {
       // the old balance was paid.
       collections.push({
         subscriber: s,
+        amountUSD: owed,
         urgency: -owed,
         reason: `متبقٍّ $${owed.toFixed(owed % 1 === 0 ? 0 : 2)}`,
         inProgress: false,

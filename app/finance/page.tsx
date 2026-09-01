@@ -180,18 +180,18 @@ export default function FinancePage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Kpi
               label="إيراد مستحق هذا الشهر" accent={ACC.indigo} icon={<Scale size={17} />}
-              value={`${formatNumber(r.recognizedRevenueUSD, 0)}`}
+              value={`$${formatNumber(r.recognizedRevenueUSD, 0)}`}
               sub="ما كُسب فعلاً بالتوزيع اليومي"
             />
             <Kpi
               label="إيراد مؤجَّل" accent={ACC.sky} icon={<Wallet size={17} />}
-              value={`${formatNumber(r.deferredRevenueUSD, 0)}`}
+              value={`$${formatNumber(r.deferredRevenueUSD, 0)}`}
               sub="محصَّل مقابل خدمة لم تُقدَّم بعد"
             />
             <Kpi
-              label="الفرق عن النقد" accent={ACC.muted} icon={<TrendingUp size={17} />}
-              value={`${formatNumber(r.collectedUSD - r.recognizedRevenueUSD, 0)}`}
-              sub="نقد هذا الشهر − ما كُسب منه"
+              label="نقد هذا الشهر" accent={ACC.muted} icon={<TrendingUp size={17} />}
+              value={`$${formatNumber(r.cashThisMonthUSD, 0)}`}
+              sub={`الفرق عن المستحق $${formatNumber(r.cashThisMonthUSD - r.recognizedRevenueUSD, 0)}`}
             />
           </div>
 

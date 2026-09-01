@@ -96,7 +96,15 @@ function TaskRow({
           {s.name}
         </Link>
         <span className="text-[11.5px]" style={{ color: "var(--jk-subtle)" }}>
-          {item.reason}
+          {item.amountUSD != null ? (
+            <>
+              {"متبقٍّ "}
+              {/* Isolated so the currency sign stays left of the digits in RTL. */}
+              <bdi dir="ltr">{"$" + item.amountUSD.toFixed(item.amountUSD % 1 === 0 ? 0 : 2)}</bdi>
+            </>
+          ) : (
+            item.reason
+          )}
           {s.assignedSalesName ? ` · ${s.assignedSalesName}` : s.convincedBy ? ` · ${s.convincedBy}` : ""}
           {item.inProgress ? " · تمّت متابعته" : ""}
         </span>

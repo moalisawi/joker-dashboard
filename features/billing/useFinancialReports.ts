@@ -105,6 +105,8 @@ export interface FinancialReports {
   deferredRevenueUSD: number;
   /** Subscribers with no start date or duration, so not recognisable. */
   unrecognizableCount: number;
+  /** Cash received this month — the like-for-like partner of recognizedRevenueUSD. */
+  cashThisMonthUSD: number;
 }
 
 function useCollection<T>(name: string, enabled: boolean) {
@@ -211,6 +213,17 @@ export function useFinancialReports(enabled = true): FinancialReports {
 
     // ── Collected ──
     const collectedUSD = paymentRows.reduce((n, p) => n + (Number(p.amountUSD) || 0), 0);
+    /*
+     * Cash for THIS MONTH, kept separate from the all-time figure above.
+     *
+     * Recognised revenue is month-to-date, and the two were briefly subtracted
+     * from each other on screen — all-time cash minus one month's revenue, a
+     * difference of two incompatible periods reported as if it meant something.
+     */
+    const ym = today.slice(0, 7);
+    const cashThisMonthUSD = paymentRows
+      .filter((p) => String(p.date ?? "").startsWith(ym))
+      .reduce((n, p) => n + (Number(p.amountUSD) || 0), 0);
     const refundedUSD  = refundRows.reduce((n, r) => n + (Number(r.refundAmountUSD) || 0), 0);
     const billed = collectedUSD + outstandingFromSubscribersUSD;
 
@@ -272,6 +285,7 @@ export function useFinancialReports(enabled = true): FinancialReports {
       recognizedRevenueUSD: revenue.recognizedUSD,
       deferredRevenueUSD:   revenue.deferredUSD,
       unrecognizableCount:  revenue.unrecognizable,
+      cashThisMonthUSD,
 
       outstandingFromSubscribersUSD,
       subscribersWithBalance,
