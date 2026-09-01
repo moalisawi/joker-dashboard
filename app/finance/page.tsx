@@ -21,8 +21,6 @@ import { AGING_BUCKET_LABELS, agingBucketFor, type AgingBucket } from "@/lib/sub
 import { INVOICE_STATUS_LABELS } from "@/types/billing";
 import type { InvoiceStatus } from "@/types/billing";
 import { formatNumber, formatDate, todayString } from "@/lib/utils";
-import { useSubscribers } from "@/hooks/useSubscribers";
-import { summarizeRevenue } from "@/lib/revenueRecognition";
 
 const ACC = { indigo: "#5B5FEF", emerald: "#22C55E", amber: "#F59E0B", rose: "#EF4444", sky: "#3B82F6", muted: "#9CA3AF" };
 
@@ -96,17 +94,6 @@ export default function FinancePage() {
   const today = todayString();
   const r = useFinancialReports(mayView);
 
-  /*
-   * Accrual figures, computed from the subscriber book rather than the ledger.
-   *
-   * useSubscribers is already permission-scoped and already excludes archived
-   * records, so this row answers with the same population as everything else
-   * on the page. The month runs from the 1st to today: revenue earned so far
-   * this month, not a projection of the whole month.
-   */
-  const { subscribers } = useSubscribers();
-  const monthStart = today.slice(0, 8) + "01";
-  const revenue = summarizeRevenue(subscribers, monthStart, today, today);
   const [reconcileFor, setReconcileFor] = useState<{ methodId: string; method: string } | null>(null);
 
   const agingRows = useMemo(
@@ -193,24 +180,24 @@ export default function FinancePage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Kpi
               label="إيراد مستحق هذا الشهر" accent={ACC.indigo} icon={<Scale size={17} />}
-              value={`${formatNumber(revenue.recognizedUSD, 0)}`}
+              value={`${formatNumber(r.recognizedRevenueUSD, 0)}`}
               sub="ما كُسب فعلاً بالتوزيع اليومي"
             />
             <Kpi
               label="إيراد مؤجَّل" accent={ACC.sky} icon={<Wallet size={17} />}
-              value={`${formatNumber(revenue.deferredUSD, 0)}`}
+              value={`${formatNumber(r.deferredRevenueUSD, 0)}`}
               sub="محصَّل مقابل خدمة لم تُقدَّم بعد"
             />
             <Kpi
               label="الفرق عن النقد" accent={ACC.muted} icon={<TrendingUp size={17} />}
-              value={`${formatNumber(r.collectedUSD - revenue.recognizedUSD, 0)}`}
+              value={`${formatNumber(r.collectedUSD - r.recognizedRevenueUSD, 0)}`}
               sub="نقد هذا الشهر − ما كُسب منه"
             />
           </div>
 
-          {revenue.unrecognizable > 0 && (
+          {r.unrecognizableCount > 0 && (
             <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
-              {revenue.unrecognizable} مشترك بلا تاريخ بداية أو مدة، فلا يمكن توزيع إيرادهم — مستثنون من الرقمين أعلاه، وليسوا صفراً.
+              {r.unrecognizableCount} مشترك بلا تاريخ بداية أو مدة، فلا يمكن توزيع إيرادهم — مستثنون من الرقمين أعلاه، وليسوا صفراً.
             </p>
           )}
 

@@ -13,6 +13,7 @@ import {
   omitDeletedSubscriberRows,
 } from "@/lib/subscriberLifecycle";
 import { todayString } from "@/lib/utils";
+import { summarizeRevenue } from "@/lib/revenueRecognition";
 import type { Installment, Invoice } from "@/types/billing";
 import type { PaymentTransaction, RefundTransaction, Subscriber } from "@/types";
 
@@ -87,6 +88,23 @@ export interface FinancialReports {
 
   // ── Invoices ──
   invoicesByStatus: Record<string, number>;
+
+  // ── Accrual ──
+  /*
+   * Cash and revenue must describe the SAME population, so recognition is
+   * computed here from the same `subscribers` array every other figure on this
+   * page uses. It was briefly computed in the page from useSubscribers instead,
+   * which is permission-scoped — so an employee without canViewAll would have
+   * seen cash for the whole business beside revenue for their own book alone.
+   * Two rows, one screen, two different sets of people. Sharing the source makes
+   * that impossible by construction rather than by discipline.
+   */
+  /** Earned this month to date, straight-line by day. */
+  recognizedRevenueUSD: number;
+  /** Collected for service not yet delivered — a liability, not profit. */
+  deferredRevenueUSD: number;
+  /** Subscribers with no start date or duration, so not recognisable. */
+  unrecognizableCount: number;
 }
 
 function useCollection<T>(name: string, enabled: boolean) {
@@ -242,11 +260,18 @@ export function useFinancialReports(enabled = true): FinancialReports {
       invoicesByStatus[inv.status] = (invoicesByStatus[inv.status] ?? 0) + 1;
     }
 
+    const monthStart = today.slice(0, 8) + "01";
+    const revenue = summarizeRevenue(subscribers, monthStart, today, today);
+
     return {
       isLoading: subs.isLoading || payments.isLoading || refunds.isLoading,
       isError:   subs.isError || payments.isError,
 
       subscriberCount: subscribers.length,
+
+      recognizedRevenueUSD: revenue.recognizedUSD,
+      deferredRevenueUSD:   revenue.deferredUSD,
+      unrecognizableCount:  revenue.unrecognizable,
 
       outstandingFromSubscribersUSD,
       subscribersWithBalance,
