@@ -1,4 +1,4 @@
-import { NAV_ITEMS, navLabelFor } from '@/components/layout/navItems'
+import { NAV_ITEMS, navLabelFor, primaryNavItems } from '@/components/layout/navItems'
 
 /*
  * One navigation, and it must be able to name every page.
@@ -66,5 +66,51 @@ describe('navLabelFor', () => {
 
   it('returns null for a path outside the menu rather than guessing', () => {
     expect(navLabelFor('/some-unknown-page')).toBeNull()
+  })
+})
+
+/*
+ * The shortcut row in the top bar.
+ *
+ * The row and the rail are allowed to show different AMOUNTS. They are not
+ * allowed to disagree about what EXISTS — that disagreement is what made the app
+ * feel scattered and what left every page outside the old six named
+ * "لوحة التحكم". These tests pin the difference to a declared flag in one file.
+ */
+describe('primaryNavItems', () => {
+  it('every shortcut is a real destination from the one menu', () => {
+    const hrefs = new Set(NAV_ITEMS.map((i) => i.href))
+    expect(primaryNavItems().every((i) => hrefs.has(i.href))).toBe(true)
+  })
+
+  it('is a short row, not a second copy of the whole menu', () => {
+    expect(primaryNavItems()).toHaveLength(6)
+    expect(primaryNavItems().length).toBeLessThan(NAV_ITEMS.length)
+  })
+
+  it('keeps menu order rather than inventing its own', () => {
+    const order = NAV_ITEMS.filter((i) => i.primary).map((i) => i.href)
+    expect(primaryNavItems().map((i) => i.href)).toEqual(order)
+  })
+
+  it('leads with the two screens a day starts from', () => {
+    expect(primaryNavItems().slice(0, 2).map((i) => i.href)).toEqual(['/', '/today'])
+  })
+
+  it('THE INVARIANT: every shortcut can be named by the header', () => {
+    // A link the header cannot label is the exact bug this file exists to stop.
+    for (const item of primaryNavItems()) {
+      expect(navLabelFor(item.href)).toBe(item.label)
+    }
+  })
+
+  it('keeps reports and payment methods reachable on the rail', () => {
+    // Dropped from the row, deliberately — not dropped from the app.
+    const shortcuts = new Set(primaryNavItems().map((i) => i.href))
+    expect(shortcuts.has('/reports')).toBe(false)
+    expect(shortcuts.has('/payment-methods')).toBe(false)
+    const all = NAV_ITEMS.map((i) => i.href)
+    expect(all).toContain('/reports')
+    expect(all).toContain('/payment-methods')
   })
 })

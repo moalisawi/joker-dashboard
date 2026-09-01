@@ -31,22 +31,32 @@ export interface NavItem {
   icon:        React.ReactNode;
   permission?: "canManageUsers" | "canViewLogs" | "canManagePaymentMethods" | "canViewRevenue";
   roles?:      string[];
+  /**
+   * Also shown as a named link in the top bar, not only as an icon on the rail.
+   *
+   * The bar and the rail deliberately show different amounts — the rail is the
+   * complete menu, the bar is a shortcut row for the handful of places people
+   * actually live in. What matters is that the difference is a DECLARED choice
+   * in one file rather than two lists drifting apart, which is what made the app
+   * feel scattered in the first place.
+   */
+  primary?:    boolean;
 }
 
 export const NAV_ITEMS: NavItem[] = [
   // ── ما أفعله الآن ──
-  { href: "/",                 group: "today",     label: "لوحة التحكم",    icon: <Home           size={18} /> },
-  { href: "/today",            group: "today",     label: "مهام اليوم",     icon: <ListChecks     size={18} /> },
+  { href: "/",                 group: "today",     label: "لوحة التحكم",    icon: <Home           size={18} />, primary: true },
+  { href: "/today",            group: "today",     label: "مهام اليوم",     icon: <ListChecks     size={18} />, primary: true },
   { href: "/notifications",    group: "today",     label: "الإشعارات",      icon: <Bell           size={18} /> },
 
   // ── عملائي ──
-  { href: "/subscribers",      group: "customers", label: "المشتركون",      icon: <Users          size={18} /> },
-  { href: "/whatsapp-leads",               group: "customers", label: "واتساب ليدز", icon: <MessageSquare size={18} /> },
+  { href: "/subscribers",      group: "customers", label: "المشتركون",      icon: <Users          size={18} />, primary: true },
+  { href: "/whatsapp-leads",               group: "customers", label: "واتساب ليدز", icon: <MessageSquare size={18} />, primary: true },
   { href: "/whatsapp-leads/conversations", group: "customers", label: "المحادثات",   icon: <MessageCircle size={18} /> },
 
   // ── المال والأداء ──
-  { href: "/finance",          group: "money",     label: "المالية",        icon: <Scale      size={18} />, permission: "canViewRevenue" },
-  { href: "/analytics",        group: "money",     label: "التحليلات",      icon: <BarChart3  size={18} /> },
+  { href: "/finance",          group: "money",     label: "المالية",        icon: <Scale      size={18} />, permission: "canViewRevenue", primary: true },
+  { href: "/analytics",        group: "money",     label: "التحليلات",      icon: <BarChart3  size={18} />, primary: true },
   { href: "/reports",          group: "money",     label: "التقارير",       icon: <FileText   size={18} />, roles: ["owner", "admin"] },
   // Both of these existed, worked, and appeared in no menu at all — reachable
   // only by typing the URL. /sales was additionally scoring every employee zero;
@@ -78,4 +88,16 @@ export function navLabelFor(pathname: string): string | null {
     if (hit && (!best || item.href.length > best.href.length)) best = item;
   }
   return best?.label ?? null;
+}
+
+/**
+ * The shortcut row for the top bar, in menu order.
+ *
+ * Six destinations, close to what the team already had muscle memory for, with
+ * two corrections: مهام اليوم is where a working day now starts, and المالية
+ * replaces طرق الدفع, which is a settings screen people open a few times a year.
+ * Neither dropped destination is lost — both remain on the rail.
+ */
+export function primaryNavItems(): NavItem[] {
+  return NAV_ITEMS.filter((i) => i.primary);
 }

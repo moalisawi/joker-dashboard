@@ -1881,3 +1881,15 @@ p { color: inherit; }
   .jk-stack-table tr:has(> td.jk-stack-full) { border: 0; margin: 0; padding: 0; }
 }
 
+
+/* ── Top bar shortcut row ─────────────────────────────────────────────────────
+ *
+ * Hidden below 1024px. The row and the icon rail are the same navigation shown
+ * two ways; on a narrow screen the rail is enough, and a horizontally scrolling
+ * strip of pills competing with the page name is worse than either alone.
+ * The page name always stays — it is the only label for destinations that are
+ * on the rail but not in this row, such as /sales.
+ */
+@media (max-width: 1023px) {
+  .jk-topnav-links { display: none !important; }
+}
