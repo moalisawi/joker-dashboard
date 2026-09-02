@@ -265,7 +265,19 @@ export interface TeamMetrics {
 }
 
 /**
- * Build per-team metrics from subscriber data matched by assignedTeamId.
+ * Per-team metrics, matched by team id OR by team name.
+ *
+ * Matching only `assignedTeamId` scored every team zero. That field belongs to
+ * the newer workflow extension and is set on NO subscriber here — measured
+ * 1 Sep 2026: 0 of 51 carry it, while all 51 carry the legacy `team` name, and
+ * those names match the team documents exactly (فريق الشباب 23 · عبدالله طلبة 14
+ * · فريق المبيعات 10 · فريق البنات 4). `normalizeSubscriber` does not even copy
+ * assignedTeamId, so it could not have worked.
+ *
+ * The name is resolved back to a team id so both routes land in the same bucket
+ * and a team is never counted twice. An explicit assignment still wins — it is
+ * the newer, deliberate statement — exactly as in filterEmployeeSubscribers.
+ *
  * Teams with zero subscribers are included if passed in.
  */
 export function teamPerformanceFromSubscribers(
@@ -273,6 +285,9 @@ export function teamPerformanceFromSubscribers(
   teams: Team[]
 ): TeamMetrics[] {
   const map = new Map<string, TeamMetrics>();
+  // Name → id, so a legacy `team` string resolves into the same bucket as an
+  // explicit assignment instead of creating a parallel row.
+  const idByName = new Map(teams.map((t) => [t.name, t.id]));
 
   for (const t of teams) {
     map.set(t.id, {
@@ -288,12 +303,12 @@ export function teamPerformanceFromSubscribers(
   }
 
   for (const s of subscribers) {
-    const tid = s.assignedTeamId;
+    const tid = s.assignedTeamId ?? idByName.get(s.team ?? "") ?? null;
     if (!tid) continue;
     if (!map.has(tid)) {
       map.set(tid, {
         teamId:        tid,
-        teamName:      s.assignedTeamName ?? tid,
+        teamName:      s.assignedTeamName ?? s.team ?? tid,
         subscribers:   0,
         active:        0,
         renewals:      0,

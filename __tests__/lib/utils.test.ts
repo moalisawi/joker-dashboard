@@ -150,3 +150,64 @@ describe('normalizeSubscriber carries soft-delete state', () => {
     expect(rows.filter((s) => s.deleted !== true).map((s) => s.id)).toEqual(['live'])
   })
 })
+
+/*
+ * normalizeSubscriber must carry EVERY field the Subscriber type declares.
+ *
+ * This normaliser builds its result field by field rather than spreading the
+ * raw document, so a field it forgets is silently absent — it does not throw,
+ * it makes every feature depending on it quietly do nothing. Four separate bugs
+ * traced to exactly this, and each looked like a different problem:
+ *
+ *   deleted                → soft delete did nothing; archived rows counted
+ *   assignedSalesId        → /sales scored every employee $0, and was hidden
+ *   assignedTeamId         → the team leaderboard scored every team zero
+ *   renewalWorkflowStatus  → the outcome buttons on /today changed nothing
+ *
+ * The individual assertions below would each have caught one bug. The last test
+ * is the one that matters: it fails for a field nobody has thought of yet.
+ */
+describe('normalizeSubscriber carries the whole record', () => {
+  const raw = {
+    id: 's1', name: 'م', date: '2026-01-01', duration: 30,
+    deleted: true,
+    assignedSalesId: 'emp-1', assignedSalesName: 'ميدو',
+    assignedTeamId: 't-1', assignedTeamName: 'فريق الشباب',
+    assignedNutritionistId: 'n-1', assignedNutritionistName: 'حنان',
+    renewalWorkflowStatus: 'contacted', renewalHandledBy: 'emp-2',
+    renewalHandledByName: 'ميار', renewalNote: 'وعد بالدفع الأسبوع القادم',
+    renewalSuggestedBy: 'emp-3', renewalSuggestedByName: 'حنان',
+    workflowStatus: 'active', workflowStatusChangedBy: 'emp-1',
+    workflowStatusNote: 'ملاحظة', assignmentType: 'manual',
+    currentCycleId: 'c-1', currentCycleNumber: 2, currentInvoiceId: 'i-1',
+    paymentPlanType: 'installments',
+  }
+
+  it('keeps the sales assignment — the /sales bug', () => {
+    expect(normalizeSubscriber(raw).assignedSalesId).toBe('emp-1')
+  })
+
+  it('keeps the team assignment — the leaderboard bug', () => {
+    expect(normalizeSubscriber(raw).assignedTeamId).toBe('t-1')
+  })
+
+  it('keeps the renewal outcome — the /today buttons bug', () => {
+    expect(normalizeSubscriber(raw).renewalWorkflowStatus).toBe('contacted')
+  })
+
+  it('keeps the ledger pointers', () => {
+    const n = normalizeSubscriber(raw)
+    expect(n.currentCycleId).toBe('c-1')
+    expect(n.currentCycleNumber).toBe(2)
+    expect(n.currentInvoiceId).toBe('i-1')
+  })
+
+  it('THE INVARIANT: no field the type declares is silently dropped', () => {
+    // Every optional field is given a value above, so anything coming back
+    // undefined is a field the normaliser forgot — the failure mode that
+    // produced four separate bugs and no error message.
+    const n = normalizeSubscriber(raw) as unknown as Record<string, unknown>
+    const forgotten = Object.keys(raw).filter((k) => n[k] === undefined)
+    expect(forgotten).toEqual([])
+  })
+})

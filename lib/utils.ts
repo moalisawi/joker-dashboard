@@ -239,6 +239,59 @@ export function normalizeSubscriber(raw: Record<string, unknown> & { id: string 
     deleted:   Boolean(raw.deleted),
     deletedAt: raw.deletedAt as import("firebase/firestore").Timestamp | undefined,
     deletedBy: raw.deletedBy as string | undefined,
+
+    /*
+     * ── Workflow, assignment and ledger pointers ──────────────────────────
+     *
+     * These 23 fields were declared on the Subscriber type and never copied
+     * here, so every consumer read `undefined` no matter what Firestore held.
+     * Because this normaliser builds its result field by field instead of
+     * spreading `raw`, a forgotten field is silently absent — it does not throw,
+     * it just makes every feature that depends on it quietly do nothing.
+     *
+     * Three separate bugs traced back to exactly this, and all three looked like
+     * different problems:
+     *
+     *   • /sales scored every employee 0 subscribers and $0 — it matched on
+     *     assignedSalesId. The page was dropped from the navigation rather than
+     *     debugged.
+     *   • The team leaderboard scored every team zero — assignedTeamId.
+     *   • The outcome buttons on /today wrote renewalWorkflowStatus to Firestore
+     *     correctly and the list never changed, because the value never came
+     *     back. Shipped in that state earlier today.
+     *
+     * The deleted flag was the fourth, fixed separately this morning.
+     *
+     * Any field added to the Subscriber type has to be added here too. That is a
+     * real weakness of this design, and the reason it is written down.
+     */
+    withdrawalDate: (raw.withdrawalDate as import("firebase/firestore").Timestamp | null) ?? null,
+
+    currentCycleId:     (raw.currentCycleId as string | null) ?? null,
+    currentCycleNumber: raw.currentCycleNumber != null ? Number(raw.currentCycleNumber) : undefined,
+    currentInvoiceId:   (raw.currentInvoiceId as string | null) ?? null,
+    paymentPlanType:    raw.paymentPlanType as import("../types/billing").PaymentPlanType | undefined,
+
+    assignedSalesId:          (raw.assignedSalesId as string | null) ?? null,
+    assignedSalesName:        (raw.assignedSalesName as string | null) ?? null,
+    assignedNutritionistId:   (raw.assignedNutritionistId as string | null) ?? null,
+    assignedNutritionistName: (raw.assignedNutritionistName as string | null) ?? null,
+    assignedTeamId:           (raw.assignedTeamId as string | null) ?? null,
+    assignedTeamName:         (raw.assignedTeamName as string | null) ?? null,
+    assignmentType:    raw.assignmentType as import("../constants/subscriberWorkflow").AssignmentType | undefined,
+    assignmentHistory: (raw.assignmentHistory as import("../types/subscriberWorkflow").AssignmentHistoryEntry[]) ?? undefined,
+
+    workflowStatus:          raw.workflowStatus as import("../constants/subscriberWorkflow").WorkflowStatus | undefined,
+    workflowStatusChangedAt: raw.workflowStatusChangedAt as import("firebase/firestore").Timestamp | undefined,
+    workflowStatusChangedBy: raw.workflowStatusChangedBy as string | undefined,
+    workflowStatusNote:      raw.workflowStatusNote as string | undefined,
+
+    renewalWorkflowStatus:  raw.renewalWorkflowStatus as import("../constants/subscriberWorkflow").RenewalWorkflowStatus | undefined,
+    renewalSuggestedBy:     (raw.renewalSuggestedBy as string | null) ?? null,
+    renewalSuggestedByName: (raw.renewalSuggestedByName as string | null) ?? null,
+    renewalHandledBy:       (raw.renewalHandledBy as string | null) ?? null,
+    renewalHandledByName:   (raw.renewalHandledByName as string | null) ?? null,
+    renewalNote:            raw.renewalNote as string | undefined,
   };
   normalized.status = getComputedStatus({
     ...normalized,
