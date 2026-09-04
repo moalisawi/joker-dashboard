@@ -45,6 +45,8 @@ import {
   ADJUSTMENT_TYPES,
   MAX_INSTALLMENTS,
 } from "@/constants/billing";
+import { CLIENT_WRITABLE_SUBSCRIBER_FIELDS } from "@/constants/subscriberFieldPolicy";
+import { currencySchema, dateSchema, subscriberCoreSchema } from "@/lib/subscriberWriteSchema";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -52,52 +54,9 @@ export const runtime = "nodejs";
 // ── Zod schemas for each operation payload ────────────────────────────────────
 
 const subscriberIdSchema = z.string().min(1, "subscriberId is required");
-const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD").optional();
 const positiveNumber = z.number().positive();
 const nonNegativeNumber = z.number().min(0);
-const currencySchema = z.string().min(1).max(10);
 
-const subscriberCoreSchema = z.object({
-  name:             z.string().min(1, "Name is required").max(200),
-  phone:            z.string().max(50).optional().nullable(),
-  package:          z.string().max(200).optional().nullable(),
-  duration:         z.number().int().positive().optional(),
-  source:           z.string().max(100).optional().nullable(),
-  convincedBy:      z.string().max(200).optional().nullable(),
-  convincedByUid:   z.string().max(128).optional().nullable(),
-  paidShift:        z.string().max(200).optional().nullable(),
-  notes:            z.string().max(2000).optional().nullable(),
-  date:             dateSchema,
-  startDate:        dateSchema,
-  expiryDate:       dateSchema,
-  currencyOriginal: currencySchema.optional(),
-  lockedRate:       z.number().positive().optional(),
-  totalPrice:       nonNegativeNumber.optional(),
-  totalPriceUSD:    nonNegativeNumber.optional(),
-  payment:          z.string().max(100).optional().nullable(),
-  paymentMethodId:  z.string().max(100).optional().nullable(),
-  gender:           z.enum(["male","female"]).optional().nullable(),
-  age:              z.number().int().min(1).max(150).optional().nullable(),
-  teamId:           z.string().optional().nullable(),
-  teamName:         z.string().max(200).optional().nullable(),
-  // Extended profile fields
-  residence:        z.string().max(100).optional().nullable(),
-  phoneCountry:     z.string().max(10).optional().nullable(),
-  dialCode:         z.string().max(10).optional().nullable(),
-  phoneE164:        z.string().max(20).optional().nullable(),
-  height:           z.number().positive().optional().nullable(),
-  weight:           z.number().positive().optional().nullable(),
-  goal:             z.string().max(500).optional().nullable(),
-  referrer:         z.string().max(200).optional().nullable(),
-  sourceDetail:     z.string().max(200).optional().nullable(),
-  assignedSalesId:          z.string().max(128).optional().nullable(),
-  assignedSalesName:        z.string().max(200).optional().nullable(),
-  assignedNutritionistId:   z.string().max(128).optional().nullable(),
-  assignedNutritionistName: z.string().max(200).optional().nullable(),
-  assignedTeamId:           z.string().max(128).optional().nullable(),
-  assignedTeamName:         z.string().max(200).optional().nullable(),
-  assignmentType:           z.string().max(50).optional().nullable(),
-});
 
 /**
  * How the subscription will be paid for.
@@ -275,22 +234,20 @@ function todayString() {
   return new Date().toISOString().split("T")[0];
 }
 
-// Fields that may be set/updated by the client.
-// Financial fields are intentionally excluded — they are only mutated
-// through their dedicated operations (addPayment, renewSubscription, etc.).
-const SUBSCRIBER_WRITABLE_FIELDS = new Set([
-  "name", "phone", "package", "duration", "source", "convincedBy", "convincedByUid",
-  "paidShift", "notes", "teamId", "teamName",
-  "assignedSalesId", "assignedSalesName",
-  "assignedNutritionistId", "assignedNutritionistName",
-  "assignedTeamId", "assignedTeamName", "assignmentType",
-  "date", "startDate", "expiryDate",
-  "currencyOriginal", "lockedRate",
-  "totalPrice", "totalPriceUSD",
-  "status", "subscriptionStatus",
-  "gender", "age", "height", "weight", "goal",
-  "paymentMethodId", "payment",
-]);
+/**
+ * Fields that may be set/updated by the client.
+ *
+ * Derived from `SUBSCRIBER_FIELD_POLICY`, never hand-written. The list used to
+ * live here as a literal and had drifted from the schema above it: `residence`,
+ * `phoneCountry`, `dialCode`, `phoneE164`, `referrer` and `sourceDetail` all
+ * passed validation and were then dropped here, silently, on every signup. It
+ * also named `status` and `subscriptionStatus`, which the schema does not accept
+ * — entries that could never match anything.
+ *
+ * Deriving it means a field is writable exactly when the policy table says so,
+ * and the policy table is checked by the compiler against the Subscriber type.
+ */
+const SUBSCRIBER_WRITABLE_FIELDS = CLIENT_WRITABLE_SUBSCRIBER_FIELDS;
 
 function pickWritableFields(raw: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(

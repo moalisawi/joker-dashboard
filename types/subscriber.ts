@@ -38,7 +38,14 @@ export interface Subscriber {
   phoneCountry: string;
   dialCode: string;
   phone: string;
+  /** Dial code and number as one E.164 string, when the form could build one. */
+  phoneE164?: string | null;
   age?: number | null;
+  /** Extended profile — collected at signup, stored, and until now never read back. */
+  gender?: "male" | "female" | null;
+  height?: number | null;
+  weight?: number | null;
+  goal?: string | null;
   package: PackageType;
   duration: number;
   expiryDate: string;
@@ -59,12 +66,26 @@ export interface Subscriber {
 
   // Payment
   payment: string;
+  /** The payment method the signup was paid through, when one was chosen. */
+  paymentMethodId?: string | null;
   source: string;
+  /**
+   * Which ad platform, when `source` is an ad — and who referred, when it is a
+   * referral.
+   *
+   * Both were collected by the form and accepted by the server and then dropped
+   * before the write, so neither existed on any record. `referrer` was declared
+   * here; `sourceDetail` was not declared at all, which meant that even once the
+   * write was fixed the value could not have reached the screen.
+   */
+  sourceDetail?: string | null;
   referrer?: string;
   convincedBy: string;
   convincedByUid?: string | null;
   paidShift: string;
   team: string;
+  teamId?: string | null;
+  teamName?: string | null;
   notes?: string;
 
   // Withdrawal

@@ -1,12 +1,24 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import { Search, Users, ArrowRight } from "lucide-react";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { useAuthStore } from "@/store/authStore";
 import { useSearchStore } from "@/store/searchStore";
+import { searchCustomers } from "@/lib/customerSearch";
+
+/** How many rows are drawn. A limit on painting, never on matching. */
+const MAX_RENDERED = 40;
+
+/** "باقٍ 12 يوماً" / "منتهٍ منذ 3 أيام" — the number an employee asks for first. */
+function daysLabel(days: number | undefined): string | null {
+  if (days == null || Number.isNaN(days)) return null;
+  if (days < 0) return `منتهٍ منذ ${Math.abs(days)} يوماً`;
+  if (days === 0) return "ينتهي اليوم";
+  return `باقٍ ${days} يوماً`;
+}
 
 function statusColor(status: string): string {
   if (status === "نشط")           return "#5B5FEF";
@@ -21,6 +33,13 @@ export default function GlobalSearch() {
   const { subscribers } = useSubscribers();
   const { open, closeSearch, toggleSearch } = useSearchStore();
 
+  /*
+   * The query lives here rather than inside cmdk because cmdk's own filtering is
+   * switched off (`shouldFilter={false}`) — and nothing had taken over from it,
+   * which is why typing did nothing at all.
+   */
+  const [query, setQuery] = useState("");
+
   // Cmd+K / Ctrl+K
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -33,6 +52,17 @@ export default function GlobalSearch() {
     return () => window.removeEventListener("keydown", handler);
   }, [toggleSearch]);
 
+  /*
+   * Clear the box when the palette closes, so it never reopens showing
+   * yesterday's search as if it were fresh. Adjusted during render rather than
+   * in an effect — an effect would render the stale query once first.
+   */
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (!open) setQuery("");
+  }
+
   const go = useCallback(
     (href: string) => {
       closeSearch();
@@ -43,15 +73,29 @@ export default function GlobalSearch() {
 
   if (!open) return null;
 
-  const results = subscribers.slice(0, 50).map((s) => ({
+  /*
+   * Match first, cap second — the previous order made the 51st subscriber
+   * unreachable by any query. The cap that remains is a drawing limit on an
+   * already-filtered list, and the count below says when it is hiding anything.
+   */
+  const matched = searchCustomers(subscribers, query);
+  const results = matched.slice(0, MAX_RENDERED).map((s) => ({
     id:    s.id,
     title: s.name || "—",
-    sub:   [s.phone, s.residence, s.package].filter(Boolean).join(" · "),
+    phone: [s.dialCode, s.phone].filter(Boolean).join(" "),
     href:  `/subscribers/${s.id}`,
     badge: s.subscriptionState === "withdrawn" ? "منسحب" : s.status,
     color: s.subscriptionState === "withdrawn" ? "#EF4444" : statusColor(s.status),
-    searchValue: `${s.name} ${s.phone} ${s.residence} ${s.package} ${s.convincedBy}`.toLowerCase(),
+    // Everything an employee needs before deciding to open the record.
+    meta: [
+      s.team || null,
+      s.package || null,
+      s.expiryDate ? `ينتهي ${s.expiryDate}` : null,
+      s.subscriptionState === "withdrawn" ? null : daysLabel(s.daysRemaining),
+    ].filter(Boolean).join(" · "),
+    owed: (s.remainingAmountUSD ?? 0) > 0 ? s.remainingAmountUSD : 0,
   }));
+  const hidden = matched.length - results.length;
 
   return (
     <div
@@ -78,7 +122,9 @@ export default function GlobalSearch() {
           <Search size={17} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
           <Command.Input
             autoFocus
-            placeholder="ابحث عن مشترك بالاسم أو الهاتف أو الباقة..."
+            value={query}
+            onValueChange={setQuery}
+            placeholder="ابحث بالاسم أو الرقم — بأي صيغة"
             className="flex-1 bg-transparent outline-none text-sm font-medium placeholder:text-slate-400"
             style={{ color: "var(--text-primary)" }}
           />
@@ -92,22 +138,31 @@ export default function GlobalSearch() {
 
         {/* ── Results list ─────────────────────────────────────────────── */}
         <Command.List className="max-h-[380px] overflow-y-auto py-2 overscroll-contain">
-          <Command.Empty className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-            لا توجد نتائج مطابقة
-          </Command.Empty>
+          {results.length === 0 && (
+            <p className="py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+              لا توجد نتائج مطابقة
+            </p>
+          )}
 
           <Command.Group
             heading={
               <span className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider block"
                 style={{ color: "var(--text-muted)" }}>
                 المشتركون
+                {query.trim() && (
+                  <span style={{ fontWeight: 500 }}>
+                    {"  "}
+                    <bdi dir="ltr">{matched.length}</bdi>
+                    {hidden > 0 ? ` — يُعرض أول ${MAX_RENDERED}` : ""}
+                  </span>
+                )}
               </span>
             }
           >
             {results.map((r) => (
               <Command.Item
                 key={r.id}
-                value={r.searchValue}
+                value={r.id}
                 onSelect={() => go(r.href)}
                 className="flex items-center gap-3 px-4 py-2.5 text-right cursor-pointer transition-colors outline-none"
                 style={{
@@ -122,11 +177,27 @@ export default function GlobalSearch() {
                   <Users size={14} style={{ color: r.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-                    {r.title}
-                  </p>
+                  <div className="flex items-baseline gap-2 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: "var(--text-primary)" }}>
+                      {r.title}
+                    </p>
+                    {r.phone && (
+                      <bdi dir="ltr" className="text-[11.5px] shrink-0" style={{ color: "var(--text-muted)" }}>
+                        {r.phone}
+                      </bdi>
+                    )}
+                  </div>
                   <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-                    {r.sub}
+                    {r.meta}
+                    {r.owed > 0 && (
+                      <>
+                        {" · متبقٍّ "}
+                        {/* Isolated so the sign stays left of the digits in RTL. */}
+                        <bdi dir="ltr" style={{ fontWeight: 700 }}>
+                          {"$" + r.owed.toFixed(r.owed % 1 === 0 ? 0 : 2)}
+                        </bdi>
+                      </>
+                    )}
                   </p>
                 </div>
                 {r.badge && (
