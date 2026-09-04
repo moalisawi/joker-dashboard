@@ -12,7 +12,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { useAuthStore } from "@/store/authStore";
 import { useMarkContact } from "@/features/today/useMarkContact";
-import { buildTodayTasks, whatsappNumber, type TaskItem } from "@/lib/todayTasks";
+import { buildTodayTasks, whatsappNumber, type TaskItem, type TodayTasks } from "@/lib/todayTasks";
 import type { RenewalWorkflowStatus } from "@/constants/subscriberWorkflow";
 
 /**
@@ -38,6 +38,11 @@ const OUTCOMES: { status: RenewalWorkflowStatus; label: string; icon: React.Reac
   { status: "declined",  label: "رفض التجديد", icon: <XCircle size={13} />,    color: "#DC2626" },
 ];
 
+/** "$40" / "$25.45" — whole amounts stay whole, so the strip reads clean. */
+function money(n: number) {
+  return "$" + n.toFixed(n % 1 === 0 ? 0 : 2);
+}
+
 function OutcomeButton({
   label, icon, color, disabled, onClick,
 }: { label: string; icon: React.ReactNode; color: string; disabled: boolean; onClick: () => void }) {
@@ -48,17 +53,15 @@ function OutcomeButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className="shrink-0 h-7 w-7 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40"
-      style={{ border: "1px solid var(--jk-divider)", background: "transparent", color: "var(--jk-subtle)" }}
+      className="shrink-0 w-7 flex items-center justify-center rounded-md transition-colors disabled:opacity-40"
+      style={{ height: 26, border: "none", background: "transparent", color: "var(--jk-subtle)" }}
       onMouseEnter={(e) => {
         if (disabled) return;
         e.currentTarget.style.color = color;
-        e.currentTarget.style.borderColor = `${color}55`;
-        e.currentTarget.style.background = `${color}14`;
+        e.currentTarget.style.background = `${color}18`;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.color = "var(--jk-subtle)";
-        e.currentTarget.style.borderColor = "var(--jk-divider)";
         e.currentTarget.style.background = "transparent";
       }}
     >
@@ -68,8 +71,8 @@ function OutcomeButton({
 }
 
 function TaskRow({
-  item, accent, showOutcomes,
-}: { item: TaskItem; accent: string; showOutcomes: boolean }) {
+  item, accent, showOutcomes, last,
+}: { item: TaskItem; accent: string; showOutcomes: boolean; last: boolean }) {
   const s = item.subscriber;
   const wa = whatsappNumber(s);
   const mark = useMarkContact();
@@ -79,13 +82,19 @@ function TaskRow({
     <div
       className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl"
       style={{
-        borderBottom: "1px solid var(--jk-divider)",
+        // No divider under the final row — a line that closes nothing reads as
+        // a list that got cut off mid-way.
+        borderBottom: last ? "1px solid transparent" : "1px solid var(--jk-divider)",
         // Dimmed rather than hidden: someone has spoken to them, but a promise
         // is not a payment and the row is still owed a follow-up.
         opacity: item.inProgress ? 0.55 : 1,
       }}
     >
-      <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, background: accent }} aria-hidden="true" />
+      <span
+        className="shrink-0 rounded-full"
+        style={{ width: 7, height: 7, background: accent, boxShadow: `0 0 0 3px ${accent}22` }}
+        aria-hidden="true"
+      />
 
       <div className="min-w-0 flex-1">
         <Link
@@ -100,7 +109,7 @@ function TaskRow({
             <>
               {"متبقٍّ "}
               {/* Isolated so the currency sign stays left of the digits in RTL. */}
-              <bdi dir="ltr">{"$" + item.amountUSD.toFixed(item.amountUSD % 1 === 0 ? 0 : 2)}</bdi>
+              <bdi dir="ltr">{money(item.amountUSD)}</bdi>
             </>
           ) : (
             item.reason
@@ -126,9 +135,19 @@ function TaskRow({
       )}
 
       {showOutcomes && (
-        <div className="shrink-0 flex items-center gap-1">
+        // One segmented control rather than four floating outlined squares.
+        // Four equally-weighted boxes per row read as noise at a glance; a
+        // single grouped strip reads as one thing you can act on.
+        <div
+          className="shrink-0 flex items-center rounded-lg p-0.5"
+          style={{ background: "var(--jk-surface-hover)", border: "1px solid var(--jk-divider)" }}
+        >
           {busy ? (
-            <Loader2 size={14} className="animate-spin" style={{ color: "var(--jk-subtle)" }} />
+            // Same footprint as the four buttons, so the row does not jump
+            // while the write is in flight.
+            <span className="flex items-center justify-center" style={{ width: 112, height: 26 }}>
+              <Loader2 size={14} className="animate-spin" style={{ color: "var(--jk-subtle)" }} />
+            </span>
           ) : (
             OUTCOMES.map((o) => (
               <OutcomeButton
@@ -154,18 +173,25 @@ function TaskRow({
 }
 
 function TaskColumn({
-  title, hint, items, accent, icon, emptyText, showOutcomes = false,
+  title, hint, items, accent, icon, emptyText, footNote, showOutcomes = false,
 }: {
   title: string; hint: string; items: TaskItem[]; accent: string;
-  icon: React.ReactNode; emptyText: string; showOutcomes?: boolean;
+  icon: React.ReactNode; emptyText: string; footNote?: string; showOutcomes?: boolean;
 }) {
   return (
     <section
       className="rounded-2xl overflow-hidden flex flex-col"
       style={{ background: "var(--surface)", border: "1px solid var(--jk-border)", boxShadow: "var(--shadow-card)" }}
     >
-      <header className="flex items-center gap-3 p-4" style={{ borderBottom: "1px solid var(--jk-divider)" }}>
-        <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${accent}18`, color: accent }}>
+      {/* A hairline of the column's colour, so the three cards are told apart
+          before a word is read. */}
+      <div style={{ height: 3, background: `linear-gradient(90deg, ${accent}, ${accent}55)` }} aria-hidden="true" />
+
+      <header
+        className="flex items-center gap-3 p-4"
+        style={{ borderBottom: "1px solid var(--jk-divider)", background: `${accent}0A` }}
+      >
+        <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${accent}1F`, color: accent }}>
           {icon}
         </div>
         <div className="min-w-0 flex-1">
@@ -174,7 +200,7 @@ function TaskColumn({
         </div>
         <span
           className="shrink-0 rounded-lg px-2.5 py-1 text-[13px] font-extrabold tabular-nums"
-          style={{ background: `${accent}18`, color: accent }}
+          style={{ background: `${accent}1F`, color: accent }}
         >
           {items.length}
         </span>
@@ -187,19 +213,53 @@ function TaskColumn({
         </div>
       ) : (
         <div className="flex flex-col p-1.5 max-h-[26rem] overflow-y-auto">
-          {items.map((it) => (
-            <TaskRow key={`${it.subscriber.id}-${it.reason}`} item={it} accent={accent} showOutcomes={showOutcomes} />
+          {items.map((it, i) => (
+            <TaskRow
+              key={`${it.subscriber.id}-${it.reason}`}
+              item={it}
+              accent={accent}
+              showOutcomes={showOutcomes}
+              last={i === items.length - 1}
+            />
           ))}
+        </div>
+      )}
+
+      {footNote && items.length > 0 && (
+        <div
+          className="px-4 py-2.5 text-[11.5px] font-bold"
+          style={{ borderTop: "1px solid var(--jk-divider)", color: "var(--jk-subtle)", background: "var(--jk-surface-hover)" }}
+        >
+          {footNote}
         </div>
       )}
     </section>
   );
 }
 
+/** One number with its label — the day at a glance, above the columns. */
+function SummaryChip({
+  label, value, accent, icon,
+}: { label: string; value: React.ReactNode; accent: string; icon: React.ReactNode }) {
+  return (
+    <div
+      className="flex items-center gap-2.5 rounded-xl px-3 py-2"
+      style={{ background: "var(--surface)", border: "1px solid var(--jk-border)", boxShadow: "var(--shadow-card)" }}
+    >
+      <span className="h-7 w-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${accent}1F`, color: accent }}>
+        {icon}
+      </span>
+      <span className="text-[15px] font-extrabold tabular-nums" style={{ color: "var(--jk-text)" }}>{value}</span>
+      <span className="text-[11.5px]" style={{ color: "var(--jk-subtle)" }}>{label}</span>
+    </div>
+  );
+}
+
 export default function TodayPage() {
   const { user, can } = useAuthStore();
   const { subscribers, loading } = useSubscribers();
-  const tasks = buildTodayTasks(subscribers);
+  const tasks: TodayTasks = buildTodayTasks(subscribers);
+  const owed = tasks.collections.reduce((sum, t) => sum + (t.amountUSD ?? 0), 0);
 
   // Recording an outcome is a renewal action, the same bar the API enforces.
   // Without it the buttons would appear and then fail with a 403.
@@ -217,7 +277,26 @@ export default function TodayPage() {
               ? "لا شيء عاجل اليوم — دفترك مرتّب"
               : `${tasks.total} مهمة تنتظرك${greeting ? "، " + greeting : ""}`
         }
-      />
+      >
+        {/* The counts live beside the title instead of only inside each card,
+            so the shape of the day is readable without scanning three lists —
+            and the header's empty half now carries something. */}
+        {!loading && tasks.total > 0 && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <SummaryChip label="تجديد" value={tasks.renewals.length} accent={ACC.amber} icon={<RefreshCw size={14} />} />
+            <SummaryChip label="استرجاع" value={tasks.winBack.length} accent={ACC.rose} icon={<RotateCcw size={14} />} />
+            <SummaryChip label="تحصيل" value={tasks.collections.length} accent={ACC.indigo} icon={<Wallet size={14} />} />
+            {owed > 0 && (
+              <SummaryChip
+                label="رصيد مفتوح"
+                value={<bdi dir="ltr">{money(owed)}</bdi>}
+                accent={ACC.emerald}
+                icon={<Wallet size={14} />}
+              />
+            )}
+          </div>
+        )}
+      </PageHeader>
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-20" style={{ color: "var(--jk-subtle)" }}>
@@ -229,7 +308,10 @@ export default function TodayPage() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+          // items-start: each card hugs its own content. Stretching three
+          // unequal lists to a single height left the short ones half empty,
+          // which is most of what made the screen look scattered.
+          className="grid gap-4 items-start md:grid-cols-2 xl:grid-cols-3"
         >
           <TaskColumn
             title="تجديدات هذا الأسبوع"
@@ -256,6 +338,7 @@ export default function TodayPage() {
             accent={ACC.indigo}
             icon={<Wallet size={17} />}
             emptyText="لا مستحقات مفتوحة"
+            footNote={owed > 0 ? `إجمالي المستحق: ${money(owed)}` : undefined}
           />
         </motion.div>
       )}
