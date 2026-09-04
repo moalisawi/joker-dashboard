@@ -14,7 +14,8 @@ type SubscriberOperation =
   | "freezeSubscription"
   | "resumeSubscription"
   | "verifyReceipt"
-  | "adjustPayment";
+  | "adjustPayment"
+  | "correctCycleTerms";
 
 type OperationResponse<T> = T & {
   success: boolean;

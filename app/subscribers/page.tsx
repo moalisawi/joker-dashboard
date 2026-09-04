@@ -6,7 +6,7 @@ import {
   Search, Download, SlidersHorizontal, Eye, Pencil, RotateCcw,
   CreditCard, Snowflake, PauseCircle, Play, UserMinus,  Trash2,
   MoreHorizontal, MessageCircle, ChevronLeft, ChevronRight, Copy,
-  ArrowUp, ArrowDown, ArrowUpDown, X, Plus, Users} from "lucide-react";
+  ArrowUp, ArrowDown, ArrowUpDown, X, Plus, Users, AlertTriangle} from "lucide-react";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import { useSubscribers } from "@/hooks/useSubscribers";
 import { useAuthStore } from "@/store/authStore";
@@ -17,6 +17,7 @@ import { buildContactList, describeContactList, CONTACT_FORMATS, type ContactFor
 import { callSubscriberOperation } from "@/lib/clientOperations";
 import { toast } from "@/lib/toast";
 import SubscriberModal from "@/components/subscribers/SubscriberModal";
+import CorrectTermsModal from "@/components/subscribers/CorrectTermsModal";
 import RenewalModal from "@/components/subscribers/RenewalModal";
 import PaymentModal from "@/components/subscribers/PaymentModal";
 import ProfileModal from "@/components/subscribers/ProfileModal";
@@ -32,7 +33,7 @@ import type { Subscriber } from "@/types";
 
 // ── Status types & config ──────────────────────────────────────────────────────
 type StatusKey = "الكل" | "نشط" | "ينتهي قريباً" | "منتهي" | "موقوف" | "متجمد" | "منسحب";
-type ModalType = "profile" | "create" | "edit" | "renew" | "payment" | "withdraw" | "pause" | "freeze" | "resume" | null;
+type ModalType = "profile" | "create" | "edit" | "renew" | "payment" | "withdraw" | "pause" | "freeze" | "resume" | "correctTerms" | null;
 type SortField = "name" | "daysRemaining" | "netAmountUSD" | "expiryDate" | "date" | null;
 type SortDir = "asc" | "desc";
 
@@ -322,12 +323,13 @@ function QuickAction({ label, icon, color, onClick }: {
 
 function ActionMenu({
   s, canEdit, canWithdraw, canDelete,
-  onProfile, onEdit, onRenew, onPayment, onFreeze, onResume, onPause, onWithdraw, onDelete, onResumePause,
+  onProfile, onEdit, onRenew, onPayment, onFreeze, onResume, onPause, onWithdraw, onDelete, onResumePause, onCorrectTerms, canCorrectTerms,
   loadingId,
 }: {
   s: Subscriber;
   canEdit: boolean; canWithdraw: boolean; canDelete: boolean;
   onProfile: () => void; onEdit: () => void; onRenew: () => void; onPayment: () => void;
+  onCorrectTerms: () => void; canCorrectTerms: boolean;
   onFreeze: () => void; onResume: () => void; onPause: () => void; onWithdraw: () => void;
   onDelete: () => void; onResumePause: () => void;
   loadingId: string | null;
@@ -356,6 +358,12 @@ function ActionMenu({
     { icon: <Play size={13}/>,        label: "استئناف الإيقاف",    action: () => close(onResumePause), show: canEdit && isPaused, color: "#F59E0B" },
     { icon: <UserMinus size={13}/>,   label: "انسحاب",              action: () => close(onWithdraw),    show: canWithdraw && isActive, color: "#EF4444" },
     { icon: <Trash2 size={13}/>,      label: "حذف",                 action: () => close(onDelete),      show: canDelete, color: "#EF4444" },
+    /*
+     * Deliberately last, differently worded and owner/admin only. This rewrites
+     * what was invoiced; sitting it next to "تعديل البيانات" is what made a
+     * price feel as ordinary to change as a phone number.
+     */
+    { icon: <AlertTriangle size={13}/>, label: "تصحيح شروط الدورة",  action: () => close(onCorrectTerms), show: canCorrectTerms, color: "#B02727" },
   ].filter(item => item.show);
 
   return (
@@ -1079,6 +1087,8 @@ export default function SubscribersPage() {
                           canDelete={can("canDelete")}
                           onProfile={() => openModal("profile", s)}
                           onEdit={() => openModal("edit", s)}
+                          onCorrectTerms={() => openModal("correctTerms", s)}
+                          canCorrectTerms={user?.role === "owner" || user?.role === "admin"}
                           onRenew={() => openModal("renew", s)}
                           onPayment={() => openModal("payment", s)}
                           onFreeze={() => openModal("freeze", s)}
@@ -1217,6 +1227,9 @@ export default function SubscribersPage() {
       {selected && modal === "edit" && (
         <SubscriberModal mode="edit" subscriber={selected} exchangeRates={exchangeRates}
           onClose={closeModal} onSaved={closeModal} />
+      )}
+      {selected && modal === "correctTerms" && (
+        <CorrectTermsModal subscriber={selected} onClose={closeModal} onSaved={closeModal} />
       )}
       {selected && modal === "renew" && (
         <RenewalModal subscriber={selected} exchangeRates={exchangeRates}

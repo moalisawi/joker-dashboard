@@ -50,6 +50,13 @@ import {
   UPDATE_WRITABLE_SUBSCRIBER_FIELDS,
 } from "@/constants/subscriberFieldPolicy";
 import {
+  MIN_REASON_LENGTH,
+  applyCorrection,
+  refuseCorrection,
+  type CycleTermsState,
+  type TermChanges,
+} from "@/lib/cycleTermsCorrection";
+import {
   findImmutableViolations,
   immutableRefusalMessage,
   pickWritable,
@@ -202,6 +209,29 @@ const resumeSchema = z.object({
   subscriberId: subscriberIdSchema,
 });
 
+/**
+ * Correcting terms that were typed wrong when the subscription was sold.
+ *
+ * Deliberately not `adjustPayment`: that moves money that arrived, this moves
+ * what was owed, and one standing in for the other would make a pricing typo
+ * look like cash that never existed. `expiryDate` is absent because it is an
+ * output of start and duration; `startDate` is absent because the code does not
+ * settle whether it or `date` owns the service start.
+ */
+const correctCycleTermsSchema = z.object({
+  subscriberId: subscriberIdSchema,
+  /** Optional: pre-ledger subscribers have no cycle, and are the likeliest to hold a mistake. */
+  cycleId:      z.string().max(128).optional().nullable(),
+  changes: z.object({
+    totalPriceOriginal: z.number().min(0).optional(),
+    currencyOriginal:   currencySchema.optional(),
+    lockedRate:         z.number().positive().optional(),
+    duration:           z.number().int().positive().optional(),
+    package:            z.string().max(200).optional(),
+  }).strict(),
+  reason: z.string().min(MIN_REASON_LENGTH, "سبب التصحيح مطلوب").max(1000),
+});
+
 const OPERATION_SCHEMAS = {
   createSubscriber:        createSubscriberSchema,
   updateSubscriber:        updateSubscriberSchema,
@@ -215,6 +245,7 @@ const OPERATION_SCHEMAS = {
   resumeSubscription:      resumeSchema,
   verifyReceipt:           verifyReceiptSchema,
   adjustPayment:           adjustPaymentSchema,
+  correctCycleTerms:       correctCycleTermsSchema,
 } as const;
 
 const VALID_OPERATIONS = new Set(Object.keys(OPERATION_SCHEMAS));
@@ -387,7 +418,24 @@ function requirePermission(user: NonNullable<ServerUser>, operation: Operation) 
     // permission's weight class, not the "record a payment" one — a salesperson
     // who can take money must not also be able to write it off.
     adjustPayment: ["payments", "refund"],
+    // Correcting the terms of a sale rewrites what was invoiced. That is the
+    // same weight class as a refund, and never a sales job.
+    correctCycleTerms: ["payments", "refund"],
   };
+
+  /*
+   * A capability is not enough here.
+   *
+   * `payments.refund` already excludes employees at the role ceiling, but a
+   * ceiling can be widened later by someone who has not read this file, and the
+   * whole point of the operation is that being an admin does not mean being
+   * able to write anything. The role floor states the rule where it cannot be
+   * granted around.
+   */
+  if (operation === "correctCycleTerms" && user.role !== "owner" && user.role !== "admin") {
+    return false;
+  }
+
   const required = requirements[operation];
   return required ? hasServerPermission(user, required[0], required[1]) : false;
 }
@@ -519,6 +567,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json(await resumeSubscription(user, payload));
       case "verifyReceipt":
         return NextResponse.json(await verifyReceipt(user, payload));
+      case "correctCycleTerms":
+        return NextResponse.json(await correctCycleTerms(user, payload));
       case "adjustPayment":
         return NextResponse.json(await adjustPayment(user, payload));
       default:
@@ -1834,4 +1884,136 @@ async function adjustPayment(user: NonNullable<ServerUser>, payload: Record<stri
   });
 
   return { success: true, adjustmentId: adjRef.id, paidAmountUSD: newPaidUSD, invoiceStatus };
+}
+
+/**
+ * Correct terms that were entered wrong when the subscription was sold.
+ *
+ * Reads the whole state first — payments, refunds, instalments, the hold
+ * history — because almost every refusal depends on something other than the
+ * field being changed. The decision itself is pure and lives in
+ * lib/cycleTermsCorrection.ts, so the rules are provable without an emulator;
+ * this function is the part that talks to Firestore.
+ *
+ * Nothing here writes a payment, a refund or an adjustment. Money that arrived
+ * is a historical fact and stays exactly as recorded — only what was owed moves.
+ */
+async function correctCycleTerms(user: NonNullable<ServerUser>, payload: Record<string, unknown>) {
+  const db = getFirestore();
+  const subscriberId = asString(payload.subscriberId);
+  const reason = asString(payload.reason).trim();
+  const changes = asRecord(payload.changes) as TermChanges;
+
+  const subRef = db.collection("subscribers").doc(subscriberId);
+  const subSnap = await subRef.get();
+  if (!subSnap.exists) throw new Error("Subscriber not found");
+  const current = subSnap.data() ?? {};
+
+  const cycleId = asString(payload.cycleId) || asString(current.currentCycleId) || null;
+  if (asString(payload.cycleId) && asString(payload.cycleId) !== asString(current.currentCycleId)) {
+    const error = new Error("الدورة المطلوبة ليست الدورة الحالية لهذا المشترك") as Error & { status?: number };
+    error.status = 422;
+    throw error;
+  }
+
+  // Presence, not contents: what changes the answer is whether any of these
+  // exist at all, and counting is cheaper than reading them.
+  const [paymentsSnap, refundsSnap] = await Promise.all([
+    db.collection("payments").where("subscriberId", "==", subscriberId).get(),
+    db.collection("refunds").where("subscriberId", "==", subscriberId).get(),
+  ]);
+
+  let invoiceId: string | null = null;
+  let installmentCount = 0;
+  if (cycleId) {
+    const cycleSnap = await db.collection("subscriptionCycles").doc(cycleId).get();
+    invoiceId = asString(cycleSnap.data()?.invoiceId) || null;
+    if (invoiceId) {
+      const instSnap = await db.collection("installments").where("invoiceId", "==", invoiceId).get();
+      installmentCount = instSnap.size;
+    }
+  }
+
+  const freezeData = asRecord(current.freezeData);
+  const state: CycleTermsState = {
+    totalPriceOriginal: asNumber(current.totalPrice),
+    currencyOriginal:   asString(current.currencyOriginal, "USD"),
+    lockedRate:         normalizeExchangeRate(current.lockedRate),
+    duration:           asNumber(current.duration),
+    package:            asString(current.package),
+    startDate:          asString(current.startDate) || asString(current.date),
+    paidAmountUSD:      asNumber(current.paidAmountUSD),
+    refundAmountUSD:    asNumber(current.refundAmountUSD),
+    paymentCount:       paymentsSnap.size,
+    refundCount:        refundsSnap.size,
+    installmentCount,
+    subscriptionState:  asString(current.subscriptionState),
+    subscriptionStatus: asString(current.subscriptionStatus),
+    isFrozen:           freezeData.isFrozen === true,
+    // Any hold in the past means expiry no longer equals start + duration.
+    everHeld:           asNumber(current.totalPausedDays) > 0 || Object.keys(freezeData).length > 0,
+  };
+
+  const refusals = refuseCorrection(changes, state, reason);
+  if (refusals.length > 0) {
+    const error = new Error(refusals.map((r) => r.message).join(" · ")) as Error & { status?: number };
+    error.status = 422;
+    throw error;
+  }
+
+  const result = applyCorrection(changes, state);
+
+  await db.runTransaction(async (tx) => {
+    tx.update(subRef, {
+      ...result.subscriberUpdate,
+      updatedBy: user.uid,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    if (cycleId) {
+      tx.set(
+        db.collection("subscriptionCycles").doc(cycleId),
+        { ...result.cycleUpdate, updatedBy: user.uid, updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+    }
+    if (invoiceId) {
+      tx.set(
+        db.collection("invoices").doc(invoiceId),
+        { ...result.invoiceUpdate, updatedBy: user.uid, updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+    }
+  });
+
+  // A correction with no audit entry is the silent edit this operation exists
+  // to replace, so the entry carries the reason and both sides of every field.
+  await writeAudit(user, "cycle_terms_corrected", {
+    category: "financial",
+    severity: "warning",
+    entityType: "subscriber",
+    entityId: subscriberId,
+    entityName: asString(current.name, subscriberId),
+    description: `تصحيح شروط الدورة: ${result.fields.join("، ")} — ${reason}`,
+    previousData: result.before,
+    newData: result.after,
+    changedFields: result.fields,
+    metadata: {
+      cycleId,
+      invoiceId,
+      reason,
+      paymentCountAtCorrection: state.paymentCount,
+      refundCountAtCorrection: state.refundCount,
+      installmentCountAtCorrection: state.installmentCount,
+      // Recognition is straight-line from startDate over duration, so a
+      // corrected price or duration changes what past months report as earned.
+      // There is no period close in this system; the entry says so rather than
+      // leaving a reader to discover it.
+      revenueRecognitionRestated:
+        result.fields.includes("totalPriceOriginal") ||
+        result.fields.includes("lockedRate") ||
+        result.fields.includes("duration"),
+    },
+  });
+
+  return { success: true, fields: result.fields, before: result.before, after: result.after };
 }
