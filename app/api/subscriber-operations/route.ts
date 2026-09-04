@@ -527,10 +527,15 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[subscriber-operations] operation failed:", message);
-    // Authorization failures thrown from inside a handler carry their own status
-    // so they answer 403 rather than the 500 a bare throw would produce.
+    // Failures thrown from inside a handler may carry their own status, so a
+    // deliberate refusal answers as one rather than as the 500 a bare throw
+    // produces. A refusal reported as a server fault reads as "the site is
+    // broken, try again", which is the opposite of what it means — and a caller
+    // cannot tell a rule from an outage.
     const status = (err as { status?: number })?.status;
-    if (status === 403) return jsonError(message, 403);
+    if (status === 403 || status === 404 || status === 409 || status === 422) {
+      return jsonError(message, status);
+    }
     // Expose domain-level validation errors (short, user-facing messages) to the client.
     // Suppress raw Firestore/internal error strings.
     const isSafeMessage = message.length < 200 && !/firestore|grpc|google|internal/i.test(message);
