@@ -221,7 +221,16 @@ export default function SubscriberModal({
       initialPayment:   "",
       payment:          subscriber.payment  || "",
       source:           subscriber.source   || "",
-      sourceDetail:     "",
+      /*
+       * Prefilled, not blanked.
+       *
+       * This was hardcoded to "" and harmless while the server dropped
+       * sourceDetail on every write — there was never a stored value to lose.
+       * Now that the field is stored, opening a subscriber and pressing save
+       * would submit an empty box over the real platform. A field is only safe
+       * to leave out of an edit form while nothing keeps it.
+       */
+      sourceDetail:     subscriber.sourceDetail || "",
       convincedBy:      subscriber.convincedBy || "",
       paidShift:        subscriber.paidShift   || "",
       team:             subscriber.team        || "",
