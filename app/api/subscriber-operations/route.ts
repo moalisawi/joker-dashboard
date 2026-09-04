@@ -228,7 +228,15 @@ const correctCycleTermsSchema = z.object({
     lockedRate:         z.number().positive().optional(),
     duration:           z.number().int().positive().optional(),
     package:            z.string().max(200).optional(),
-  }).strict(),
+    /*
+     * Unknown keys pass through rather than being stripped or rejected here, so
+     * `refuseCorrection` is the single place that answers "why not". Zod's own
+     * strict-mode refusal reads "Invalid input", which names neither the field
+     * nor the door that is open — and a refusal that explains nothing teaches
+     * the next attempt to be a workaround. Nothing downstream reads a key it
+     * does not know: the policy refuses the request before anything is applied.
+     */
+  }).passthrough(),
   reason: z.string().min(MIN_REASON_LENGTH, "سبب التصحيح مطلوب").max(1000),
 });
 
