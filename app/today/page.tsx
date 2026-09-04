@@ -176,7 +176,7 @@ function TaskColumn({
   title, hint, items, accent, icon, emptyText, footNote, showOutcomes = false,
 }: {
   title: string; hint: string; items: TaskItem[]; accent: string;
-  icon: React.ReactNode; emptyText: string; footNote?: string; showOutcomes?: boolean;
+  icon: React.ReactNode; emptyText: string; footNote?: React.ReactNode; showOutcomes?: boolean;
 }) {
   return (
     <section
@@ -338,7 +338,16 @@ export default function TodayPage() {
             accent={ACC.indigo}
             icon={<Wallet size={17} />}
             emptyText="لا مستحقات مفتوحة"
-            footNote={owed > 0 ? `إجمالي المستحق: ${money(owed)}` : undefined}
+            footNote={
+              owed > 0 ? (
+                <>
+                  {"إجمالي المستحق: "}
+                  {/* Same isolation as every other amount on this screen — a
+                      plain template string renders "206.86$" in RTL. */}
+                  <bdi dir="ltr">{money(owed)}</bdi>
+                </>
+              ) : undefined
+            }
           />
         </motion.div>
       )}
