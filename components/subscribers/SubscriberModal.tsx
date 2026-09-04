@@ -23,6 +23,7 @@ import { useEmployees } from "@/hooks/useEmployees";
 import { useTeams } from "@/hooks/useTeams";
 import { useSubscribersQuery } from "@/features/subscribers/hooks/useSubscribersQuery";
 import { createSubscriberSchema } from "@/features/subscribers/schemas/subscriber.schema";
+import { CREATE_ONLY_FIELDS } from "@/constants/subscriberFieldPolicy";
 
 // ─── Form schema ──────────────────────────────────────────────────────────────
 
@@ -426,7 +427,19 @@ export default function SubscriberModal({
       let newSubscriberId: string | undefined;
 
       if (isEdit) {
-        await callSubscriberOperation("updateSubscriber", { subscriberId: subscriber!.id, subscriber: payload });
+        /*
+         * Send who the person is, not what they bought.
+         *
+         * The terms of the sale — price, rate, currency, duration, package,
+         * dates — are fixed when the subscription is sold and moved afterwards
+         * only by renew, freeze or resume. The server refuses them here anyway;
+         * stripping them client-side means an ordinary rename does not arrive
+         * carrying nine fields it has no business restating.
+         */
+        const editable = Object.fromEntries(
+          Object.entries(payload).filter(([k]) => !(CREATE_ONLY_FIELDS as readonly string[]).includes(k))
+        );
+        await callSubscriberOperation("updateSubscriber", { subscriberId: subscriber!.id, subscriber: editable });
       } else {
         // Upload all selected files
         const uploadedUrls: string[] = [];

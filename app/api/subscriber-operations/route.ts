@@ -45,7 +45,15 @@ import {
   ADJUSTMENT_TYPES,
   MAX_INSTALLMENTS,
 } from "@/constants/billing";
-import { CLIENT_WRITABLE_SUBSCRIBER_FIELDS } from "@/constants/subscriberFieldPolicy";
+import {
+  CREATE_WRITABLE_SUBSCRIBER_FIELDS,
+  UPDATE_WRITABLE_SUBSCRIBER_FIELDS,
+} from "@/constants/subscriberFieldPolicy";
+import {
+  findImmutableViolations,
+  immutableRefusalMessage,
+  pickWritable,
+} from "@/lib/subscriberWriteGuard";
 import { currencySchema, dateSchema, subscriberCoreSchema } from "@/lib/subscriberWriteSchema";
 import { z } from "zod";
 
@@ -244,15 +252,15 @@ function todayString() {
  * also named `status` and `subscriptionStatus`, which the schema does not accept
  * — entries that could never match anything.
  *
- * Deriving it means a field is writable exactly when the policy table says so,
- * and the policy table is checked by the compiler against the Subscriber type.
+ * There are two sets because selling a subscription and editing a customer are
+ * not the same act. One list served both, which is how an "edit customer"
+ * dialog could reprice a subscription: price, exchange rate, duration, package
+ * and expiry were all writable on a record that had already been invoiced.
  */
-const SUBSCRIBER_WRITABLE_FIELDS = CLIENT_WRITABLE_SUBSCRIBER_FIELDS;
 
+/** Creation may set the terms of the sale; nothing else may. */
 function pickWritableFields(raw: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(raw).filter(([k]) => SUBSCRIBER_WRITABLE_FIELDS.has(k))
-  );
+  return pickWritable(raw, CREATE_WRITABLE_SUBSCRIBER_FIELDS);
 }
 
 function actorName(user: NonNullable<ServerUser>) {
@@ -764,9 +772,34 @@ async function updateSubscriber(user: NonNullable<ServerUser>, payload: Record<s
   const subscriberId = asString(payload.subscriberId);
   if (!subscriberId) throw new Error("Missing subscriberId");
 
-  // Allow-list: only non-financial, non-system fields may be updated directly.
   const raw = asRecord(payload.subscriber);
-  const safeUpdate = pickWritableFields(raw);
+  const ref = db.collection("subscribers").doc(subscriberId);
+
+  // Read first: refusing an attempt to move a term of the sale needs the value
+  // that is actually stored, not the one the caller says is stored.
+  const beforeSnap = await ref.get();
+  if (!beforeSnap.exists) throw new Error("Subscriber not found");
+  const beforeData = beforeSnap.data() ?? {};
+
+  /*
+   * The terms of the sale are refused here, not filtered out.
+   *
+   * Dropping them quietly would be the same failure this file already had once:
+   * a caller sends a value, gets a success, and the value is nowhere. A price
+   * someone believes they changed is worse than a price they were told they
+   * could not change. Only a *different* value is refused — an unchanged echo of
+   * the stored record is dropped, so the edit dialog can still rename a person.
+   */
+  const violations = findImmutableViolations(raw, beforeData);
+  if (violations.length > 0) {
+    const error = new Error(immutableRefusalMessage(violations)) as Error & { status?: number };
+    error.status = 422;
+    throw error;
+  }
+
+  // Allow-list: identity and contact only. The terms of the sale are set when
+  // the subscription is sold and moved afterwards only by a named operation.
+  const safeUpdate = pickWritable(raw, UPDATE_WRITABLE_SUBSCRIBER_FIELDS);
   if (Object.keys(safeUpdate).length === 0) throw new Error("No valid fields to update");
 
   // If convincedBy name is being changed without an explicit UID, resolve it now
@@ -778,12 +811,6 @@ async function updateSubscriber(user: NonNullable<ServerUser>, payload: Record<s
     if (!empSnap.empty) safeUpdate.convincedByUid = empSnap.docs[0].id;
   }
 
-  const ref = db.collection("subscribers").doc(subscriberId);
-
-  // Capture before-state for the audit trail
-  const beforeSnap = await ref.get();
-  if (!beforeSnap.exists) throw new Error("Subscriber not found");
-  const beforeData = beforeSnap.data() ?? {};
   const changedFields = Object.keys(safeUpdate);
   const previousData = Object.fromEntries(changedFields.map((k) => [k, beforeData[k] ?? null]));
 

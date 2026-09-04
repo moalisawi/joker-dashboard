@@ -20,36 +20,61 @@ import type { Subscriber } from "@/types/subscriber";
  *
  * The four classes:
  *
- *   client         the form owns it; the server stores what it is sent
- *   client_review  the client can write it today and probably should not —
- *                  see the note below; behaviour is identical to `client`
- *   server         the server computes or owns it; anything a client sends is
- *                  ignored (renewals, balances, timestamps, soft-delete flags)
- *   derived        never stored at all; computed on read from other fields
+ *   client       the form owns it; the server stores what it is sent, on
+ *                creation and on every later edit
+ *   create_only  a fact of the contract. Written when the subscription is
+ *                sold and immutable afterwards through the generic edit —
+ *                only a named operation (renew, resume, freeze) may move it
+ *   server       the server computes or owns it; anything a client sends is
+ *                ignored (renewals, balances, timestamps, soft-delete flags)
+ *   derived      never stored at all; computed on read from other fields
  *
  * `derived` is not a weaker `server`. A `server` field exists in Firestore and
  * is written by an operation; a `derived` field exists only in memory, and
  * writing one would create a second, staler copy of something already known.
  */
-export type FieldPolicy = "client" | "client_review" | "server" | "derived";
+export type FieldPolicy = "client" | "create_only" | "server" | "derived";
 
 /**
- * Fields a client can write today that arguably belong to the ledger.
+ * The terms of the sale. Written once, then owned by the ledger.
  *
- * `updateSubscriber` shares its allow-list with `createSubscriber`, so a price
- * or an exchange rate can be PATCHed straight onto the document without a
- * matching ledger entry. Narrowing that is a real change to who owns the money
- * — it would stop the edit dialog from repricing a subscription — and it is not
- * a Phase 0 change. It is recorded here, and the test asserts this list does not
- * grow, so nothing new joins it unnoticed.
+ * `updateSubscriber` used to share its allow-list with `createSubscriber`, so
+ * every one of these could be PATCHed onto the document with no matching entry
+ * anywhere in the ledger — a price could be raised, an exchange rate rewritten,
+ * or an expiry pushed out, and nothing downstream would record that it happened.
+ *
+ * Each is here because something was traced to it in the code, not because it
+ * looked financial:
+ *
+ *   totalPrice · totalPriceUSD   the amount invoiced. `adjustPayment` guards
+ *                                against paying more than this, so editing it
+ *                                moves a ceiling the ledger enforces.
+ *   lockedRate · currencyOriginal fixed at the moment of sale; the cycle and
+ *                                every payment store the rate they used, so a
+ *                                later edit would re-price history.
+ *   duration · package           the service that was sold. `renewSubscription`
+ *                                changes them by opening a NEW cycle.
+ *   expiryDate                   written by create, renew, and the two resume
+ *                                operations, each of which recomputes it from
+ *                                preserved days. Never typed in after the fact.
+ *   date · startDate             `revenueRecognition` spreads revenue from this
+ *                                date, and the monthly cohorts bucket on it.
+ *                                Moving it silently re-dates earned revenue.
+ *
+ * Sending one of these to `updateSubscriber` with a value that differs from
+ * what is stored is rejected. Sending it unchanged is ignored, so a form that
+ * echoes the whole record back can still edit a name.
  */
-export const CLIENT_REVIEW_FIELDS = [
+export const CREATE_ONLY_FIELDS = [
   "currencyOriginal",
   "lockedRate",
   "totalPrice",
   "totalPriceUSD",
   "duration",
+  "package",
   "expiryDate",
+  "date",
+  "startDate",
 ] as const;
 
 export const SUBSCRIBER_FIELD_POLICY: Record<keyof Subscriber, FieldPolicy> = {
@@ -69,19 +94,19 @@ export const SUBSCRIBER_FIELD_POLICY: Record<keyof Subscriber, FieldPolicy> = {
   notes:        "client",
 
   // ── the subscription as sold ──────────────────────────────────────────────
-  date:      "client",
-  startDate: "client",
-  package:   "client",
-  duration:      "client_review",
-  expiryDate:    "client_review",
+  date:      "create_only",
+  startDate: "create_only",
+  package:   "create_only",
+  duration:      "create_only",
+  expiryDate:    "create_only",
   daysRemaining: "derived",
   status:        "derived",
 
   // ── pricing ───────────────────────────────────────────────────────────────
-  currencyOriginal: "client_review",
-  lockedRate:       "client_review",
-  totalPrice:       "client_review",
-  totalPriceUSD:    "client_review",
+  currencyOriginal: "create_only",
+  lockedRate:       "create_only",
+  totalPrice:       "create_only",
+  totalPriceUSD:    "create_only",
   // `currency` mirrors currencyOriginal and is filled on read.
   currency:           "derived",
   paidAmount:         "server",
@@ -174,15 +199,29 @@ export const SUBSCRIBER_FIELD_POLICY: Record<keyof Subscriber, FieldPolicy> = {
   deletedBy: "server",
 };
 
+function fieldsWithPolicy(...policies: FieldPolicy[]): ReadonlySet<string> {
+  return new Set<string>(
+    Object.entries(SUBSCRIBER_FIELD_POLICY)
+      .filter(([, policy]) => policies.includes(policy))
+      .map(([field]) => field)
+  );
+}
+
 /**
- * The fields a client may write — derived, never hand-maintained.
+ * What a client may send when a subscription is being sold.
  *
- * `client_review` is included because it describes what the system does today.
- * Reclassifying those six is a deliberate change for a later phase, not a
- * side-effect of writing this table down.
+ * The terms of the sale are set here and nowhere else, so `create_only` belongs
+ * in this set and only in this one.
  */
-export const CLIENT_WRITABLE_SUBSCRIBER_FIELDS: ReadonlySet<string> = new Set<string>(
-  Object.entries(SUBSCRIBER_FIELD_POLICY)
-    .filter(([, policy]) => policy === "client" || policy === "client_review")
-    .map(([field]) => field)
-);
+export const CREATE_WRITABLE_SUBSCRIBER_FIELDS = fieldsWithPolicy("client", "create_only");
+
+/**
+ * What a generic "edit customer" may change: who the person is, not what they bought.
+ *
+ * The two sets differing is the entire point. One allow-list serving both paths
+ * is what let an edit dialog reprice a subscription.
+ */
+export const UPDATE_WRITABLE_SUBSCRIBER_FIELDS = fieldsWithPolicy("client");
+
+/** @deprecated Name kept for the create path; prefer CREATE_WRITABLE_SUBSCRIBER_FIELDS. */
+export const CLIENT_WRITABLE_SUBSCRIBER_FIELDS = CREATE_WRITABLE_SUBSCRIBER_FIELDS;

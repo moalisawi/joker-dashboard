@@ -1,6 +1,6 @@
 import {
-  CLIENT_REVIEW_FIELDS,
-  CLIENT_WRITABLE_SUBSCRIBER_FIELDS,
+  CREATE_ONLY_FIELDS,
+  CREATE_WRITABLE_SUBSCRIBER_FIELDS,
   SUBSCRIBER_FIELD_POLICY,
 } from '@/constants/subscriberFieldPolicy'
 import { SUBSCRIBER_SCHEMA_FIELDS } from '@/lib/subscriberWriteSchema'
@@ -36,7 +36,7 @@ describe('subscriber field policy', () => {
     // The mirror of the test above. A field marked client-writable that the
     // schema strips is just as invisible — Zod removes unknown keys silently.
     const accepted = new Set(SUBSCRIBER_SCHEMA_FIELDS)
-    const unreachable = [...CLIENT_WRITABLE_SUBSCRIBER_FIELDS].filter(
+    const unreachable = [...CREATE_WRITABLE_SUBSCRIBER_FIELDS].filter(
       (field) => !accepted.has(field)
     )
     expect(unreachable).toEqual([])
@@ -46,7 +46,7 @@ describe('subscriber field policy', () => {
     const leaked = Object.entries(SUBSCRIBER_FIELD_POLICY)
       .filter(([, policy]) => policy === 'server' || policy === 'derived')
       .map(([field]) => field)
-      .filter((field) => CLIENT_WRITABLE_SUBSCRIBER_FIELDS.has(field))
+      .filter((field) => CREATE_WRITABLE_SUBSCRIBER_FIELDS.has(field))
     expect(leaked).toEqual([])
   })
 
@@ -70,20 +70,19 @@ describe('subscriber field policy', () => {
       'currentInvoiceId',
     ]
     for (const field of mustNeverBeClientWritable) {
-      expect(CLIENT_WRITABLE_SUBSCRIBER_FIELDS.has(field)).toBe(false)
+      expect(CREATE_WRITABLE_SUBSCRIBER_FIELDS.has(field)).toBe(false)
     }
   })
 
-  it('holds the review list to exactly what is already known', () => {
-    // `client_review` marks fields a client can write today that arguably belong
-    // to the ledger. Narrowing them is a later decision; what must not happen is
-    // the list quietly growing, so a new one is a failing test rather than a
-    // discovery six months on.
+  it('holds the terms of the sale to exactly the traced list', () => {
+    // Every `create_only` field was put there because a writer of it was traced
+    // in the code. A tenth appearing without that trace is a failing test rather
+    // than a discovery six months on.
     const flagged = Object.entries(SUBSCRIBER_FIELD_POLICY)
-      .filter(([, policy]) => policy === 'client_review')
+      .filter(([, policy]) => policy === 'create_only')
       .map(([field]) => field)
       .sort()
-    expect(flagged).toEqual([...CLIENT_REVIEW_FIELDS].sort())
+    expect(flagged).toEqual([...CREATE_ONLY_FIELDS].sort())
   })
 
   it('reads back every field a client is allowed to write', () => {
@@ -107,7 +106,7 @@ describe('subscriber field policy', () => {
       totalPriceUSD: 100,
       gender: 'male',
     }
-    for (const field of CLIENT_WRITABLE_SUBSCRIBER_FIELDS) {
+    for (const field of CREATE_WRITABLE_SUBSCRIBER_FIELDS) {
       raw[field] = sample[field] ?? `v-${field}`
     }
 
@@ -115,7 +114,7 @@ describe('subscriber field policy', () => {
       raw as Record<string, unknown> & { id: string }
     ) as unknown as Record<string, unknown>
 
-    const dropped = [...CLIENT_WRITABLE_SUBSCRIBER_FIELDS].filter(
+    const dropped = [...CREATE_WRITABLE_SUBSCRIBER_FIELDS].filter(
       (field) => normalized[field] === undefined
     )
     expect(dropped).toEqual([])
