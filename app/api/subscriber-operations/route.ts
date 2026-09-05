@@ -887,7 +887,20 @@ async function updateSubscriber(user: NonNullable<ServerUser>, payload: Record<s
   // Allow-list: identity and contact only. The terms of the sale are set when
   // the subscription is sold and moved afterwards only by a named operation.
   const safeUpdate = pickWritable(raw, UPDATE_WRITABLE_SUBSCRIBER_FIELDS);
-  if (Object.keys(safeUpdate).length === 0) throw new Error("No valid fields to update");
+  if (Object.keys(safeUpdate).length === 0) {
+    /*
+     * Everything sent was server-owned — a balance, a lifecycle flag, the
+     * acquisition date, the soft-delete marker. That is a refused request, not
+     * a broken server, and answering 500 told the caller to retry something
+     * that will never succeed.
+     */
+    const error = new Error(
+      "لا يوجد حقل قابل للتعديل في هذا الطلب — الحقول المرسلة يملكها الخادم " +
+      "(الأرصدة، حالة الاشتراك، تاريخ الاكتساب، الحذف) وتتغيّر بعملياتها الخاصة وحدها."
+    ) as Error & { status?: number };
+    error.status = 422;
+    throw error;
+  }
 
   // If convincedBy name is being changed without an explicit UID, resolve it now
   if (safeUpdate.convincedBy && !safeUpdate.convincedByUid) {
