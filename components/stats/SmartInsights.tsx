@@ -123,10 +123,11 @@ export default function SmartInsights({ subscribers, payments = [] }: Props) {
     const expiring7  = subscribers.filter(
       (s) => s.daysRemaining > 0 && s.daysRemaining <= 7 && s.subscriptionState !== "withdrawn"
     ).length;
-    const thisMonth  = subscribers.filter((s) => toStr(s.date).startsWith(ym)).length;
+    // Acquisition: firstSubscribedAt, never date — date follows the cycle.
+    const thisMonth  = subscribers.filter((s) => toStr(s.firstSubscribedAt ?? s.date).startsWith(ym)).length;
     const lastMonthYm = new Date(now.getFullYear(), now.getMonth() - 1, 1)
       .toISOString().slice(0, 7);
-    const lastMonth  = subscribers.filter((s) => toStr(s.date).startsWith(lastMonthYm)).length;
+    const lastMonth  = subscribers.filter((s) => toStr(s.firstSubscribedAt ?? s.date).startsWith(lastMonthYm)).length;
     const growthPct  = lastMonth > 0
       ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100)
       : thisMonth > 0 ? 100 : 0;

@@ -223,7 +223,12 @@ export interface MonthlyAcquisition {
 }
 
 /**
- * Buckets subscribers by the month they joined (s.date) for the last `months`.
+ * Buckets subscribers by the month they were won, for the last `months`.
+ *
+ * Reads `firstSubscribedAt`, not `date`. Both this function and its old
+ * comment said "the month they joined" while reading a field that
+ * `renewSubscription` overwrites with the new cycle's start — so the first
+ * renewal would have moved a customer out of the month that won them.
  * Revenue = paidAmountUSD at time of joining (initial payment proxy).
  */
 export function monthlyAcquisitionTrend(
@@ -241,7 +246,7 @@ export function monthlyAcquisitionTrend(
   }
 
   for (const s of subscribers) {
-    const ym = toDateStr(s.date).slice(0, 7);
+    const ym = toDateStr(s.firstSubscribedAt ?? s.date).slice(0, 7);
     if (!ym || !map.has(ym)) continue;
     const slot = map.get(ym)!;
     slot.subscribers++;

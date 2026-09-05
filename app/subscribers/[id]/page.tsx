@@ -263,7 +263,7 @@ export default function SubscriberWorkspacePage() {
                       </a>
                     )}
                     <span className="flex items-center gap-1.5">
-                      انضم {formatDate(s.date)}
+                      انضم {formatDate(s.firstSubscribedAt || s.date)}
                     </span>
                     <span className="flex items-center gap-1.5">
                       ينتهي {formatDate(s.expiryDate)}

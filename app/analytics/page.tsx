@@ -490,8 +490,9 @@ export default function AnalyticsPage() {
       return Math.max(0, g-r);
     };
     const curRev  = revFor(curYM), prvRev  = revFor(prvYM);
-    const curCnt  = subscribers.filter(s=>toDateStr(s.date).slice(0,7)===curYM).length;
-    const prvCnt  = subscribers.filter(s=>toDateStr(s.date).slice(0,7)===prvYM).length;
+    // Acquisition counts — see firstSubscribedAt on the Subscriber type.
+    const curCnt  = subscribers.filter(s=>toDateStr(s.firstSubscribedAt ?? s.date).slice(0,7)===curYM).length;
+    const prvCnt  = subscribers.filter(s=>toDateStr(s.firstSubscribedAt ?? s.date).slice(0,7)===prvYM).length;
     const revD    = prvRev>0 ? ((curRev-prvRev)/prvRev)*100 : null;
     const cntD    = prvCnt>0 ? ((curCnt-prvCnt)/prvCnt)*100 : null;
     const growPct = prvCnt>0 ? +((curCnt-prvCnt)/prvCnt*100).toFixed(1) : null;

@@ -54,9 +54,13 @@ export default function ActivityTimeline({ subscribers, payments = [] }: Props) 
     const result: TimelineEvent[] = [];
 
     // Recent new subscribers
+    // "New subscribers" means newly won, so this timeline orders by when the
+    // customer was acquired rather than when their current cycle started.
     [...subscribers]
-      .filter((s) => toDateStr(s.date))
-      .sort((a, b) => (toDateStr(b.date) > toDateStr(a.date) ? 1 : -1))
+      .filter((s) => toDateStr(s.firstSubscribedAt ?? s.date))
+      .sort((a, b) =>
+        toDateStr(b.firstSubscribedAt ?? b.date) > toDateStr(a.firstSubscribedAt ?? a.date) ? 1 : -1
+      )
       .slice(0, 8)
       .forEach((s) => {
         result.push({
@@ -64,7 +68,7 @@ export default function ActivityTimeline({ subscribers, payments = [] }: Props) 
           type: "subscriber",
           title: s.name,
           subtitle: `اشتراك ${s.package === "ذهبية" ? "ذهبي ✨" : "فضي"} · ${s.status}`,
-          date: toDateStr(s.date),
+          date: toDateStr(s.firstSubscribedAt ?? s.date),
           icon: <UserPlus size={13} />,
           iconBg: "#EEF0FF",
           iconColor: "#5B5FEF",

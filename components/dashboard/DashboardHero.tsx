@@ -66,14 +66,15 @@ export default function DashboardHero({ subscribers, payments = [] }: Props) {
       })
       .reduce((s, p) => s + (p.amountUSD ?? 0), 0);
     const activeRate = total > 0 ? Math.round((active / total) * 100) : 0;
-    const thisMonth = subscribers.filter((s) => {
-      const d = typeof s.date === "string" ? s.date : "";
-      return d.startsWith(ym);
-    }).length;
-    const lastMonth = subscribers.filter((s) => {
-      const d = typeof s.date === "string" ? s.date : "";
-      return d.startsWith(lastYm);
-    }).length;
+    // Growth compares customers WON per month, so both sides read the
+    // acquisition date. `date` moves on renewal and would inflate whichever
+    // month the renewals happened to land in.
+    const acquired = (s: { firstSubscribedAt?: string | null; date?: string }) =>
+      typeof s.firstSubscribedAt === "string" && s.firstSubscribedAt
+        ? s.firstSubscribedAt
+        : typeof s.date === "string" ? s.date : "";
+    const thisMonth = subscribers.filter((s) => acquired(s).startsWith(ym)).length;
+    const lastMonth = subscribers.filter((s) => acquired(s).startsWith(lastYm)).length;
     const growth = lastMonth > 0
       ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100)
       : thisMonth > 0 ? 100 : 0;

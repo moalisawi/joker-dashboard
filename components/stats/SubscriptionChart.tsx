@@ -70,7 +70,9 @@ export default function SubscriptionChart({ subscribers, payments = [] }: Props)
     for (let i = 11; i >= 0; i--) {
       const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const ym  = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const subs = subscribers.filter((s) => toStr(s.date).startsWith(ym)).length;
+      // New subscribers in the month — an acquisition count, so it reads the
+      // acquisition date rather than the current cycle start.
+      const subs = subscribers.filter((s) => toStr(s.firstSubscribedAt ?? s.date).startsWith(ym)).length;
       const rev  = payments
         .filter((p) => toStr(p.date).startsWith(ym))
         .reduce((sum, p) => sum + (p.amountUSD ?? 0), 0);

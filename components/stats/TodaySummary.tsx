@@ -378,7 +378,8 @@ export default function TodaySummary({ subscribers, loading = false }: Props) {
 
   // ── New subscribers that day ───────────────────────────────────────────────
   const daySubs = useMemo(
-    () => subscribers.filter(s => (typeof s.date === "string" ? s.date : "").slice(0, 10) === date),
+    // Subscribers won today. A renewal recorded today is not a new customer.
+    () => subscribers.filter(s => String(s.firstSubscribedAt ?? s.date ?? "").slice(0, 10) === date),
     [subscribers, date],
   );
   const total     = daySubs.length;

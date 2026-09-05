@@ -60,7 +60,8 @@ export default function AdvancedStats({ subscribers }: Props) {
     [subscribers]
   );
   const months = useMemo(
-    () => [...new Set(subscribers.map((s) => (s.date || "").slice(0, 7)).filter(Boolean))].sort().reverse(),
+    // The month list and the filter both mean "won in this month".
+    () => [...new Set(subscribers.map((s) => (s.firstSubscribedAt || s.date || "").slice(0, 7)).filter(Boolean))].sort().reverse(),
     [subscribers]
   );
   const paymentMethodOptions = useMemo(() => {
@@ -75,7 +76,7 @@ export default function AdvancedStats({ subscribers }: Props) {
       (s) =>
         (!filterPkg     || s.package === filterPkg) &&
         (!filterCountry || s.residence === filterCountry) &&
-        (!filterMonth   || (s.date || "").slice(0, 7) === filterMonth) &&
+        (!filterMonth   || (s.firstSubscribedAt || s.date || "").slice(0, 7) === filterMonth) &&
         (!filterEmp     || s.convincedBy === filterEmp) &&
         (!filterPayment || resolvePaymentName(s) === filterPayment)
     );
