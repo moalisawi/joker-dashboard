@@ -50,6 +50,14 @@ import {
   UPDATE_WRITABLE_SUBSCRIBER_FIELDS,
 } from "@/constants/subscriberFieldPolicy";
 import {
+  closedPeriodsInSpan,
+  restatementRefusal,
+} from "@/lib/financialPeriod";
+import {
+  assertPeriodOpenForDate,
+  readClosedPeriods,
+} from "@/lib/serverFinancialPeriod";
+import {
   MIN_REASON_LENGTH,
   applyCorrection,
   refuseCorrection,
@@ -673,6 +681,13 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
   // build a schedule can never leave a subscriber without a balance.
   const today = todayString();
   const startDate = asString(safeSubscriber.startDate) || asString(safeSubscriber.date) || today;
+
+  // The opening payment is a payment like any other, and the invoice is issued
+  // on the service start — both are money dated into a month that may be closed.
+  if (amountOriginal > 0) {
+    await assertPeriodOpenForDate(asString(initialPayment.date, asString(subscriber.date, today)), "payment");
+  }
+  await assertPeriodOpenForDate(startDate, "invoice");
   const plan = asRecord(payload.paymentPlan);
   const totalPriceOriginal = asNumber(safeSubscriber.totalPrice);
   const currencyOriginal = asString(subscriber.currencyOriginal, "USD");
@@ -752,6 +767,15 @@ async function createSubscriber(user: NonNullable<ServerUser>, payload: Record<s
       ...safeSubscriber,
       // حفظ startDate صراحةً لضمان اتساق البيانات مع renewals
       startDate,
+      /*
+       * The acquisition date, written here and never again.
+       *
+       * `date` and `startDate` both mean "start of the current cycle" —
+       * renewSubscription overwrites both — so neither can answer "which month
+       * won this customer". For a first cycle the two coincide, which is why
+       * this is seeded from startDate; from the first renewal onward they part.
+       */
+      firstSubscribedAt: startDate,
       subscriptionState: "active",
       paidAmount: opening.paidAmount,
       paidAmountUSD: opening.paidAmountUSD,
@@ -941,6 +965,11 @@ async function addPayment(user: NonNullable<ServerUser>, payload: Record<string,
   let newRemainingUSD = 0;
 
   const today = todayString();
+
+  // A payment belongs to the month it is dated to, so a closed month refuses it.
+  // Checked before the transaction: refusing after writing is not refusing.
+  await assertPeriodOpenForDate(asString(payload.date, today), "payment");
+
   let ledger: ReturnType<typeof stageLedgerPayment> | null = null;
 
   await db.runTransaction(async (tx) => {
@@ -1086,6 +1115,11 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
                        .collection("renewalHistory").doc();
 
   const today = todayString();
+
+  // A renewal issues an invoice and may take money, both dated into a month
+  // that could be closed.
+  await assertPeriodOpenForDate(asString(payload.renewalDate, today), "invoice");
+
   const plan = asRecord(payload.paymentPlan);
   let newCycleId: string | null = null;
   let newInvoiceId: string | null = null;
@@ -1223,6 +1257,9 @@ async function renewSubscription(user: NonNullable<ServerUser>, payload: Record<
     }
 
     tx.update(subRef, {
+      // firstSubscribedAt is deliberately absent: a renewal is not an
+      // acquisition. `date` and `startDate` both move to the new cycle here,
+      // which is exactly why the acquisition date needed a field of its own.
       date: startDate,
       startDate,
       expiryDate: endDate,
@@ -1961,6 +1998,31 @@ async function correctCycleTerms(user: NonNullable<ServerUser>, payload: Record<
     // Any hold in the past means expiry no longer equals start + duration.
     everHeld:           asNumber(current.totalPausedDays) > 0 || Object.keys(freezeData).length > 0,
   };
+
+  /*
+   * A correction to price or duration re-spreads recognised revenue across the
+   * whole service span, not only the month the correction is made in. If any
+   * month in that span is closed, its snapshot and a fresh computation would
+   * disagree, and choosing between them is an accounting policy nobody has set.
+   * Reopening is already defined, owner-only and audited — so that is the path.
+   */
+  const touchesRecognition =
+    changes.totalPriceOriginal !== undefined ||
+    changes.lockedRate !== undefined ||
+    changes.duration !== undefined;
+  if (touchesRecognition) {
+    const closed = await readClosedPeriods();
+    const hit = closedPeriodsInSpan(
+      state.startDate,
+      changes.duration ?? state.duration,
+      closed
+    );
+    if (hit.length > 0) {
+      const error = new Error(restatementRefusal(hit)) as Error & { status?: number };
+      error.status = 422;
+      throw error;
+    }
+  }
 
   const refusals = refuseCorrection(changes, state, reason);
   if (refusals.length > 0) {

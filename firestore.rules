@@ -214,11 +214,18 @@ service cloud.firestore {
       allow delete:        if isOwner();
     }
 
-    // ─── monthlyAnalytics — Cloud Functions write only ────────────────────
-    match /monthlyAnalytics/{month} {
-      allow read:          if isStaff() || (isAuth() && hasPerm('analytics', 'view'));
-      allow write:         if false;
+    // ─── financialPeriods — server writes only ────────────────────────────
+    // Closing a month is an owner-only operation behind the API; the rules deny
+    // every client write so no path exists around that check.
+    match /financialPeriods/{period} {
+      allow read:  if isStaff() || (isAuth() && hasPerm('analytics', 'view'));
+      allow write: if false;
     }
+
+    // monthlyAnalytics is gone. It was a stored monthly aggregate that no
+    // screen read and that had already drifted from the payments it summarised,
+    // and nothing in the app may recreate it: every financial figure is computed
+    // from payments, refunds and paymentAdjustments at read time.
 
     // ─── exchangeRates ────────────────────────────────────────────────────
     match /exchangeRates/{id} {

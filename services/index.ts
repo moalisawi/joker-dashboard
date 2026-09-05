@@ -8,7 +8,6 @@ export { freezeService } from "./freeze.service";
 export { paymentService } from "./payments.service";
 export { refundService } from "./refunds.service";
 export { withdrawalService } from "./withdrawal.service";
-export { analyticsService } from "./analytics.service";
 export { userService } from "./users.service";
 export { permissionService } from "./permission.service";
 export { auditService } from "./audit.service";

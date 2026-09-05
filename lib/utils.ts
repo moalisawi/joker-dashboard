@@ -152,6 +152,10 @@ export function normalizeSubscriber(raw: Record<string, unknown> & { id: string 
     id: raw.id,
     date: (raw.date as string) || (raw.startDate as string) || "",
     startDate: (raw.startDate as string) || (raw.date as string) || "",
+    // Falls back to the cycle start only for records written before this
+    // existed. For those, the first cycle IS the acquisition, so the two agree.
+    firstSubscribedAt:
+      (raw.firstSubscribedAt as string) || (raw.date as string) || (raw.startDate as string) || "",
     name: (raw.name as string) || "",
     residence: (raw.residence as string) || (raw.country as string) || "",
     phoneCountry: (raw.phoneCountry as string) || "",

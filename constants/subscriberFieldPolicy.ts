@@ -189,6 +189,11 @@ export const SUBSCRIBER_FIELD_POLICY: Record<keyof Subscriber, FieldPolicy> = {
   renewalHandledByName:    "server",
   renewalNote:             "server",
 
+  // Acquisition date: set once by the create operation, never by a form and
+  // never by a renewal. A client that could write it could re-date a customer
+  // into a month that did not earn them.
+  firstSubscribedAt: "server",
+
   // ── meta ──────────────────────────────────────────────────────────────────
   createdAt: "server",
   createdBy: "server",

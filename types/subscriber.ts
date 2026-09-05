@@ -143,6 +143,20 @@ export interface Subscriber {
   currentInvoiceId?: string | null;
   paymentPlanType?: import("./billing").PaymentPlanType;
 
+  /**
+   * When this customer was first acquired. Written once, never moved.
+   *
+   * `date` and `startDate` both mean "the start of the CURRENT cycle" —
+   * `renewSubscription` overwrites both with the new cycle's start. That makes
+   * `date` unusable as an acquisition date even though six screens read it as
+   * one, and the comment above `subscribersByMonth` calls it "the month they
+   * joined". Nothing in the system held the acquisition date at all.
+   *
+   * This does. Renewal must never touch it: a renewal is not an acquisition,
+   * and counting it as one moves the customer out of the month that earned them.
+   */
+  firstSubscribedAt?: string;
+
   // Meta
   createdAt?: Timestamp;
   createdBy?: string;

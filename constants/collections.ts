@@ -5,7 +5,6 @@ export const COLLECTIONS = {
   REFUNDS:                 "refunds",
   AUDIT_LOGS:              "auditLogs",
   NOTIFICATIONS:           "notifications",
-  MONTHLY_ANALYTICS:       "monthlyAnalytics",
   TEAMS:                   "teams",
   SUBSCRIBER_NOTES:        "subscriberNotes",
   SUBSCRIBER_ASSIGNMENTS:  "subscriberAssignments",

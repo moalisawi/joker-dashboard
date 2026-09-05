@@ -26,7 +26,6 @@ export type { AccountStatus, GranularPermissions } from "./permissions";
 export { PERMISSION_LABELS, PERMISSION_DESCRIPTIONS } from "./permissions";
 
 // Analytics types
-export type { MonthlyAnalytics, AnalyticsBreakdown } from "./analytics";
 
 // Common types
 export type { AuditLog, PhoneCountry, ExchangeRates } from "./common";
