@@ -204,8 +204,6 @@ async function main() {
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
   console.log(`\n✅ Done — ${total} documents migrated in ${elapsed}s`);
-  console.log("\n💡 Next: recompute monthlyAnalytics for each past month:");
-  console.log('   Call recomputeMonthlyAnalytics({ month: "YYYY-MM" }) from Firebase Console\n');
 
   process.exit(0);
 }

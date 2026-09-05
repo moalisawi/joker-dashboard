@@ -13,9 +13,10 @@
  *   3. Run:
  *      node migrate.js
  *
- * monthlyAnalytics is intentionally skipped — the Cloud Function will
- * recompute it. Call recomputeMonthlyAnalytics({ month: "YYYY-MM" }) from
- * the Firebase Console or your admin UI for each past month you need.
+ * monthlyAnalytics is not migrated because it no longer exists. It was a stored
+ * monthly aggregate that had drifted from the payments it summarised, and every
+ * financial figure is now computed from payments, refunds, adjustments, cycles
+ * and invoices at read time. There is nothing to recompute after a migration.
  */
 
 const admin = require("firebase-admin");
@@ -32,7 +33,7 @@ const COLLECTIONS = [
   "auditLogs",
   "notifications",
   "exchangeRates",
-  // "monthlyAnalytics" — skipped, recomputed by Cloud Function
+  // monthlyAnalytics — removed from the system; nothing to migrate.
 ];
 
 const BATCH_SIZE = 400; // safely below Firestore's 500-op limit
@@ -100,7 +101,6 @@ async function migrateCollection(name) {
 async function main() {
   console.log("🚀 Migration: joker-52b38 → joker-prod");
   console.log("   Collections:", COLLECTIONS.join(", "));
-  console.log("   monthlyAnalytics: skipped (recomputed by Cloud Function)\n");
 
   const start = Date.now();
 
@@ -110,8 +110,6 @@ async function main() {
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
   console.log(`\n✅ Done in ${elapsed}s`);
-  console.log("\nNext step: recompute monthlyAnalytics for each past month via:");
-  console.log('  recomputeMonthlyAnalytics({ month: "YYYY-MM" })\n');
 
   process.exit(0);
 }
