@@ -16,7 +16,7 @@
 | `refunds` | Refund transactions | Medium |
 | `auditLogs` | Full audit trail | Very High |
 | `notifications` | In-app notifications | High |
-| `monthlyAnalytics` | Pre-aggregated analytics | Low |
+| ~~`monthlyAnalytics`~~ | **REMOVED** — see below | — |
 | `teams` | Team groupings | Low |
 | `subscriberNotes` | Internal notes per subscriber | Medium |
 | `subscriberAssignments` | Assignment history | Medium |
@@ -501,12 +501,32 @@ notifications/{notificationId}
 
 ---
 
-### `monthlyAnalytics`
+### ~~`monthlyAnalytics`~~ — REMOVED
 
-Pre-aggregated monthly financial summaries (updated on every transaction).
+> **Deleted in the Financial Foundation Cleanup. Do not recreate it.**
+>
+> It stored pre-aggregated monthly financial summaries, updated by two Firestore
+> triggers, a monthly cron and a callable. It was a second copy of figures the
+> source documents already held, and it had drifted from them: the stored
+> `2026-05` document claimed 12 payments totalling $900 against 13 totalling
+> $2,021 in `payments`. No screen read it — both consumer components were
+> unreferenced and `analytics.service.ts` had no callers.
+>
+> It also carried a write bug: the triggers used `set(delta, {merge:true})` with
+> dotted keys, which stores the dotted string as a literal field name, so the
+> production document held a field actually called
+> `byEmployee.<uid>.totalPaymentsUSD`.
+>
+> **Every financial figure is now computed from the source documents at read
+> time** — `payments`, `refunds`, `paymentAdjustments`, `subscriptionCycles`,
+> `invoices`, `installments`. No replacement aggregate exists and none should be
+> introduced. A regression test fails if any reader, writer or dotted-key writer
+> reappears.
+>
+> The shape below is kept only as a record of what used to exist.
 
 ```
-monthlyAnalytics/{YYYY-MM}
+monthlyAnalytics/{YYYY-MM}   (historical — no longer written or read)
 ├── id                    : string           — document ID = "YYYY-MM"
 ├── month                 : string           — "YYYY-MM"
 ├── totalPaymentsUSD      : number
@@ -529,7 +549,7 @@ monthlyAnalytics/{YYYY-MM}
 └── updatedBy             : string
 ```
 
-**Indexes**: `month`
+**Indexes**: none — the collection no longer exists.
 
 ---
 
@@ -750,7 +770,7 @@ users ────────────────────────�
   └── whatsappLeads (assignedTo → users.uid) ────────┘
          └── whatsappMessages (leadId)
 
-monthlyAnalytics  ← aggregated from payments + refunds
+financialPeriods  ← month open/closed state; not a figure source
 exchangeRates     ← standalone config
 paymentMethods    ← standalone config
 cannedResponses   ← standalone config
@@ -766,7 +786,7 @@ cannedResponses   ← standalone config
 | `renewals[]` embedded in subscriber | Snapshot-based; no separate renewal collection needed |
 | `auditLogs` is write-once | Compliance; never update or delete |
 | Soft delete (`deleted + deletedAt + deletedBy`) | Data preservation and audit trail |
-| `monthlyAnalytics` pre-aggregated | Avoid expensive Firestore aggregations on reports |
+| ~~`monthlyAnalytics` pre-aggregated~~ | **Reversed.** The stored aggregate drifted from the payments it summarised; figures are derived from source documents instead |
 | `assignmentHistory[]` embedded in subscriber | Quick access to full history without joins |
 | `lockedRate` stored on each subscriber/payment | Exchange rate at time of transaction; immutable for financial accuracy |
 

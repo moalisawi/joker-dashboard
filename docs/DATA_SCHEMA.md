@@ -19,7 +19,7 @@
 | [`teams`](#9-teams) | الفرق | Medium |
 | [`subscriberNotes`](#10-subscribernotes) | ملاحظات داخلية على المشتركين | Medium |
 | [`activityLogs`](#11-activitylogs) | سجل تغييرات الفرق والموظفين | Medium |
-| [`monthlyAnalytics`](#12-monthlyanalytics) | تحليلات شهرية محسوبة مسبقاً | Medium |
+| ~~[`monthlyAnalytics`](#12-monthlyanalytics)~~ | **مُزالة** — انظر القسم ١٢ | — |
 | [`paymentMethods`](#13-paymentmethods) | طرق الدفع المتاحة | Low |
 | [`exchangeRates`](#14-exchangerates) | أسعار الصرف | Low |
 | [`whatsappLeads`](#15-whatsappleads) | عملاء WhatsApp | Low |
@@ -734,9 +734,19 @@ type DeviceType     = "desktop" | "mobile" | "tablet"
 
 ---
 
-## 12. `monthlyAnalytics`
+## 12. ~~`monthlyAnalytics`~~ — مُزالة
 
-بيانات محسوبة مسبقاً لتسريع لوحة التحليلات.
+> **حُذفت ضمن تنظيف الأساس المالي. لا تُعاد.**
+>
+> كانت تخزّن ملخّصات مالية شهرية محسوبة مسبقاً. وكانت نسخة ثانية من أرقام تحملها
+> الوثائق المصدر أصلاً، وقد انحرفت عنها فعلاً: وثيقة `2026-05` المخزّنة تقول
+> ١٢ دفعة بـ$900 بينما `payments` فيها ١٣ دفعة بـ$2,021. ولم تكن أي شاشة تقرأها.
+>
+> **كل رقم مالي يُحسب الآن من الوثائق المصدر وقت القراءة** — `payments` و`refunds`
+> و`paymentAdjustments` و`subscriptionCycles` و`invoices` و`installments`.
+> لا يوجد بديل مجمَّع ولا ينبغي استحداثه، واختبار تراجُع يفشل إن عاد أي قارئ أو كاتب.
+>
+> البنية أدناه محفوظة كسجلّ تاريخي لما كان موجوداً.
 
 ```typescript
 {
@@ -910,7 +920,8 @@ whatsappLeads
 | `notifications` | CRUD | CRU | R |
 | `loginSessions` | CRUD | R | R (نفسه) |
 | `teams` | CRUD | R | R |
-| `monthlyAnalytics` | R | R | — |
+| ~~`monthlyAnalytics`~~ | مُزالة | مُزالة | مُزالة |
+| `financialPeriods` | R | R | R (بصلاحية التحليلات) |
 
 ---
 

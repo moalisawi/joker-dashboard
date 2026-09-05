@@ -99,7 +99,21 @@ collection(db, COLLECTIONS.SUBSCRIBERS)
 | `COLLECTIONS.REFUNDS` | `refunds` | Refund records |
 | `COLLECTIONS.AUDIT_LOGS` | `auditLogs` | Full audit trail |
 | `COLLECTIONS.NOTIFICATIONS` | `notifications` | In-app notifications |
-| `COLLECTIONS.MONTHLY_ANALYTICS` | `monthlyAnalytics` | Pre-aggregated monthly stats |
+
+> **REMOVED — `COLLECTIONS.MONTHLY_ANALYTICS` / `monthlyAnalytics`.**
+> A pre-aggregated monthly summary, deleted in the Financial Foundation Cleanup.
+> It was a second copy of figures the source documents already held, and it had
+> drifted from them: the stored `2026-05` document claimed 12 payments totalling
+> $900 against 13 totalling $2,021 in `payments`. No screen read it.
+>
+> Every financial figure is computed from the source documents at read time —
+> `payments`, `refunds`, `paymentAdjustments`, `subscriptionCycles`, `invoices`,
+> `installments`. **No replacement aggregate was introduced, and none should be.**
+>
+> The month's *state* — open or closed — lives in `financialPeriods/{YYYY-MM}`,
+> addressed by `PERIODS` in `lib/serverFinancialPeriod.ts` rather than through
+> `COLLECTIONS`. That document is a permission and a record of what was reported;
+> it is **not** a source of truth for any figure.
 
 ### Document conventions
 

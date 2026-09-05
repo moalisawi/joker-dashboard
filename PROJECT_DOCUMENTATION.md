@@ -67,11 +67,14 @@
 - `useAuditLogs.ts`
 - `useAuth.ts`
 - `useFrozen.ts`
-- `useMonthlyAnalytics.ts`
 - `useNotificationsListener.ts`
 - `usePayments.ts`
 - `useRefunds.ts`
 - `useSubscribers.ts`
+
+> **مُزال — `useMonthlyAnalytics.ts`.** حُذف ضمن تنظيف الأساس المالي مع مجموعة
+> `monthlyAnalytics` نفسها. لم يكن أي شاشة تقرأ منه، والأرقام المالية تُحسب الآن
+> من الوثائق المصدر مباشرةً. **لم يُستحدث بديل مجمَّع، ولا ينبغي.**
 
 ### `lib/`
 
